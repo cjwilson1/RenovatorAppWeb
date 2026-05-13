@@ -1,0 +1,5 @@
+<Solution>
+  <Project Path="RenovatorApp.Infrastructure/RenovatorApp.Infrastructure.csproj" />
+  <Project Path="RenovatorApp.Jobs/RenovatorApp.Jobs.csproj" />
+  <Project Path="RenovatorApp.Web/RenovatorApp.Web.csproj" />
+</Solution>

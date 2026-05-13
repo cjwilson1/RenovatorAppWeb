@@ -1,0 +1,38 @@
+@model IReadOnlyList<RenovatorApp.Web.ViewModels.InspectionListItemViewModel>
+@{
+    ViewData["Title"] = "Inspections";
+}
+
+<div class="page-header-row">
+    <div>
+        <h1>Inspections</h1>
+        <p class="text-muted">Inspection records stored in the RenovatorApp PostgreSQL database.</p>
+    </div>
+</div>
+
+@if (Model.Count == 0)
+{
+    <div class="empty-state">
+        <h2>No inspections found</h2>
+        <p>Inspections will appear here after data is added or synced from RenovatorMaui.</p>
+    </div>
+}
+else
+{
+    <div class="inspection-list">
+        @foreach (var inspection in Model)
+        {
+            <a class="inspection-row" asp-controller="Inspections" asp-action="Details" asp-route-id="@inspection.Id">
+                <div>
+                    <strong>@inspection.Title</strong>
+                    <div class="text-muted">@inspection.PropertyAddress</div>
+                    @if (!string.IsNullOrWhiteSpace(inspection.ClientName))
+                    {
+                        <div class="text-muted">@inspection.ClientName</div>
+                    }
+                </div>
+                <span class="text-muted">@inspection.InspectionDate.ToString("d")</span>
+            </a>
+        }
+    </div>
+}

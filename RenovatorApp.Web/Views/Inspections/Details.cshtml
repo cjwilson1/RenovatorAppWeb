@@ -1,0 +1,56 @@
+@model RenovatorApp.Web.ViewModels.InspectionDetailViewModel
+@{
+    ViewData["Title"] = Model.Inspection.Title;
+}
+
+<div class="page-header-row">
+    <div>
+        <h1>@Model.Inspection.Title</h1>
+        <p class="text-muted">@Model.Inspection.InspectionDate.ToString("d")</p>
+    </div>
+    <button class="btn btn-primary" type="button" disabled>Create Inspection Report</button>
+</div>
+
+<div class="detail-grid">
+    <section class="detail-section">
+        <h2>General</h2>
+        <dl>
+            <dt>Inspector</dt>
+            <dd>@Model.Inspection.InspectorName</dd>
+            <dt>Last Updated</dt>
+            <dd>@Model.Inspection.UpdatedAtUtc.ToLocalTime().ToString("g")</dd>
+            <dt>Notes</dt>
+            <dd>@(string.IsNullOrWhiteSpace(Model.Inspection.GeneralNotes) ? "None" : Model.Inspection.GeneralNotes)</dd>
+        </dl>
+    </section>
+
+    <section class="detail-section">
+        <h2>Property</h2>
+        <p>@(string.IsNullOrWhiteSpace(Model.PropertyAddress) ? "No property address" : Model.PropertyAddress)</p>
+    </section>
+
+    <section class="detail-section">
+        <h2>Client</h2>
+        <p>@(string.IsNullOrWhiteSpace(Model.ClientName) ? "No client assigned" : Model.ClientName)</p>
+    </section>
+
+    <section class="detail-section detail-section-wide">
+        <h2>Buildings</h2>
+        @if (Model.Inspection.Property.Buildings.Count == 0)
+        {
+            <p>No buildings found.</p>
+        }
+        else
+        {
+            <ul class="plain-list">
+                @foreach (var building in Model.Inspection.Property.Buildings.OrderBy(building => building.SortOrder).ThenBy(building => building.Name))
+                {
+                    <li>
+                        <strong>@building.Name</strong>
+                        <span class="text-muted">@building.BuildingType?.Name</span>
+                    </li>
+                }
+            </ul>
+        }
+    </section>
+</div>
