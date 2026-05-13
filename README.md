@@ -14,7 +14,7 @@ Set `ConnectionStrings:RenovatorApp` in `RenovatorApp.Web/appsettings.json` or p
 
 ## Railway deployment
 
-Railway deploys this app from the root `Dockerfile`.
+Railway deploys this app from the root `Dockerfile`. The root `railway.json` forces Railway to use the Dockerfile builder instead of Railpack.
 
 1. Create a new Railway project.
 2. Add a PostgreSQL database service to the project.
@@ -29,6 +29,13 @@ ASPNETCORE_ENVIRONMENT=Production
 If your PostgreSQL service has a different Railway service name, use that name instead of `Postgres` in the reference variable.
 
 After deployment, open the web service settings and generate a public domain under Networking.
+
+If Railway tries to use Railpack or reports `Script start.sh not found`, confirm the web service has:
+
+- Root Directory: blank, or the repository root.
+- Builder: Dockerfile.
+- Dockerfile Path: `Dockerfile`.
+- Start Command: empty, so Railway uses the Dockerfile `ENTRYPOINT`.
 
 ## Build
 
