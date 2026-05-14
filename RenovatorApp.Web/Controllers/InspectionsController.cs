@@ -171,7 +171,7 @@ public sealed class InspectionsController : Controller
                         .SemiBold();
                     row.ConstantItem(120)
                         .AlignRight()
-                        .Text($"Rating: {area.OverallRating}")
+                        .Text($"Rating: {FormatRating(area.OverallRating)}")
                         .SemiBold();
                 });
 
@@ -237,7 +237,7 @@ public sealed class InspectionsController : Controller
                     foreach (var item in estimateItems.OrderBy(item => item.Name))
                     {
                         table.Cell().Element(EstimateBodyCell).Text(item.Name);
-                        table.Cell().Element(EstimateBodyCell).AlignRight().Text(item.Cost.ToString("C"));
+                        table.Cell().Element(EstimateBodyCell).AlignRight().Text(FormatCurrency(item.Cost));
                         table.Cell().Element(EstimateBodyCell).AlignRight().Text(item.Hours.ToString("0.##"));
                     }
                 });
@@ -312,6 +312,16 @@ public sealed class InspectionsController : Controller
             .BorderBottom(1)
             .BorderColor(Colors.Grey.Lighten3)
             .Padding(4);
+    }
+
+    private static string FormatRating(int rating)
+    {
+        return rating == 0 ? "n/a" : rating.ToString();
+    }
+
+    private static string FormatCurrency(decimal value)
+    {
+        return $"${value:N2}";
     }
 
     private static InspectionListItemViewModel ToListItem(Inspection inspection)
