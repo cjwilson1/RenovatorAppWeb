@@ -132,4 +132,8 @@ body {
     align-items: stretch;
     flex-direction: column;
   }
+
+  .page-header-row {
+    align-items: flex-start;
+  }
 }
