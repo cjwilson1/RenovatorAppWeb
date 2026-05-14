@@ -10,10 +10,12 @@ namespace RenovatorApp.Web.Controllers;
 public sealed class InspectionsController : Controller
 {
     private readonly InspectionDataService _inspectionDataService;
+    private readonly IWebHostEnvironment _webHostEnvironment;
 
-    public InspectionsController(InspectionDataService inspectionDataService)
+    public InspectionsController(InspectionDataService inspectionDataService, IWebHostEnvironment webHostEnvironment)
     {
         _inspectionDataService = inspectionDataService;
+        _webHostEnvironment = webHostEnvironment;
     }
 
     public async Task<IActionResult> Index(CancellationToken cancellationToken)
@@ -52,6 +54,7 @@ public sealed class InspectionsController : Controller
 
         var propertyAddress = GetPropertyAddress(inspection.Property);
         var clientName = GetClientName(inspection.Client);
+        var logoPath = Path.Combine(_webHostEnvironment.WebRootPath, "images", "MikeHandymanLogo.png");
         var document = Document.Create(container =>
         {
             container.Page(page =>
@@ -60,10 +63,19 @@ public sealed class InspectionsController : Controller
                 page.DefaultTextStyle(text => text.FontSize(10));
 
                 page.Header()
-                    .Text("RenovatorApp Inspection Report")
-                    .FontSize(20)
-                    .SemiBold()
-                    .FontColor(Colors.Blue.Darken3);
+                    .Row(row =>
+                    {
+                        row.ConstantItem(95)
+                            .Image(logoPath)
+                            .FitArea();
+                        row.RelativeItem()
+                            .PaddingLeft(18)
+                            .AlignMiddle()
+                            .Text("RenovatorApp Inspection Report")
+                            .FontSize(20)
+                            .SemiBold()
+                            .FontColor(Colors.Blue.Darken3);
+                    });
 
                 page.Content()
                     .PaddingVertical(20)
