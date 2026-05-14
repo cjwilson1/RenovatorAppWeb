@@ -1,4 +1,6 @@
 using Microsoft.AspNetCore.Mvc;
+using Microsoft.EntityFrameworkCore;
+using Npgsql;
 using RenovatorApp.Infrastructure.Services;
 using RenovatorApp.Web.Models;
 
@@ -33,7 +35,19 @@ public sealed class SyncApiController : ControllerBase
         }
 
         var syncedAtUtc = DateTime.UtcNow;
-        var results = await _mobileSyncDataService.SyncAsync(ToBatch(request), cancellationToken);
+        IReadOnlyList<MobileSyncResult> results;
+
+        try
+        {
+            results = await _mobileSyncDataService.SyncAsync(ToBatch(request), cancellationToken);
+        }
+        catch (DbUpdateException exception) when (exception.InnerException is PostgresException postgresException)
+        {
+            return Problem(
+                title: "Sync database update failed.",
+                detail: $"{postgresException.SqlState}: {postgresException.MessageText} Constraint: {postgresException.ConstraintName}",
+                statusCode: StatusCodes.Status400BadRequest);
+        }
 
         return new SyncResponse(
             syncedAtUtc,
