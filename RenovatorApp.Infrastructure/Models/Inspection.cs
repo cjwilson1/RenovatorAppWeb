@@ -11,6 +11,6 @@ public sealed class Inspection
     public string GeneralNotes { get; set; } = string.Empty;
     public Guid PropertyId { get; set; } = Guid.NewGuid();
     public Guid? ClientId { get; set; }
-    public Property Property { get; set; } = new();
+    public Property Property { get; set; } = null!;
     public Client? Client { get; set; }
 }
