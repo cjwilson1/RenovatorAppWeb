@@ -75,6 +75,22 @@ public sealed class SyncApiController : ControllerBase
     private static MobileSyncBatch ToBatch(SyncRequest request)
     {
         return new MobileSyncBatch(
+            (request.Settings ?? []).Select(item => new MobileSyncAppSetting(
+                item.Id,
+                item.Name,
+                item.Value)).ToList(),
+            (request.PartSources ?? []).Select(item => new MobileSyncPartSource(
+                item.PartSourceId,
+                item.Name)).ToList(),
+            (request.Parts ?? []).Select(item => new MobileSyncPart(
+                item.PartId,
+                item.PartSourceId,
+                item.Name,
+                item.Description,
+                item.ModelNumber,
+                item.Manufacturer,
+                item.Sku,
+                item.Cost)).ToList(),
             (request.InspectionAreaCategories ?? []).Select(item => new MobileSyncInspectionAreaCategory(
                 item.Id,
                 item.Name,

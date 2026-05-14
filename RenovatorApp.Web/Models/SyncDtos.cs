@@ -3,6 +3,9 @@ namespace RenovatorApp.Web.Models;
 public sealed record SyncRequest(
     string DeviceId,
     DateTime? LastSyncedAtUtc,
+    IReadOnlyList<SyncAppSettingDto>? Settings,
+    IReadOnlyList<SyncPartSourceDto>? PartSources,
+    IReadOnlyList<SyncPartDto>? Parts,
     IReadOnlyList<SyncInspectionAreaCategoryDto>? InspectionAreaCategories,
     IReadOnlyList<SyncInspectionAreaTypeDto>? InspectionAreaTypes,
     IReadOnlyList<SyncBuildingTypeDto>? BuildingTypes,
@@ -26,6 +29,25 @@ public sealed record SyncEntityResult(
     Guid Id,
     string Status,
     string? Message);
+
+public sealed record SyncAppSettingDto(
+    Guid Id,
+    string Name,
+    string Value);
+
+public sealed record SyncPartSourceDto(
+    Guid PartSourceId,
+    string Name);
+
+public sealed record SyncPartDto(
+    Guid PartId,
+    Guid PartSourceId,
+    string Name,
+    string Description,
+    string ModelNumber,
+    string Manufacturer,
+    string Sku,
+    decimal Cost);
 
 public sealed record SyncInspectionAreaCategoryDto(
     Guid Id,

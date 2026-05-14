@@ -18,6 +18,84 @@ public sealed class MobileSyncDataService
         var results = new List<MobileSyncResult>();
         await using var transaction = await _dbContext.Database.BeginTransactionAsync(cancellationToken);
 
+        foreach (var item in batch.Settings)
+        {
+            if (!string.Equals(item.Name, "defaultstate", StringComparison.OrdinalIgnoreCase))
+            {
+                results.Add(MobileSyncResult.Skipped(nameof(AppSetting), item.Id, "Only the defaultstate setting can be synced."));
+                continue;
+            }
+
+            var entity = await _dbContext.AppSettings
+                .FirstOrDefaultAsync(setting => setting.Name.ToLower() == "defaultstate", cancellationToken);
+
+            if (entity is null)
+            {
+                _dbContext.AppSettings.Add(new AppSetting
+                {
+                    Id = item.Id,
+                    Name = item.Name,
+                    Value = item.Value
+                });
+                results.Add(MobileSyncResult.Created(nameof(AppSetting), item.Id));
+                continue;
+            }
+
+            entity.Name = item.Name;
+            entity.Value = item.Value;
+            results.Add(MobileSyncResult.Updated(nameof(AppSetting), entity.Id));
+        }
+
+        foreach (var item in batch.PartSources)
+        {
+            var entity = await _dbContext.PartSources.FindAsync([item.PartSourceId], cancellationToken);
+
+            if (entity is null)
+            {
+                _dbContext.PartSources.Add(new PartSource
+                {
+                    PartSourceId = item.PartSourceId,
+                    Name = item.Name
+                });
+                results.Add(MobileSyncResult.Created(nameof(PartSource), item.PartSourceId));
+                continue;
+            }
+
+            entity.Name = item.Name;
+            results.Add(MobileSyncResult.Updated(nameof(PartSource), item.PartSourceId));
+        }
+
+        foreach (var item in batch.Parts)
+        {
+            var entity = await _dbContext.Parts.FindAsync([item.PartId], cancellationToken);
+
+            if (entity is null)
+            {
+                _dbContext.Parts.Add(new Part
+                {
+                    PartId = item.PartId,
+                    PartSourceId = item.PartSourceId,
+                    Name = item.Name,
+                    Description = item.Description,
+                    ModelNumber = item.ModelNumber,
+                    Manufacturer = item.Manufacturer,
+                    Sku = item.Sku,
+                    Cost = item.Cost
+                });
+                results.Add(MobileSyncResult.Created(nameof(Part), item.PartId));
+                continue;
+            }
+
+            entity.PartSourceId = item.PartSourceId;
+            entity.Name = item.Name;
+            entity.Description = item.Description;
+            entity.ModelNumber = item.ModelNumber;
+            entity.Manufacturer = item.Manufacturer;
+            entity.Sku = item.Sku;
+            entity.Cost = item.Cost;
+            results.Add(MobileSyncResult.Updated(nameof(Part), item.PartId));
+        }
+
         foreach (var item in batch.InspectionAreaCategories)
         {
             var entity = await _dbContext.InspectionAreaCategories.FindAsync([item.Id], cancellationToken);
@@ -440,6 +518,9 @@ public sealed class MobileSyncDataService
 }
 
 public sealed record MobileSyncBatch(
+    IReadOnlyList<MobileSyncAppSetting> Settings,
+    IReadOnlyList<MobileSyncPartSource> PartSources,
+    IReadOnlyList<MobileSyncPart> Parts,
     IReadOnlyList<MobileSyncInspectionAreaCategory> InspectionAreaCategories,
     IReadOnlyList<MobileSyncInspectionAreaType> InspectionAreaTypes,
     IReadOnlyList<MobileSyncBuildingType> BuildingTypes,
@@ -463,6 +544,9 @@ public sealed record MobileSyncResult(string EntityName, Guid Id, string Status,
     public static MobileSyncResult Skipped(string entityName, Guid id, string message) => new(entityName, id, "skipped", message);
 }
 
+public sealed record MobileSyncAppSetting(Guid Id, string Name, string Value);
+public sealed record MobileSyncPartSource(Guid PartSourceId, string Name);
+public sealed record MobileSyncPart(Guid PartId, Guid PartSourceId, string Name, string Description, string ModelNumber, string Manufacturer, string Sku, decimal Cost);
 public sealed record MobileSyncInspectionAreaCategory(Guid Id, string Name, int SortOrder);
 public sealed record MobileSyncInspectionAreaType(Guid AreaTypeId, Guid CategoryId, string Name, int SortOrder);
 public sealed record MobileSyncBuildingType(Guid Id, string Name);
