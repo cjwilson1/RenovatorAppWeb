@@ -1,6 +1,7 @@
 using Microsoft.EntityFrameworkCore;
 using RenovatorApp.Infrastructure.Data;
 using RenovatorApp.Infrastructure.Services;
+using RenovatorApp.Web.Services;
 using System.Net;
 
 var builder = WebApplication.CreateBuilder(args);
@@ -35,6 +36,7 @@ catch (Exception exception)
 
 builder.Services.AddScoped<InspectionDataService>();
 builder.Services.AddScoped<MobileSyncDataService>();
+builder.Services.AddScoped<DatabaseViewerService>();
 
 var app = builder.Build();
 

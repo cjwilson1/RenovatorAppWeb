@@ -1,0 +1,99 @@
+@model RenovatorApp.Web.ViewModels.DatabaseTablePageViewModel
+
+@{
+    ViewData["Title"] = "Database";
+}
+
+<div class="d-flex align-items-center justify-content-between gap-3 mb-4">
+    <div>
+        <h1 class="mb-1">Database</h1>
+        <p class="text-muted mb-0">View table rows from the RenovatorApp database.</p>
+    </div>
+</div>
+
+<form method="get" asp-controller="Database" asp-action="Index" class="row gy-2 gx-3 align-items-end mb-4">
+    <div class="col-12 col-md-5 col-lg-4">
+        <label for="tableName" class="form-label">Table</label>
+        <select id="tableName" name="tableName" class="form-select" onchange="this.form.submit()">
+            <option value="">Select a table</option>
+            @foreach (var tableName in Model.TableNames)
+            {
+                <option value="@tableName" selected="@(string.Equals(tableName, Model.SelectedTableName, StringComparison.OrdinalIgnoreCase))">
+                    @tableName
+                </option>
+            }
+        </select>
+    </div>
+    <input type="hidden" name="pageSize" value="@Model.PageSize" />
+    <div class="col-auto">
+        <button type="submit" class="btn btn-primary">View</button>
+    </div>
+</form>
+
+@if (Model.HasSelectedTable)
+{
+    <div class="d-flex align-items-center justify-content-between gap-3 mb-3">
+        <p class="mb-0">
+            <strong>@Model.SelectedTableName</strong>
+            <span class="text-muted">- @Model.TotalRows row@(Model.TotalRows == 1 ? string.Empty : "s")</span>
+        </p>
+        <p class="mb-0 text-muted">Page @Model.Page of @Model.TotalPages</p>
+    </div>
+
+    <div class="table-responsive">
+        <table class="table table-striped table-hover table-sm align-middle">
+            <thead>
+            <tr>
+                @foreach (var column in Model.Columns)
+                {
+                    <th scope="col">@column</th>
+                }
+            </tr>
+            </thead>
+            <tbody>
+            @if (Model.Rows.Count == 0)
+            {
+                <tr>
+                    <td colspan="@(Math.Max(Model.Columns.Count, 1))" class="text-muted">No rows found.</td>
+                </tr>
+            }
+            else
+            {
+                @foreach (var row in Model.Rows)
+                {
+                    <tr>
+                        @foreach (var value in row)
+                        {
+                            <td class="text-nowrap">@value</td>
+                        }
+                    </tr>
+                }
+            }
+            </tbody>
+        </table>
+    </div>
+
+    <nav aria-label="Database table pages">
+        <ul class="pagination">
+            <li class="page-item @(Model.HasPreviousPage ? string.Empty : "disabled")">
+                <a class="page-link"
+                   asp-controller="Database"
+                   asp-action="Index"
+                   asp-route-tableName="@Model.SelectedTableName"
+                   asp-route-page="@(Model.Page - 1)"
+                   asp-route-pageSize="@Model.PageSize">Previous</a>
+            </li>
+            <li class="page-item disabled">
+                <span class="page-link">@Model.Page</span>
+            </li>
+            <li class="page-item @(Model.HasNextPage ? string.Empty : "disabled")">
+                <a class="page-link"
+                   asp-controller="Database"
+                   asp-action="Index"
+                   asp-route-tableName="@Model.SelectedTableName"
+                   asp-route-page="@(Model.Page + 1)"
+                   asp-route-pageSize="@Model.PageSize">Next</a>
+            </li>
+        </ul>
+    </nav>
+}
