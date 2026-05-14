@@ -56,6 +56,7 @@ public sealed class InspectionsController : Controller
         var propertyAddress = GetPropertyAddress(inspection.Property);
         var clientName = GetClientName(inspection.Client);
         var logoPath = Path.Combine(_webHostEnvironment.WebRootPath, "images", "MikeHandymanLogo.png");
+        var estimateItems = GetEstimateItems(inspection);
         var document = Document.Create(container =>
         {
             container.Page(page =>
@@ -63,20 +64,7 @@ public sealed class InspectionsController : Controller
                 page.Margin(40);
                 page.DefaultTextStyle(text => text.FontSize(10));
 
-                page.Header()
-                    .Row(row =>
-                    {
-                        row.ConstantItem(95)
-                            .Image(logoPath)
-                            .FitArea();
-                        row.RelativeItem()
-                            .PaddingLeft(18)
-                            .AlignMiddle()
-                            .Text("RenovatorApp Inspection Report")
-                            .FontSize(20)
-                            .SemiBold()
-                            .FontColor(Colors.Blue.Darken3);
-                    });
+                page.Header().Element(container => ComposeReportHeader(container, logoPath));
 
                 page.Content()
                     .PaddingVertical(20)
@@ -84,22 +72,38 @@ public sealed class InspectionsController : Controller
                     {
                         column.Spacing(10);
                         column.Item().Text(inspection.Title).FontSize(16).SemiBold();
-                        column.Item().Text($"Inspection Date: {inspection.InspectionDate:d}");
+                        column.Item().Text(text =>
+                        {
+                            text.Span("Inspection Date: ").SemiBold();
+                            text.Span(inspection.InspectionDate.ToString("d"));
+                        });
                         column.Item().Text($"Inspector: {inspection.InspectorName}");
                         column.Item().Text($"Property: {(string.IsNullOrWhiteSpace(propertyAddress) ? "No property address" : propertyAddress)}");
                         column.Item().Text($"Client: {(string.IsNullOrWhiteSpace(clientName) ? "No client assigned" : clientName)}");
                         column.Item().PaddingTop(10).Element(container => ComposeBuildings(container, inspection));
+                        column.Item().PaddingTop(8).Element(container => ComposeSummary(container, estimateItems));
                     });
 
-                page.Footer()
-                    .AlignCenter()
-                    .Text(text =>
+                page.Footer().Element(ComposePageFooter);
+            });
+
+            container.Page(page =>
+            {
+                page.Margin(40);
+                page.DefaultTextStyle(text => text.FontSize(10));
+
+                page.Header().Element(container => ComposeReportHeader(container, logoPath));
+
+                page.Content()
+                    .PaddingVertical(20)
+                    .Column(column =>
                     {
-                        text.Span("Page ");
-                        text.CurrentPageNumber();
-                        text.Span(" of ");
-                        text.TotalPages();
+                        column.Spacing(12);
+                        column.Item().Text("Parts List").FontSize(16).SemiBold();
+                        column.Item().Element(container => ComposePartsList(container, estimateItems));
                     });
+
+                page.Footer().Element(container => ComposePartsFooter(container, estimateItems));
             });
         });
 
@@ -107,6 +111,108 @@ public sealed class InspectionsController : Controller
         var fileName = $"{GetSafeFileName(inspection.Title)}-InspectionReport.pdf";
 
         return File(pdfBytes, "application/pdf", fileName);
+    }
+
+    private static void ComposeReportHeader(IContainer container, string logoPath)
+    {
+        container.Row(row =>
+        {
+            row.ConstantItem(95)
+                .Image(logoPath)
+                .FitArea();
+            row.RelativeItem()
+                .PaddingLeft(18)
+                .AlignMiddle()
+                .Text("RenovatorApp Inspection Report")
+                .FontSize(20)
+                .SemiBold()
+                .FontColor(Colors.Blue.Darken3);
+        });
+    }
+
+    private static void ComposePageFooter(IContainer container)
+    {
+        container
+            .AlignCenter()
+            .Text(text =>
+            {
+                text.Span("Page ");
+                text.CurrentPageNumber();
+                text.Span(" of ");
+                text.TotalPages();
+            });
+    }
+
+    private static void ComposeSummary(IContainer container, IReadOnlyCollection<InspectionAreaNoteEstimateItem> estimateItems)
+    {
+        var totalCost = estimateItems.Sum(item => item.Cost);
+        var totalHours = estimateItems.Sum(item => item.Hours);
+
+        container
+            .Border(1)
+            .BorderColor(Colors.Grey.Lighten2)
+            .Background(Colors.Grey.Lighten4)
+            .Padding(12)
+            .Column(column =>
+            {
+                column.Spacing(6);
+                column.Item().Text("Summary").FontSize(14).SemiBold();
+                column.Item().Row(row =>
+                {
+                    row.RelativeItem().Text("Total cost:");
+                    row.ConstantItem(100).AlignRight().Text(FormatCurrency(totalCost)).SemiBold();
+                });
+                column.Item().Row(row =>
+                {
+                    row.RelativeItem().Text("Total hours:");
+                    row.ConstantItem(100).AlignRight().Text(totalHours.ToString("0.##")).SemiBold();
+                });
+            });
+    }
+
+    private static void ComposePartsList(IContainer container, IReadOnlyCollection<InspectionAreaNoteEstimateItem> estimateItems)
+    {
+        if (estimateItems.Count == 0)
+        {
+            container.Text("No parts found.").Italic();
+            return;
+        }
+
+        container.Table(table =>
+        {
+            table.ColumnsDefinition(columns =>
+            {
+                columns.RelativeColumn();
+                columns.ConstantColumn(100);
+            });
+
+            table.Header(header =>
+            {
+                header.Cell().Element(EstimateHeaderCell).Text("Name");
+                header.Cell().Element(EstimateHeaderCell).AlignRight().Text("Cost");
+            });
+
+            foreach (var item in estimateItems.OrderBy(item => item.Name))
+            {
+                table.Cell().Element(EstimateBodyCell).Text(item.Name);
+                table.Cell().Element(EstimateBodyCell).AlignRight().Text(FormatCurrency(item.Cost));
+            }
+        });
+    }
+
+    private static void ComposePartsFooter(IContainer container, IReadOnlyCollection<InspectionAreaNoteEstimateItem> estimateItems)
+    {
+        var totalPartsCost = estimateItems.Sum(item => item.Cost);
+
+        container
+            .BorderTop(1)
+            .BorderColor(Colors.Grey.Lighten2)
+            .PaddingTop(8)
+            .Row(row =>
+            {
+                row.RelativeItem().Text("Total parts cost:").SemiBold();
+                row.ConstantItem(120).AlignRight().Text(FormatCurrency(totalPartsCost)).SemiBold();
+            });
     }
 
     private static void ComposeBuildings(IContainer container, Inspection inspection)
@@ -322,6 +428,14 @@ public sealed class InspectionsController : Controller
     private static string FormatCurrency(decimal value)
     {
         return $"${value:N2}";
+    }
+
+    private static IReadOnlyList<InspectionAreaNoteEstimateItem> GetEstimateItems(Inspection inspection)
+    {
+        return inspection.Property.Areas
+            .SelectMany(area => area.AreaNotes)
+            .SelectMany(note => note.EstimateItems)
+            .ToList();
     }
 
     private static InspectionListItemViewModel ToListItem(Inspection inspection)
