@@ -1,4 +1,5 @@
 using Microsoft.EntityFrameworkCore;
+using QuestPDF.Infrastructure;
 using RenovatorApp.Infrastructure.Data;
 using RenovatorApp.Infrastructure.Services;
 using RenovatorApp.Web.Services;
@@ -6,6 +7,8 @@ using System.Net;
 
 var builder = WebApplication.CreateBuilder(args);
 Exception? databaseStartupException = null;
+
+QuestPDF.Settings.License = LicenseType.Community;
 
 var port = builder.Configuration["PORT"];
 

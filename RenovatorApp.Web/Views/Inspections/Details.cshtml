@@ -8,7 +8,35 @@
         <h1>@Model.Inspection.Title</h1>
         <p class="text-muted">@Model.Inspection.InspectionDate.ToString("d")</p>
     </div>
-    <button class="btn btn-primary" type="button" disabled>Create Inspection Report</button>
+    <button class="btn btn-primary" type="button" data-bs-toggle="modal" data-bs-target="#createReportModal">
+        Create Inspection Report
+    </button>
+</div>
+
+<div class="modal fade" id="createReportModal" tabindex="-1" aria-labelledby="createReportModalLabel" aria-hidden="true">
+    <div class="modal-dialog">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h2 class="modal-title fs-5" id="createReportModalLabel">Create Inspection Report</h2>
+                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+            </div>
+            <div class="modal-body">
+                <p class="mb-3">Choose a document format.</p>
+                <div class="d-grid gap-2">
+                    <a class="btn btn-primary"
+                       asp-controller="Inspections"
+                       asp-action="ReportPdf"
+                       asp-route-id="@Model.Inspection.Id">
+                        PDF
+                    </a>
+                    <button class="btn btn-outline-secondary" type="button" disabled>Word</button>
+                </div>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Close</button>
+            </div>
+        </div>
+    </div>
 </div>
 
 <div class="detail-grid">
@@ -31,7 +59,23 @@
 
     <section class="detail-section">
         <h2>Client</h2>
-        <p>@(string.IsNullOrWhiteSpace(Model.ClientName) ? "No client assigned" : Model.ClientName)</p>
+        @if (Model.Inspection.Client is null)
+        {
+            <p>No client assigned</p>
+        }
+        else
+        {
+            <dl>
+                <dt>Name</dt>
+                <dd>@(string.IsNullOrWhiteSpace(Model.ClientName) ? "No client assigned" : Model.ClientName)</dd>
+                <dt>Phone</dt>
+                <dd>@(string.IsNullOrWhiteSpace(Model.Inspection.Client.Phone) ? "No phone number" : Model.Inspection.Client.Phone)</dd>
+                <dt>Email</dt>
+                <dd>@(string.IsNullOrWhiteSpace(Model.Inspection.Client.Email) ? "No email address" : Model.Inspection.Client.Email)</dd>
+                <dt>Address</dt>
+                <dd>@GetClientAddress()</dd>
+            </dl>
+        }
     </section>
 
     <section class="detail-section detail-section-wide">
@@ -54,3 +98,26 @@
         }
     </section>
 </div>
+
+@functions {
+    private string GetClientAddress()
+    {
+        var client = Model.Inspection.Client;
+
+        if (client is null)
+        {
+            return "No client address";
+        }
+
+        var streetAddress = string.Join(" ", new[] { client.Street1, client.Street2 }
+            .Where(value => !string.IsNullOrWhiteSpace(value)));
+        var cityState = string.Join(", ", new[] { client.City, client.State }
+            .Where(value => !string.IsNullOrWhiteSpace(value)));
+        var cityStateZip = string.Join(" ", new[] { cityState, client.PostalCode }
+            .Where(value => !string.IsNullOrWhiteSpace(value)));
+        var fullAddress = string.Join(" - ", new[] { streetAddress, cityStateZip }
+            .Where(value => !string.IsNullOrWhiteSpace(value)));
+
+        return string.IsNullOrWhiteSpace(fullAddress) ? "No client address" : fullAddress;
+    }
+}
