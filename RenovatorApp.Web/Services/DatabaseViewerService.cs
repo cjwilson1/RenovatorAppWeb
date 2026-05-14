@@ -62,6 +62,28 @@ public sealed class DatabaseViewerService
         };
     }
 
+    public async Task ClearDatabaseAsync(CancellationToken cancellationToken = default)
+    {
+        var tableNames = GetTableNames();
+
+        if (tableNames.Count == 0)
+        {
+            return;
+        }
+
+        var quotedTableNames = string.Join(", ", tableNames.Select(QuoteIdentifier));
+        var connection = _dbContext.Database.GetDbConnection();
+        await EnsureOpenAsync(connection, cancellationToken);
+
+        await using var transaction = await connection.BeginTransactionAsync(cancellationToken);
+        await using var command = connection.CreateCommand();
+        command.Transaction = transaction;
+        command.CommandText = $"truncate table {quotedTableNames} restart identity cascade";
+
+        await command.ExecuteNonQueryAsync(cancellationToken);
+        await transaction.CommitAsync(cancellationToken);
+    }
+
     private async Task<int> GetTotalRowsAsync(string quotedTableName, CancellationToken cancellationToken)
     {
         var connection = _dbContext.Database.GetDbConnection();

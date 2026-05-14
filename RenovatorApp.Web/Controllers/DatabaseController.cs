@@ -38,4 +38,14 @@ public sealed class DatabaseController : Controller
 
         return View(model);
     }
+
+    [HttpPost]
+    [ValidateAntiForgeryToken]
+    public async Task<IActionResult> Clear(CancellationToken cancellationToken)
+    {
+        await _databaseViewerService.ClearDatabaseAsync(cancellationToken);
+        TempData["DatabaseMessage"] = "Database data was cleared.";
+
+        return RedirectToAction(nameof(Index));
+    }
 }
