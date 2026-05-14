@@ -28,6 +28,14 @@ ASPNETCORE_ENVIRONMENT=Production
 
 If your PostgreSQL service has a different Railway service name, use that name instead of `Postgres` in the reference variable.
 
+To require the mobile app to authenticate when syncing, also set:
+
+```text
+MOBILE_SYNC_API_KEY=your-long-random-secret
+```
+
+When this value is present, mobile sync requests must include an `X-Api-Key` header with the same value.
+
 After deployment, open the web service settings and generate a public domain under Networking.
 
 If Railway tries to use Railpack or reports `Script start.sh not found`, confirm the web service has:
@@ -42,3 +50,34 @@ If Railway tries to use Railpack or reports `Script start.sh not found`, confirm
 ```powershell
 dotnet build RenovatorApp.slnx
 ```
+
+## Mobile sync API
+
+The mobile app should sync through the web API, not by connecting directly to PostgreSQL.
+
+```http
+POST /api/sync
+X-Api-Key: your-long-random-secret
+Content-Type: application/json
+```
+
+The sync endpoint accepts graph data in dependency order: lookup tables, inspectors, clients, properties, addresses, buildings, inspections, areas, notes, estimate items, and photos. All arrays are optional so the phone can send only the rows that changed.
+
+```json
+{
+  "deviceId": "phone-123",
+  "lastSyncedAtUtc": "2026-05-13T20:00:00Z",
+  "inspectors": [],
+  "clients": [],
+  "properties": [],
+  "addresses": [],
+  "buildings": [],
+  "inspections": [],
+  "inspectionAreas": [],
+  "inspectionAreaNotes": [],
+  "inspectionAreaNoteEstimateItems": [],
+  "inspectionAreaNotePhotos": []
+}
+```
+
+Rows are upserted by their GUID primary keys. For entities with `UpdatedAtUtc`, the server keeps its row when it is newer than the incoming mobile row and returns a `conflict` result for that item.

@@ -34,6 +34,7 @@ catch (Exception exception)
 }
 
 builder.Services.AddScoped<InspectionDataService>();
+builder.Services.AddScoped<MobileSyncDataService>();
 
 var app = builder.Build();
 
