@@ -1,4 +1,5 @@
 @model RenovatorApp.Web.ViewModels.InspectionDetailViewModel
+@using RenovatorApp.Infrastructure.Models
 @{
     ViewData["Title"] = Model.Inspection.Title;
 }
@@ -86,20 +87,186 @@
         }
         else
         {
-            <ul class="plain-list">
-                @foreach (var building in Model.Inspection.Property.Buildings.OrderBy(building => building.SortOrder).ThenBy(building => building.Name))
+            <div class="building-list">
+                @foreach (var building in GetBuildings())
                 {
-                    <li>
-                        <strong>@building.Name</strong>
-                        <span class="text-muted">@building.BuildingType?.Name</span>
-                    </li>
+                    var areas = GetAreas(building).ToList();
+
+                    <article class="building-detail">
+                        <div class="building-detail-header">
+                            <div>
+                                <h3>@building.Name</h3>
+                                <p class="text-muted">@GetBuildingTypeName(building)</p>
+                            </div>
+                            <span class="badge text-bg-light">@areas.Count area@(areas.Count == 1 ? string.Empty : "s")</span>
+                        </div>
+
+                        @if (areas.Count == 0)
+                        {
+                            <p class="text-muted mb-0">No inspection areas found.</p>
+                        }
+                        else
+                        {
+                            <div class="area-list">
+                                @foreach (var area in areas)
+                                {
+                                    var notes = area.AreaNotes
+                                        .OrderBy(note => note.CreatedAtUtc)
+                                        .ToList();
+
+                                    <section class="area-detail">
+                                        <div class="area-detail-header">
+                                            <div>
+                                                <h4>@area.DisplayName</h4>
+                                                <p class="text-muted">@GetAreaTypeName(area)</p>
+                                            </div>
+                                            <span class="text-muted">Rating: @FormatRating(area.OverallRating)</span>
+                                        </div>
+
+                                        @if (notes.Count == 0)
+                                        {
+                                            <p class="text-muted mb-0">No notes found.</p>
+                                        }
+                                        else
+                                        {
+                                            <div class="note-list">
+                                                @foreach (var note in notes)
+                                                {
+                                                    var estimateItems = note.EstimateItems
+                                                        .OrderBy(item => item.Name)
+                                                        .ToList();
+                                                    var photos = note.Photos
+                                                        .Where(photo => photo.Data.Length > 0)
+                                                        .OrderBy(photo => photo.CreatedAtUtc)
+                                                        .ToList();
+                                                    var totalCost = estimateItems.Sum(item => item.Cost);
+                                                    var totalHours = estimateItems.Sum(item => item.Hours);
+
+                                                    <article class="note-detail">
+                                                        <div class="note-detail-header">
+                                                            <h5>Note</h5>
+                                                            <span class="text-muted">@note.CreatedAtUtc.ToLocalTime().ToString("g")</span>
+                                                        </div>
+                                                        <p class="note-text">@(string.IsNullOrWhiteSpace(note.Text) ? "No note text." : note.Text)</p>
+
+                                                        <div class="estimate-summary">
+                                                            <span><strong>Estimate:</strong> @FormatCurrency(totalCost)</span>
+                                                            <span><strong>Hours:</strong> @FormatHours(totalHours)</span>
+                                                        </div>
+
+                                                        @if (estimateItems.Count > 0)
+                                                        {
+                                                            <div class="table-responsive">
+                                                                <table class="table table-sm estimate-table mb-0">
+                                                                    <thead>
+                                                                        <tr>
+                                                                            <th scope="col">Item</th>
+                                                                            <th scope="col" class="text-end">Cost</th>
+                                                                            <th scope="col" class="text-end">Hours</th>
+                                                                        </tr>
+                                                                    </thead>
+                                                                    <tbody>
+                                                                        @foreach (var item in estimateItems)
+                                                                        {
+                                                                            <tr>
+                                                                                <td>@item.Name</td>
+                                                                                <td class="text-end">@FormatCurrency(item.Cost)</td>
+                                                                                <td class="text-end">@FormatHours(item.Hours)</td>
+                                                                            </tr>
+                                                                        }
+                                                                    </tbody>
+                                                                </table>
+                                                            </div>
+                                                        }
+
+                                                        <div>
+                                                            <h6>Pictures</h6>
+                                                            @if (photos.Count == 0)
+                                                            {
+                                                                <p class="text-muted mb-0">No pictures found.</p>
+                                                            }
+                                                            else
+                                                            {
+                                                                <div class="photo-list">
+                                                                    @foreach (var photo in photos)
+                                                                    {
+                                                                        <img src="@GetPhotoSource(photo)" alt="@GetPhotoAlt(photo)" />
+                                                                    }
+                                                                </div>
+                                                            }
+                                                        </div>
+                                                    </article>
+                                                }
+                                            </div>
+                                        }
+                                    </section>
+                                }
+                            </div>
+                        }
+                    </article>
                 }
-            </ul>
+            </div>
         }
     </section>
 </div>
 
 @functions {
+    private IEnumerable<Building> GetBuildings()
+    {
+        return Model.Inspection.Property.Buildings
+            .OrderBy(building => building.SortOrder)
+            .ThenBy(building => building.Name);
+    }
+
+    private IEnumerable<InspectionArea> GetAreas(Building building)
+    {
+        return Model.Inspection.Property.Areas
+            .Where(area => area.BuildingId == building.Id)
+            .OrderBy(area => area.SortOrder)
+            .ThenBy(area => area.DisplayName);
+    }
+
+    private static string GetBuildingTypeName(Building building)
+    {
+        return string.IsNullOrWhiteSpace(building.BuildingType?.Name)
+            ? "No building type"
+            : building.BuildingType.Name;
+    }
+
+    private static string GetAreaTypeName(InspectionArea area)
+    {
+        return string.IsNullOrWhiteSpace(area.AreaType?.Name)
+            ? "No area type"
+            : area.AreaType.Name;
+    }
+
+    private static string FormatRating(int rating)
+    {
+        return rating == 0 ? "n/a" : rating.ToString();
+    }
+
+    private static string FormatCurrency(decimal value)
+    {
+        return $"${value:N2}";
+    }
+
+    private static string FormatHours(decimal value)
+    {
+        return value.ToString("0.##");
+    }
+
+    private static string GetPhotoSource(InspectionAreaNotePhoto photo)
+    {
+        var contentType = string.IsNullOrWhiteSpace(photo.ContentType) ? "image/jpeg" : photo.ContentType;
+
+        return $"data:{contentType};base64,{Convert.ToBase64String(photo.Data)}";
+    }
+
+    private static string GetPhotoAlt(InspectionAreaNotePhoto photo)
+    {
+        return string.IsNullOrWhiteSpace(photo.FileName) ? "Inspection note picture" : photo.FileName;
+    }
+
     private string GetClientAddress()
     {
         var client = Model.Inspection.Client;
