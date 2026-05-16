@@ -108,7 +108,9 @@ body {
 }
 
 .detail-section-wide {
+  border: 0;
   grid-column: 1 / -1;
+  padding: 0;
 }
 
 .plain-list {
@@ -144,9 +146,12 @@ body {
   background: #fbfbfb;
 }
 
-.area-detail,
 .note-detail {
   background: #fff;
+}
+
+.area-detail {
+  background: lightcyan;
 }
 
 .building-detail-header,
