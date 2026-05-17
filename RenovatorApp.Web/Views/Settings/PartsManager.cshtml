@@ -1,0 +1,102 @@
+@model RenovatorApp.Web.ViewModels.PartsManagerViewModel
+@{
+    ViewData["Title"] = "Parts Manager";
+    var previousPage = Math.Max(1, Model.Page - 1);
+    var nextPage = Math.Min(Model.TotalPages, Model.Page + 1);
+}
+
+<div class="page-header-row">
+    <div>
+        <h1>Parts Manager</h1>
+        <p class="text-muted">@Model.TotalParts part@(Model.TotalParts == 1 ? string.Empty : "s")</p>
+    </div>
+    <div class="d-flex gap-2">
+        <a class="btn btn-outline-primary" asp-controller="Settings" asp-action="AddPart">Add Part</a>
+        <a class="btn btn-primary" asp-controller="Settings" asp-action="FindPart">Find Part</a>
+    </div>
+</div>
+
+<form class="d-flex align-items-center gap-2 mb-3" method="get">
+    <label class="form-label mb-0" for="pageSize">Rows</label>
+    <select class="form-select" id="pageSize" name="pageSize" onchange="this.form.submit()" style="max-width: 7rem;">
+        @foreach (var option in Model.PageSizeOptions)
+        {
+            <option value="@option" selected="@(option == Model.PageSize)">@option</option>
+        }
+    </select>
+    <input name="page" type="hidden" value="1" />
+</form>
+
+<div class="table-responsive">
+    <table class="table table-striped align-middle">
+        <thead>
+            <tr>
+                <th scope="col">Name</th>
+                <th scope="col">Source</th>
+                <th scope="col">SKU</th>
+                <th scope="col">Manufacturer</th>
+                <th scope="col" class="text-end">Cost</th>
+                <th scope="col">Package</th>
+            </tr>
+        </thead>
+        <tbody>
+            @if (Model.Parts.Count == 0)
+            {
+                <tr>
+                    <td class="text-muted" colspan="6">No parts found.</td>
+                </tr>
+            }
+            else
+            {
+                @foreach (var part in Model.Parts)
+                {
+                    <tr>
+                        <td>
+                            <strong>@part.Name</strong>
+                            @if (!string.IsNullOrWhiteSpace(part.Description))
+                            {
+                                <div class="small text-muted">@part.Description</div>
+                            }
+                        </td>
+                        <td>@part.SourceName</td>
+                        <td>@part.Sku</td>
+                        <td>@part.Manufacturer</td>
+                        <td class="text-end">@FormatCurrency(part.Cost)</td>
+                        <td>@(part.IsPackage ? $"{part.PackageUnits} units" : "No")</td>
+                    </tr>
+                }
+            }
+        </tbody>
+    </table>
+</div>
+
+<div class="d-flex align-items-center justify-content-between gap-3">
+    <div class="btn-group" role="group" aria-label="Parts pages">
+        <a class="btn btn-outline-secondary @(Model.Page == 1 ? "disabled" : string.Empty)"
+           asp-controller="Settings"
+           asp-action="PartsManager"
+           asp-route-page="@previousPage"
+           asp-route-pageSize="@Model.PageSize">
+            Previous
+        </a>
+        <a class="btn btn-outline-secondary @(Model.Page == Model.TotalPages ? "disabled" : string.Empty)"
+           asp-controller="Settings"
+           asp-action="PartsManager"
+           asp-route-page="@nextPage"
+           asp-route-pageSize="@Model.PageSize">
+            Next
+        </a>
+    </div>
+    <span class="text-muted">Page @Model.Page of @Model.TotalPages</span>
+</div>
+
+<div class="d-flex justify-content-end mt-4">
+    <a class="btn btn-secondary" asp-controller="Settings" asp-action="Index">Settings</a>
+</div>
+
+@functions {
+    private static string FormatCurrency(decimal value)
+    {
+        return $"${value:N2}";
+    }
+}

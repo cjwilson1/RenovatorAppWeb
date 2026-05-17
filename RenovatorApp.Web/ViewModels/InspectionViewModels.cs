@@ -28,6 +28,7 @@ public sealed class InspectionEditViewModel
     public InspectionClientEditViewModel Client { get; init; } = new();
     public IReadOnlyList<InspectionBuildingEditViewModel> Buildings { get; init; } = [];
     public IReadOnlyList<InspectorPickerItemViewModel> Inspectors { get; init; } = [];
+    public IReadOnlyList<PartPickerItemViewModel> Parts { get; init; } = [];
     public string PageTitle => Id.HasValue ? "Edit Inspection" : "New Inspection";
     public string CancelAction => Id.HasValue ? "Details" : "Index";
 }
@@ -39,6 +40,17 @@ public sealed class InspectorPickerItemViewModel
     public string Email { get; init; } = string.Empty;
     public string Phone { get; init; } = string.Empty;
     public decimal HourlyRate { get; init; }
+}
+
+public sealed class PartPickerItemViewModel
+{
+    public Guid Id { get; init; }
+    public string Name { get; init; } = string.Empty;
+    public string Description { get; init; } = string.Empty;
+    public string SourceName { get; init; } = string.Empty;
+    public string Sku { get; init; } = string.Empty;
+    public string Manufacturer { get; init; } = string.Empty;
+    public decimal Cost { get; init; }
 }
 
 public sealed class InspectionPropertyAddressEditViewModel

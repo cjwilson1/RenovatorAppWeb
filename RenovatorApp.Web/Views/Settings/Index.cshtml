@@ -1,0 +1,22 @@
+@{
+    ViewData["Title"] = "Settings";
+}
+
+<div class="page-header-row">
+    <div>
+        <h1>Settings</h1>
+    </div>
+</div>
+
+<a class="app-hero app-hero-link"
+   asp-controller="Settings"
+   asp-action="PartsManager">
+    <div>
+        <h1>Parts Manager</h1>
+        <p>Manage parts used in inspection estimates.</p>
+    </div>
+</a>
+
+<div class="d-flex justify-content-end mt-4">
+    <a class="btn btn-secondary" asp-controller="Home" asp-action="Index">Home</a>
+</div>

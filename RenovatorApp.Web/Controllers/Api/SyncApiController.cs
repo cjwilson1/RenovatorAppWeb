@@ -101,7 +101,10 @@ public sealed class SyncApiController : ControllerBase
                 item.ModelNumber,
                 item.Manufacturer,
                 item.Sku,
-                item.Cost)).ToList(),
+                item.Url,
+                item.Cost,
+                item.IsPackage,
+                item.PackageUnits)).ToList(),
             (request.InspectionAreaCategories ?? []).Select(item => new MobileSyncInspectionAreaCategory(
                 item.Id,
                 item.Name,

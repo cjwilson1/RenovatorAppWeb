@@ -1,0 +1,75 @@
+@model IReadOnlyList<RenovatorApp.Web.ViewModels.PartsManagerPartViewModel>
+@{
+    ViewData["Title"] = "Find Part";
+}
+
+<div class="page-header-row">
+    <div>
+        <h1>Find Part</h1>
+    </div>
+</div>
+
+<div class="input-group mb-3">
+    <input class="form-control" id="findPartPageSearch" placeholder="search parts" type="search" />
+    <button class="btn btn-outline-secondary" id="findPartPageClear" type="button">Clear</button>
+</div>
+
+<div class="parts-search-grid" id="findPartPageResults">
+    @foreach (var part in Model)
+    {
+        var searchText = string.Join(" ", new[] { part.Name, part.Description, part.SourceName, part.Sku, part.Manufacturer }
+            .Where(value => !string.IsNullOrWhiteSpace(value)));
+
+        <article class="part-result-panel" data-part-search="@searchText">
+            <div class="d-flex justify-content-between gap-3">
+                <strong>@part.Name</strong>
+                <span>@FormatCurrency(part.Cost)</span>
+            </div>
+            <p class="small mb-2">@part.Description</p>
+            <div class="small text-muted">
+                @string.Join(" | ", new[] { part.SourceName, part.Sku, part.Manufacturer }
+                    .Where(value => !string.IsNullOrWhiteSpace(value)))
+            </div>
+        </article>
+    }
+</div>
+
+<p class="text-muted d-none" id="findPartPageEmpty">No matching parts found.</p>
+
+@section Scripts {
+    <script>
+        const searchInput = document.getElementById('findPartPageSearch');
+        const clearButton = document.getElementById('findPartPageClear');
+        const emptyMessage = document.getElementById('findPartPageEmpty');
+
+        function filterParts() {
+            const value = (searchInput.value || '').trim().toLowerCase();
+            let matchCount = 0;
+
+            document.querySelectorAll('[data-part-search]').forEach(panel => {
+                const isMatch = !value || (panel.dataset.partSearch || '').toLowerCase().includes(value);
+                panel.classList.toggle('d-none', !isMatch);
+
+                if (isMatch) {
+                    matchCount++;
+                }
+            });
+
+            emptyMessage.classList.toggle('d-none', matchCount > 0);
+        }
+
+        searchInput?.addEventListener('input', filterParts);
+        clearButton?.addEventListener('click', () => {
+            searchInput.value = '';
+            searchInput.focus();
+            filterParts();
+        });
+    </script>
+}
+
+@functions {
+    private static string FormatCurrency(decimal value)
+    {
+        return $"${value:N2}";
+    }
+}

@@ -19,6 +19,10 @@ if (!string.IsNullOrWhiteSpace(port))
 
 builder.Services.AddControllersWithViews();
 builder.Services.AddOpenApi();
+builder.Services.AddHttpClient("Browser").ConfigurePrimaryHttpMessageHandler(() => new HttpClientHandler
+{
+    AutomaticDecompression = DecompressionMethods.All
+});
 builder.Services.AddDistributedMemoryCache();
 builder.Services.AddSession(options =>
 {

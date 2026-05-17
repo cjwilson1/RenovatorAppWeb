@@ -47,7 +47,10 @@ public sealed record SyncPartDto(
     string ModelNumber,
     string Manufacturer,
     string Sku,
-    decimal Cost);
+    string? Url,
+    decimal Cost,
+    bool IsPackage,
+    int PackageUnits);
 
 public sealed record SyncInspectionAreaCategoryDto(
     Guid Id,

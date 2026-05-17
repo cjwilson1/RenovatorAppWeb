@@ -3,6 +3,16 @@
     ViewData["Title"] = Model.PageTitle;
 }
 
+<style>
+    #findPartModal {
+        z-index: 1065;
+    }
+
+    .modal-backdrop.show + .modal-backdrop.show {
+        z-index: 1060;
+    }
+</style>
+
 <div class="page-header-row">
     <div>
         <h1>@Model.PageTitle</h1>
@@ -228,12 +238,12 @@
                                     var isSelectedArea = areaIndex == 0;
                                     var ratingOptions = new[]
                                     {
-                                        (Value: 0, Label: "0 n/a"),
-                                        (Value: 1, Label: "1 bad"),
-                                        (Value: 2, Label: "2"),
-                                        (Value: 3, Label: "3 Average"),
-                                        (Value: 4, Label: "4"),
-                                        (Value: 5, Label: "5 best")
+                                        (Value: 0, Label: "0 n/a", CompactLabel: "n/a"),
+                                        (Value: 1, Label: "1 bad", CompactLabel: string.Empty),
+                                        (Value: 2, Label: "2", CompactLabel: string.Empty),
+                                        (Value: 3, Label: "3 Average", CompactLabel: "3 Avg"),
+                                        (Value: 4, Label: "4", CompactLabel: string.Empty),
+                                        (Value: 5, Label: "5 best", CompactLabel: string.Empty)
                                     };
 
                                     <div class="@(isSelectedArea ? string.Empty : "d-none")" data-area-panel="area-@area.Id">
@@ -250,7 +260,17 @@
                                                            type="radio"
                                                            value="@ratingOption.Value"
                                                            checked="@(area.OverallRating == ratingOption.Value)" />
-                                                    <label class="form-check-label" for="@radioId">@ratingOption.Label</label>
+                                                    <label class="form-check-label" for="@radioId">
+                                                        @if (string.IsNullOrWhiteSpace(ratingOption.CompactLabel))
+                                                        {
+                                                            @ratingOption.Label
+                                                        }
+                                                        else
+                                                        {
+                                                            <span class="d-sm-none">@ratingOption.CompactLabel</span>
+                                                            <span class="d-none d-sm-inline">@ratingOption.Label</span>
+                                                        }
+                                                    </label>
                                                 </div>
                                             }
                                         </div>
@@ -310,13 +330,15 @@
                                                                             var estimateItemClientId = $"estimate-item-{estimateItem.Id}";
 
                                                                             <tr data-estimate-item-row="@estimateItemClientId">
-                                                                                <td>@estimateItem.Name</td>
-                                                                                <td class="text-end">@FormatCurrency(estimateItem.Cost)</td>
-                                                                                <td class="text-end">@FormatHours(estimateItem.Hours)</td>
+                                                                                <td data-estimate-item-name>@estimateItem.Name</td>
+                                                                                <td class="text-end" data-estimate-item-cost>@FormatCurrency(estimateItem.Cost)</td>
+                                                                                <td class="text-end" data-estimate-item-hours>@FormatHours(estimateItem.Hours)</td>
                                                                                 <td class="text-end">
                                                                                     <div class="d-inline-flex gap-1">
                                                                                         <button class="btn btn-sm btn-success"
                                                                                                 type="button"
+                                                                                                data-edit-estimate-item-id="@estimateItemClientId"
+                                                                                                data-edit-estimate-note-id="@note.Id"
                                                                                                 aria-label="Edit estimate item">
                                                                                             <svg aria-hidden="true" fill="none" height="14" viewBox="0 0 24 24" width="14" xmlns="http://www.w3.org/2000/svg">
                                                                                                 <path d="M12 20h9" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round" stroke-width="2" />
@@ -353,7 +375,7 @@
 
                                                                 <span data-estimate-item-inputs="@estimateItemClientId">
                                                                     <input name="@(inputPrefix).Id" type="hidden" value="@estimateItem.Id" />
-                                                                    <input name="@(inputPrefix).Name" type="hidden" value="@estimateItem.Name" />
+                                                                    <input data-estimate-name-input name="@(inputPrefix).Name" type="hidden" value="@estimateItem.Name" />
                                                                     <input data-estimate-cost-input="@note.Id" name="@(inputPrefix).Cost" type="hidden" value="@estimateItem.Cost" />
                                                                     <input data-estimate-hours-input="@note.Id" name="@(inputPrefix).Hours" type="hidden" value="@estimateItem.Hours" />
                                                                     <input name="@(inputPrefix).IsNew" type="hidden" value="@estimateItem.IsNew" />
@@ -451,18 +473,70 @@
                     </div>
                     <div class="mb-3">
                         <label class="form-label" for="addPartCost">Cost</label>
-                        <input class="form-control" id="addPartCost" min="0" step="0.01" type="number" required />
+                        <input class="form-control" id="addPartCost" min="0" step="0.01" type="number" />
                     </div>
                     <div class="mb-0">
                         <label class="form-label" for="addPartHours">Hours</label>
-                        <input class="form-control" id="addPartHours" min="0" step="0.01" type="number" required />
+                        <input class="form-control" id="addPartHours" min="0" step="0.01" type="number" />
                     </div>
                 </div>
                 <div class="modal-footer">
+                    <button class="btn btn-outline-primary me-auto"
+                            id="findPartButton"
+                            type="button">
+                        Find Part
+                    </button>
                     <button class="btn btn-secondary" type="button" data-bs-dismiss="modal">Cancel</button>
                     <button class="btn btn-primary" type="submit">Save</button>
                 </div>
             </form>
+        </div>
+    </div>
+</div>
+
+<div class="modal fade" id="findPartModal" tabindex="-1" aria-labelledby="findPartModalLabel" aria-hidden="true">
+    <div class="modal-dialog modal-dialog-scrollable modal-lg">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h2 class="modal-title fs-5" id="findPartModalLabel">Find Part</h2>
+            </div>
+            <div class="modal-body">
+                <div class="input-group mb-3">
+                    <input class="form-control" id="findPartSearch" placeholder="search parts" type="search" />
+                    <button class="btn btn-outline-secondary" id="findPartClearButton" type="button">Clear</button>
+                </div>
+
+                <div class="d-grid gap-2 d-none" id="findPartResults">
+                    @foreach (var part in Model.Parts)
+                    {
+                        var searchText = string.Join(" ", new[] { part.Name, part.Description, part.SourceName, part.Sku, part.Manufacturer }
+                            .Where(value => !string.IsNullOrWhiteSpace(value)));
+
+                        <button class="btn btn-outline-secondary text-start p-3"
+                                type="button"
+                                data-find-part-item
+                                data-part-cost="@part.Cost"
+                                data-part-name="@part.Name"
+                                data-part-search="@searchText">
+                            <div class="d-flex justify-content-between gap-3">
+                                <strong>@part.Name</strong>
+                                <span>@FormatCurrency(part.Cost)</span>
+                            </div>
+                            <div class="small mt-2">@part.Description</div>
+                            <div class="small text-muted mt-2">
+                                @string.Join(" | ", new[] { part.SourceName, part.Sku, part.Manufacturer }
+                                    .Where(value => !string.IsNullOrWhiteSpace(value)))
+                            </div>
+                        </button>
+                    }
+                </div>
+
+                <p class="text-muted mb-0" id="findPartPrompt">Enter at least 2 characters to search parts.</p>
+                <p class="text-muted mb-0 d-none" id="findPartEmpty">No matching parts found.</p>
+            </div>
+            <div class="modal-footer">
+                <button class="btn btn-secondary" type="button" data-bs-dismiss="modal">Close</button>
+            </div>
         </div>
     </div>
 </div>
@@ -481,6 +555,37 @@
                 <button class="btn btn-secondary" type="button" data-bs-dismiss="modal">No</button>
                 <button class="btn btn-danger" id="confirmDeletePartButton" type="button">Yes</button>
             </div>
+        </div>
+    </div>
+</div>
+
+<div class="modal fade" id="editPartModal" tabindex="-1" aria-labelledby="editPartModalLabel" aria-hidden="true">
+    <div class="modal-dialog">
+        <div class="modal-content">
+            <form id="editPartForm">
+                <div class="modal-header">
+                    <h2 class="modal-title fs-5" id="editPartModalLabel">Edit Part</h2>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+                </div>
+                <div class="modal-body">
+                    <div class="mb-3">
+                        <label class="form-label" for="editPartName">Name</label>
+                        <input class="form-control" id="editPartName" type="text" required />
+                    </div>
+                    <div class="mb-3">
+                        <label class="form-label" for="editPartCost">Cost</label>
+                        <input class="form-control" id="editPartCost" min="0" step="0.01" type="number" required />
+                    </div>
+                    <div class="mb-0">
+                        <label class="form-label" for="editPartHours">Hours</label>
+                        <input class="form-control" id="editPartHours" min="0" step="0.01" type="number" required />
+                    </div>
+                </div>
+                <div class="modal-footer">
+                    <button class="btn btn-secondary" type="button" data-bs-dismiss="modal">Cancel</button>
+                    <button class="btn btn-primary" type="submit">Save</button>
+                </div>
+            </form>
         </div>
     </div>
 </div>
@@ -656,10 +761,23 @@
         const addPartName = document.getElementById('addPartName');
         const addPartCost = document.getElementById('addPartCost');
         const addPartHours = document.getElementById('addPartHours');
+        const findPartButton = document.getElementById('findPartButton');
+        const findPartModal = document.getElementById('findPartModal');
+        const findPartSearch = document.getElementById('findPartSearch');
+        const findPartClearButton = document.getElementById('findPartClearButton');
+        const findPartResults = document.getElementById('findPartResults');
+        const findPartPrompt = document.getElementById('findPartPrompt');
+        const findPartEmpty = document.getElementById('findPartEmpty');
         const deletePartModal = document.getElementById('deletePartModal');
         const confirmDeletePartButton = document.getElementById('confirmDeletePartButton');
+        const editPartModal = document.getElementById('editPartModal');
+        const editPartForm = document.getElementById('editPartForm');
+        const editPartName = document.getElementById('editPartName');
+        const editPartCost = document.getElementById('editPartCost');
+        const editPartHours = document.getElementById('editPartHours');
         let activeAddPartButton = null;
         let activeDeletePartButton = null;
+        let activeEditPartButton = null;
 
         function formatCurrencyValue(value) {
             return new Intl.NumberFormat('en-US', { style: 'currency', currency: 'USD' }).format(value);
@@ -747,12 +865,16 @@
             const row = document.createElement('tr');
             row.dataset.estimateItemRow = estimateItemClientId;
             row.innerHTML = `
-                <td>${name}</td>
-                <td class="text-end">${formatCurrencyValue(cost)}</td>
-                <td class="text-end">${formatHoursValue(hours)}</td>
+                <td data-estimate-item-name>${name}</td>
+                <td class="text-end" data-estimate-item-cost>${formatCurrencyValue(cost)}</td>
+                <td class="text-end" data-estimate-item-hours>${formatHoursValue(hours)}</td>
                 <td class="text-end">
                     <div class="d-inline-flex gap-1">
-                        <button class="btn btn-sm btn-success" type="button" aria-label="Edit estimate item">
+                        <button class="btn btn-sm btn-success"
+                                type="button"
+                                data-edit-estimate-item-id="${estimateItemClientId}"
+                                data-edit-estimate-note-id="${noteId}"
+                                aria-label="Edit estimate item">
                             <svg aria-hidden="true" fill="none" height="14" viewBox="0 0 24 24" width="14" xmlns="http://www.w3.org/2000/svg">
                                 <path d="M12 20h9" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round" stroke-width="2" />
                                 <path d="M16.5 3.5a2.12 2.12 0 0 1 3 3L7 19l-4 1 1-4 12.5-12.5Z" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round" stroke-width="2" />
@@ -785,7 +907,9 @@
             const inputGroup = document.createElement('span');
             inputGroup.dataset.estimateItemInputs = estimateItemClientId;
             inputGroup.appendChild(createHiddenInput(`${inputPrefix}.Id`, createClientId()));
-            inputGroup.appendChild(createHiddenInput(`${inputPrefix}.Name`, name));
+            const nameInput = createHiddenInput(`${inputPrefix}.Name`, name);
+            nameInput.dataset.estimateNameInput = '';
+            inputGroup.appendChild(nameInput);
             inputGroup.appendChild(costInput);
             inputGroup.appendChild(hoursInput);
             inputGroup.appendChild(createHiddenInput(`${inputPrefix}.IsNew`, 'true'));
@@ -796,6 +920,64 @@
             tableContainer?.classList.remove('d-none');
             recalculateEstimateTotals(noteId);
             bootstrap.Modal.getOrCreateInstance(addPartModal).hide();
+        });
+
+        findPartButton?.addEventListener('click', () => {
+            bootstrap.Modal.getOrCreateInstance(findPartModal).show();
+        });
+
+        function filterFindPartResults() {
+            const searchValue = (findPartSearch?.value || '').trim().toLowerCase();
+            let matchCount = 0;
+
+            if (searchValue.length < 2) {
+                findPartResults?.classList.add('d-none');
+                findPartPrompt?.classList.remove('d-none');
+                findPartEmpty?.classList.add('d-none');
+                document.querySelectorAll('[data-find-part-item]').forEach(item => item.classList.add('d-none'));
+                return;
+            }
+
+            document.querySelectorAll('[data-find-part-item]').forEach(item => {
+                const isMatch = (item.dataset.partSearch || '').toLowerCase().includes(searchValue);
+
+                item.classList.toggle('d-none', !isMatch);
+
+                if (isMatch) {
+                    matchCount++;
+                }
+            });
+
+            findPartResults?.classList.toggle('d-none', matchCount === 0);
+            findPartPrompt?.classList.add('d-none');
+            findPartEmpty?.classList.toggle('d-none', matchCount > 0);
+        }
+
+        findPartModal?.addEventListener('shown.bs.modal', () => {
+            findPartSearch?.focus();
+            filterFindPartResults();
+        });
+
+        findPartModal?.addEventListener('hidden.bs.modal', () => {
+            if (addPartModal?.classList.contains('show')) {
+                document.body.classList.add('modal-open');
+            }
+        });
+
+        findPartSearch?.addEventListener('input', filterFindPartResults);
+
+        findPartClearButton?.addEventListener('click', () => {
+            findPartSearch.value = '';
+            findPartSearch.focus();
+            filterFindPartResults();
+        });
+
+        document.querySelectorAll('[data-find-part-item]').forEach(button => {
+            button.addEventListener('click', () => {
+                addPartName.value = button.dataset.partName || '';
+                addPartCost.value = button.dataset.partCost || '';
+                bootstrap.Modal.getOrCreateInstance(findPartModal).hide();
+            });
         });
 
         document.addEventListener('click', event => {
@@ -829,6 +1011,53 @@
             updateEstimateEmptyState(tableContainer, emptyMessage);
             bootstrap.Modal.getOrCreateInstance(deletePartModal).hide();
             activeDeletePartButton = null;
+        });
+
+        document.addEventListener('click', event => {
+            const editButton = event.target.closest('[data-edit-estimate-item-id]');
+
+            if (!editButton) {
+                return;
+            }
+
+            const estimateItemId = editButton.dataset.editEstimateItemId;
+            const inputGroup = document.querySelector(`[data-estimate-item-inputs="${estimateItemId}"]`);
+
+            activeEditPartButton = editButton;
+            editPartName.value = inputGroup?.querySelector('[data-estimate-name-input]')?.value || '';
+            editPartCost.value = inputGroup?.querySelector('[data-estimate-cost-input]')?.value || '';
+            editPartHours.value = inputGroup?.querySelector('[data-estimate-hours-input]')?.value || '';
+            bootstrap.Modal.getOrCreateInstance(editPartModal).show();
+        });
+
+        editPartForm?.addEventListener('submit', event => {
+            event.preventDefault();
+
+            if (!activeEditPartButton) {
+                return;
+            }
+
+            const estimateItemId = activeEditPartButton.dataset.editEstimateItemId;
+            const noteId = activeEditPartButton.dataset.editEstimateNoteId;
+            const row = document.querySelector(`[data-estimate-item-row="${estimateItemId}"]`);
+            const inputGroup = document.querySelector(`[data-estimate-item-inputs="${estimateItemId}"]`);
+            const name = editPartName.value.trim();
+            const cost = Number.parseFloat(editPartCost.value) || 0;
+            const hours = Number.parseFloat(editPartHours.value) || 0;
+
+            if (!name || !row || !inputGroup || !noteId) {
+                return;
+            }
+
+            row.querySelector('[data-estimate-item-name]').textContent = name;
+            row.querySelector('[data-estimate-item-cost]').textContent = formatCurrencyValue(cost);
+            row.querySelector('[data-estimate-item-hours]').textContent = formatHoursValue(hours);
+            inputGroup.querySelector('[data-estimate-name-input]').value = name;
+            inputGroup.querySelector('[data-estimate-cost-input]').value = cost.toString();
+            inputGroup.querySelector('[data-estimate-hours-input]').value = hours.toString();
+            recalculateEstimateTotals(noteId);
+            bootstrap.Modal.getOrCreateInstance(editPartModal).hide();
+            activeEditPartButton = null;
         });
 
         const photoModal = document.getElementById('inspectionPhotoModal');

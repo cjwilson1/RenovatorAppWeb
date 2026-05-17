@@ -63,4 +63,13 @@ public sealed class InspectionDataService
             .ThenBy(inspector => inspector.FirstName)
             .ToListAsync(cancellationToken);
     }
+
+    public async Task<IReadOnlyList<Part>> GetPartsAsync(CancellationToken cancellationToken = default)
+    {
+        return await _dbContext.Parts
+            .AsNoTracking()
+            .Include(part => part.PartSource)
+            .OrderBy(part => part.Name)
+            .ToListAsync(cancellationToken);
+    }
 }

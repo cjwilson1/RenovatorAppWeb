@@ -1,0 +1,66 @@
+@model RenovatorApp.Web.ViewModels.AddPartViewModel
+
+@{
+    ViewData["Title"] = "Add Part";
+}
+
+<div class="page-header-row">
+    <div>
+        <h1>Add Part</h1>
+    </div>
+</div>
+
+<form asp-controller="Settings" asp-action="AddPart" method="post">
+    @Html.AntiForgeryToken()
+    <section class="detail-section">
+        <div class="row align-items-center g-2">
+            <label class="col-auto col-form-label" asp-for="Url">url</label>
+            <div class="col">
+                <input class="form-control" asp-for="Url" type="url" />
+            </div>
+            <div class="col-auto">
+                <button class="btn btn-primary" type="submit">Find</button>
+            </div>
+        </div>
+    </section>
+
+    @if (!string.IsNullOrWhiteSpace(Model.ErrorMessage))
+    {
+        <div class="alert alert-warning mt-3" role="alert">
+            @Model.ErrorMessage
+        </div>
+    }
+
+    <section class="detail-section mt-3">
+        <div class="row g-3">
+            <div class="col-md-6">
+                <label class="form-label" asp-for="Manufacturer">Manufacturer</label>
+                <input class="form-control" asp-for="Manufacturer" />
+            </div>
+            <div class="col-md-6">
+                <label class="form-label" asp-for="Title">Title of product</label>
+                <input class="form-control" asp-for="Title" />
+            </div>
+            <div class="col-md-4">
+                <label class="form-label" asp-for="Price">Price of the product</label>
+                <input class="form-control" asp-for="Price" />
+            </div>
+            <div class="col-md-4">
+                <label class="form-label" asp-for="Sku">Sku #</label>
+                <input class="form-control" asp-for="Sku" />
+            </div>
+            <div class="col-md-4">
+                <label class="form-label" asp-for="ModelNumber">Model #</label>
+                <input class="form-control" asp-for="ModelNumber" />
+            </div>
+            <div class="col-12">
+                <label class="form-label" asp-for="Description">First paragraph of the product description</label>
+                <textarea class="form-control" asp-for="Description" rows="4"></textarea>
+            </div>
+        </div>
+    </section>
+</form>
+
+<div class="d-flex justify-content-end mt-4">
+    <a class="btn btn-secondary" asp-controller="Settings" asp-action="PartsManager">Parts Manager</a>
+</div>

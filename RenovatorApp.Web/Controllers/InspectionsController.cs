@@ -50,7 +50,8 @@ public sealed class InspectionsController : Controller
         return View("Edit", new InspectionEditViewModel
         {
             InspectionDate = DateTime.Today,
-            Inspectors = await GetInspectorPickerItemsAsync(cancellationToken)
+            Inspectors = await GetInspectorPickerItemsAsync(cancellationToken),
+            Parts = await GetPartPickerItemsAsync(cancellationToken)
         });
     }
 
@@ -73,7 +74,8 @@ public sealed class InspectionsController : Controller
             PropertyAddress = ToPropertyAddressEditViewModel(inspection.Property.Address),
             Client = ToClientEditViewModel(inspection.Client),
             Buildings = ToBuildingEditViewModels(inspection.Property),
-            Inspectors = await GetInspectorPickerItemsAsync(cancellationToken)
+            Inspectors = await GetInspectorPickerItemsAsync(cancellationToken),
+            Parts = await GetPartPickerItemsAsync(cancellationToken)
         });
     }
 
@@ -532,6 +534,24 @@ public sealed class InspectionsController : Controller
         var fullName = $"{inspector.FirstName} {inspector.LastName}".Trim();
 
         return string.IsNullOrWhiteSpace(fullName) ? "Unnamed Inspector" : fullName;
+    }
+
+    private async Task<IReadOnlyList<PartPickerItemViewModel>> GetPartPickerItemsAsync(CancellationToken cancellationToken)
+    {
+        var parts = await _inspectionDataService.GetPartsAsync(cancellationToken);
+
+        return parts
+            .Select(part => new PartPickerItemViewModel
+            {
+                Id = part.PartId,
+                Name = part.Name,
+                Description = part.Description,
+                SourceName = part.PartSource?.Name ?? string.Empty,
+                Sku = part.Sku,
+                Manufacturer = part.Manufacturer,
+                Cost = part.Cost
+            })
+            .ToList();
     }
 
     private static InspectionClientEditViewModel ToClientEditViewModel(Client? client)
