@@ -1,0 +1,123 @@
+@model RenovatorApp.Web.ViewModels.EditPartViewModel
+
+@{
+    ViewData["Title"] = "Edit Part";
+}
+
+<div class="page-header-row">
+    <div>
+        <h1>Edit Part</h1>
+    </div>
+    <a class="btn btn-secondary" asp-controller="Settings" asp-action="PartsManager">Parts Manager</a>
+</div>
+
+<form asp-controller="Settings" asp-action="EditPart" method="post">
+    @Html.AntiForgeryToken()
+    <input asp-for="PartId" type="hidden" />
+
+    @if (!string.IsNullOrWhiteSpace(Model.ErrorMessage))
+    {
+        <div class="alert alert-warning" role="alert">
+            @Model.ErrorMessage
+        </div>
+    }
+
+    <section class="detail-section mt-3">
+        <div class="row g-3">
+            <div class="col-md-6">
+                <label class="form-label" asp-for="Manufacturer">Manufacturer</label>
+                <input class="form-control" asp-for="Manufacturer" />
+            </div>
+            <div class="col-md-6">
+                <label class="form-label" asp-for="Title">Title of product</label>
+                <input class="form-control" asp-for="Title" />
+            </div>
+            <div class="col-md-4">
+                <label class="form-label" asp-for="Price">Price of the product</label>
+                <input class="form-control" asp-for="Price" />
+            </div>
+            <div class="col-md-4">
+                <label class="form-label" asp-for="Sku">Sku #</label>
+                <input class="form-control" asp-for="Sku" />
+            </div>
+            <div class="col-md-4">
+                <label class="form-label" asp-for="ModelNumber">Model #</label>
+                <input class="form-control" asp-for="ModelNumber" />
+            </div>
+            <div class="col-12">
+                <label class="form-label" asp-for="Description">First paragraph of the product description</label>
+                <textarea class="form-control" asp-for="Description" rows="4"></textarea>
+            </div>
+            <div class="col-12">
+                <div class="part-image-edit-panel">
+                    <img alt="Part image preview"
+                         class="part-image-thumbnail @(string.IsNullOrWhiteSpace(Model.ImageUrl) ? "d-none" : string.Empty)"
+                         id="partImagePreview"
+                         src="@ResolvePartImageUrl(Model.ImageUrl)" />
+                    <div class="part-image-url-field">
+                        <label class="form-label" asp-for="ImageUrl">ImageUrl</label>
+                        <input class="form-control" asp-for="ImageUrl" />
+                    </div>
+                    <button class="btn btn-outline-primary part-image-change-button" id="changePartPictureButton" type="button">Change Picture</button>
+                </div>
+            </div>
+        </div>
+    </section>
+
+    <div class="d-flex justify-content-start mt-4">
+        <button class="btn btn-primary" type="submit">Save</button>
+    </div>
+</form>
+
+@section Scripts {
+    <script>
+        const imageUrlInput = document.getElementById('ImageUrl');
+        const imagePreview = document.getElementById('partImagePreview');
+        const changePictureButton = document.getElementById('changePartPictureButton');
+
+        function resolvePartImageUrl(value) {
+            const trimmed = (value || '').trim();
+            if (!trimmed) {
+                return '';
+            }
+
+            if (/^(https?:)?\/\//i.test(trimmed) || trimmed.startsWith('/')) {
+                return trimmed;
+            }
+
+            return `/images/Parts/${encodeURIComponent(trimmed)}`;
+        }
+
+        changePictureButton?.addEventListener('click', () => {
+            const resolvedUrl = resolvePartImageUrl(imageUrlInput?.value);
+            if (!resolvedUrl) {
+                imagePreview.classList.add('d-none');
+                imagePreview.removeAttribute('src');
+                return;
+            }
+
+            imagePreview.src = resolvedUrl;
+            imagePreview.classList.remove('d-none');
+        });
+    </script>
+}
+
+@functions {
+    private static string ResolvePartImageUrl(string value)
+    {
+        if (string.IsNullOrWhiteSpace(value))
+        {
+            return string.Empty;
+        }
+
+        var trimmed = value.Trim();
+        if (trimmed.StartsWith("http://", StringComparison.OrdinalIgnoreCase)
+            || trimmed.StartsWith("https://", StringComparison.OrdinalIgnoreCase)
+            || trimmed.StartsWith('/'))
+        {
+            return trimmed;
+        }
+
+        return $"/images/Parts/{Uri.EscapeDataString(trimmed)}";
+    }
+}

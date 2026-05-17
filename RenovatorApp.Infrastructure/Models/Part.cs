@@ -10,6 +10,7 @@ public sealed class Part
     public string Manufacturer { get; set; } = string.Empty;
     public string Sku { get; set; } = string.Empty;
     public string Url { get; set; } = string.Empty;
+    public string ImageUrl { get; set; } = string.Empty;
     public decimal Cost { get; set; }
     public bool IsPackage { get; set; }
     public int PackageUnits { get; set; }

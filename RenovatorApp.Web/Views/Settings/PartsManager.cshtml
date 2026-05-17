@@ -50,7 +50,10 @@
             {
                 @foreach (var part in Model.Parts)
                 {
-                    <tr>
+                    <tr class="clickable-table-row"
+                        data-href="@Url.Action("EditPart", "Settings", new { id = part.Id })"
+                        tabindex="0"
+                        aria-label="Edit @part.Name">
                         <td>
                             <strong>@part.Name</strong>
                             @if (!string.IsNullOrWhiteSpace(part.Description))
@@ -93,6 +96,27 @@
 <div class="d-flex justify-content-end mt-4">
     <a class="btn btn-secondary" asp-controller="Settings" asp-action="Index">Settings</a>
 </div>
+
+@section Scripts {
+    <script>
+        document.querySelectorAll(".clickable-table-row").forEach((row) => {
+            const navigate = () => {
+                const href = row.getAttribute("data-href");
+                if (href) {
+                    window.location.href = href;
+                }
+            };
+
+            row.addEventListener("click", navigate);
+            row.addEventListener("keydown", (event) => {
+                if (event.key === "Enter" || event.key === " ") {
+                    event.preventDefault();
+                    navigate();
+                }
+            });
+        });
+    </script>
+}
 
 @functions {
     private static string FormatCurrency(decimal value)

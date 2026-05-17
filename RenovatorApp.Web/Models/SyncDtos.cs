@@ -48,6 +48,7 @@ public sealed record SyncPartDto(
     string Manufacturer,
     string Sku,
     string? Url,
+    string? ImageUrl,
     decimal Cost,
     bool IsPackage,
     int PackageUnits);

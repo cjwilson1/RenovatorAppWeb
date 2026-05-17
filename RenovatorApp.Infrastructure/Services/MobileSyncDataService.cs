@@ -81,6 +81,7 @@ public sealed class MobileSyncDataService
                     Manufacturer = item.Manufacturer,
                     Sku = item.Sku,
                     Url = item.Url ?? string.Empty,
+                    ImageUrl = item.ImageUrl ?? string.Empty,
                     Cost = item.Cost,
                     IsPackage = item.IsPackage,
                     PackageUnits = item.PackageUnits
@@ -96,6 +97,7 @@ public sealed class MobileSyncDataService
             entity.Manufacturer = item.Manufacturer;
             entity.Sku = item.Sku;
             entity.Url = item.Url ?? string.Empty;
+            entity.ImageUrl = item.ImageUrl ?? string.Empty;
             entity.Cost = item.Cost;
             entity.IsPackage = item.IsPackage;
             entity.PackageUnits = item.PackageUnits;
@@ -552,7 +554,7 @@ public sealed record MobileSyncResult(string EntityName, Guid Id, string Status,
 
 public sealed record MobileSyncAppSetting(Guid Id, string Name, string Value);
 public sealed record MobileSyncPartSource(Guid PartSourceId, string Name);
-public sealed record MobileSyncPart(Guid PartId, Guid PartSourceId, string Name, string Description, string ModelNumber, string Manufacturer, string Sku, string? Url, decimal Cost, bool IsPackage, int PackageUnits);
+public sealed record MobileSyncPart(Guid PartId, Guid PartSourceId, string Name, string Description, string ModelNumber, string Manufacturer, string Sku, string? Url, string? ImageUrl, decimal Cost, bool IsPackage, int PackageUnits);
 public sealed record MobileSyncInspectionAreaCategory(Guid Id, string Name, int SortOrder);
 public sealed record MobileSyncInspectionAreaType(Guid AreaTypeId, Guid CategoryId, string Name, int SortOrder);
 public sealed record MobileSyncBuildingType(Guid Id, string Name);

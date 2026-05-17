@@ -20,6 +20,7 @@ public sealed class PartsManagerPartViewModel
     public string Manufacturer { get; init; } = string.Empty;
     public decimal Cost { get; init; }
     public string Url { get; init; } = string.Empty;
+    public string ImageUrl { get; init; } = string.Empty;
     public bool IsPackage { get; init; }
     public int PackageUnits { get; init; }
 }
@@ -33,5 +34,20 @@ public sealed class AddPartViewModel
     public string Description { get; set; } = string.Empty;
     public string Sku { get; set; } = string.Empty;
     public string ModelNumber { get; set; } = string.Empty;
+    public string ImageUrl { get; set; } = string.Empty;
+    public string ErrorMessage { get; set; } = string.Empty;
+    public List<string> LookupDebugMessages { get; set; } = [];
+}
+
+public sealed class EditPartViewModel
+{
+    public Guid PartId { get; set; }
+    public string Manufacturer { get; set; } = string.Empty;
+    public string Title { get; set; } = string.Empty;
+    public string Price { get; set; } = string.Empty;
+    public string Description { get; set; } = string.Empty;
+    public string Sku { get; set; } = string.Empty;
+    public string ModelNumber { get; set; } = string.Empty;
+    public string ImageUrl { get; set; } = string.Empty;
     public string ErrorMessage { get; set; } = string.Empty;
 }

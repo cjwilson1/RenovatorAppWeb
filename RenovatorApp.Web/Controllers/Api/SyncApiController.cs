@@ -102,6 +102,7 @@ public sealed class SyncApiController : ControllerBase
                 item.Manufacturer,
                 item.Sku,
                 item.Url,
+                item.ImageUrl,
                 item.Cost,
                 item.IsPackage,
                 item.PackageUnits)).ToList(),
