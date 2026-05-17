@@ -20,6 +20,17 @@ public sealed class SyncApiController : ControllerBase
         _mobileSyncDataService = mobileSyncDataService;
     }
 
+    [HttpGet]
+    public ActionResult<object> Health()
+    {
+        return Ok(new
+        {
+            status = "ok",
+            endpoint = "api/sync",
+            accepts = "POST"
+        });
+    }
+
     [HttpPost]
     public async Task<ActionResult<SyncResponse>> Sync(SyncRequest request, CancellationToken cancellationToken)
     {

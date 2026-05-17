@@ -44,6 +44,51 @@ public sealed class InspectionsController : Controller
         });
     }
 
+    [HttpGet("Inspections/New")]
+    public async Task<IActionResult> New(CancellationToken cancellationToken)
+    {
+        return View("Edit", new InspectionEditViewModel
+        {
+            InspectionDate = DateTime.Today,
+            Inspectors = await GetInspectorPickerItemsAsync(cancellationToken)
+        });
+    }
+
+    public async Task<IActionResult> Edit(Guid id, CancellationToken cancellationToken)
+    {
+        var inspection = await _inspectionDataService.GetInspectionDetailAsync(id, cancellationToken);
+
+        if (inspection is null)
+        {
+            return NotFound();
+        }
+
+        return View(new InspectionEditViewModel
+        {
+            Id = inspection.Id,
+            Title = inspection.Title,
+            InspectionDate = inspection.InspectionDate,
+            InspectorName = inspection.InspectorName,
+            GeneralNotes = inspection.GeneralNotes,
+            PropertyAddress = ToPropertyAddressEditViewModel(inspection.Property.Address),
+            Client = ToClientEditViewModel(inspection.Client),
+            Buildings = ToBuildingEditViewModels(inspection.Property),
+            Inspectors = await GetInspectorPickerItemsAsync(cancellationToken)
+        });
+    }
+
+    [HttpPost]
+    [ValidateAntiForgeryToken]
+    public IActionResult Edit(Guid? id)
+    {
+        if (id.HasValue)
+        {
+            return RedirectToAction(nameof(Details), new { id = id.Value });
+        }
+
+        return RedirectToAction(nameof(Index));
+    }
+
     public async Task<IActionResult> ReportPdf(Guid id, CancellationToken cancellationToken)
     {
         var inspection = await _inspectionDataService.GetInspectionDetailAsync(id, cancellationToken);
@@ -447,6 +492,329 @@ public sealed class InspectionsController : Controller
             inspection.InspectorName,
             GetPropertyAddress(inspection.Property),
             GetClientName(inspection.Client));
+    }
+
+    private static InspectionPropertyAddressEditViewModel ToPropertyAddressEditViewModel(Address? address)
+    {
+        if (address is null)
+        {
+            return new InspectionPropertyAddressEditViewModel();
+        }
+
+        return new InspectionPropertyAddressEditViewModel
+        {
+            Street1 = address.Street1,
+            Street2 = address.Street2,
+            City = address.City,
+            State = address.State,
+            PostalCode = address.PostalCode
+        };
+    }
+
+    private async Task<IReadOnlyList<InspectorPickerItemViewModel>> GetInspectorPickerItemsAsync(CancellationToken cancellationToken)
+    {
+        var inspectors = await _inspectionDataService.GetInspectorsAsync(cancellationToken);
+
+        return inspectors
+            .Select(inspector => new InspectorPickerItemViewModel
+            {
+                Id = inspector.Id,
+                FullName = GetInspectorFullName(inspector),
+                Email = inspector.Email,
+                Phone = inspector.Phone,
+                HourlyRate = inspector.HourlyRate
+            })
+            .ToList();
+    }
+
+    private static string GetInspectorFullName(Inspector inspector)
+    {
+        var fullName = $"{inspector.FirstName} {inspector.LastName}".Trim();
+
+        return string.IsNullOrWhiteSpace(fullName) ? "Unnamed Inspector" : fullName;
+    }
+
+    private static InspectionClientEditViewModel ToClientEditViewModel(Client? client)
+    {
+        if (client is null)
+        {
+            return new InspectionClientEditViewModel();
+        }
+
+        return new InspectionClientEditViewModel
+        {
+            ClientId = client.ClientId,
+            FirstName = client.FirstName,
+            LastName = client.LastName,
+            CompanyName = client.CompanyName,
+            Phone = client.Phone,
+            Email = client.Email,
+            Street1 = client.Street1,
+            Street2 = client.Street2,
+            City = client.City,
+            State = client.State,
+            PostalCode = client.PostalCode,
+            Notes = client.Notes
+        };
+    }
+
+    private static IReadOnlyList<InspectionBuildingEditViewModel> ToBuildingEditViewModels(Property? property)
+    {
+        if (property is null)
+        {
+            return [];
+        }
+
+        return property.Buildings
+            .OrderBy(building => building.SortOrder)
+            .ThenBy(building => building.Name)
+            .Select(building => new InspectionBuildingEditViewModel
+            {
+                Id = building.Id,
+                Name = building.Name,
+                BuildingTypeName = string.IsNullOrWhiteSpace(building.BuildingType?.Name)
+                    ? "No building type"
+                    : building.BuildingType.Name,
+                Areas = property.Areas
+                    .Where(area => area.BuildingId == building.Id)
+                    .OrderBy(area => area.SortOrder)
+                    .ThenBy(area => area.DisplayName)
+                    .Select(area => new InspectionAreaEditViewModel
+                    {
+                        Id = area.Id,
+                        DisplayName = area.DisplayName,
+                        AreaTypeName = string.IsNullOrWhiteSpace(area.AreaType?.Name)
+                            ? "No area type"
+                            : area.AreaType.Name,
+                        OverallRating = area.OverallRating,
+                        Notes = area.AreaNotes
+                            .OrderBy(note => note.CreatedAtUtc)
+                            .Select(note => new InspectionAreaNoteEditViewModel
+                            {
+                                Id = note.Id,
+                                Text = note.Text,
+                                EstimateCost = note.EstimateItems.Sum(item => item.Cost),
+                                EstimateHours = note.EstimateItems.Sum(item => item.Hours),
+                                EstimateItems = note.EstimateItems
+                                    .OrderBy(item => item.Name)
+                                    .Select(item => new InspectionAreaNoteEstimateItemEditViewModel
+                                    {
+                                        Id = item.Id,
+                                        Name = item.Name,
+                                        Cost = item.Cost,
+                                        Hours = item.Hours,
+                                        IsNew = false
+                                    })
+                                    .ToList(),
+                                Photos = note.Photos
+                                    .Where(photo => photo.Data.Length > 0)
+                                    .OrderBy(photo => photo.CreatedAtUtc)
+                                    .Select(ToPhotoEditViewModel)
+                                    .ToList()
+                            })
+                            .ToList()
+                    })
+                    .ToList()
+            })
+            .ToList();
+    }
+
+    private static InspectionAreaNotePhotoEditViewModel ToPhotoEditViewModel(InspectionAreaNotePhoto photo)
+    {
+        var dimensions = GetImageDimensions(photo.Data);
+
+        return new InspectionAreaNotePhotoEditViewModel
+        {
+            Id = photo.Id,
+            FileName = photo.FileName,
+            ContentType = photo.ContentType,
+            ImageType = GetImageType(photo.FileName, photo.ContentType, photo.Data),
+            SizeBytes = photo.Data.LongLength,
+            WidthPixels = dimensions.Width,
+            HeightPixels = dimensions.Height,
+            Data = photo.Data
+        };
+    }
+
+    private static string GetImageType(string fileName, string contentType, byte[] data)
+    {
+        if (!string.IsNullOrWhiteSpace(contentType))
+        {
+            var type = contentType.Split('/').LastOrDefault();
+
+            if (!string.IsNullOrWhiteSpace(type))
+            {
+                return type.Equals("jpeg", StringComparison.OrdinalIgnoreCase) ? "jpg" : type.ToLowerInvariant();
+            }
+        }
+
+        var extension = Path.GetExtension(fileName).TrimStart('.');
+
+        if (!string.IsNullOrWhiteSpace(extension))
+        {
+            return extension.Equals("jpeg", StringComparison.OrdinalIgnoreCase) ? "jpg" : extension.ToLowerInvariant();
+        }
+
+        if (IsPng(data))
+        {
+            return "png";
+        }
+
+        if (data.Length >= 3 && data[0] == 0xFF && data[1] == 0xD8 && data[2] == 0xFF)
+        {
+            return "jpg";
+        }
+
+        if (data.Length >= 6 && data.AsSpan(0, 3).SequenceEqual("GIF"u8))
+        {
+            return "gif";
+        }
+
+        if (data.Length >= 12 && data.AsSpan(0, 4).SequenceEqual("RIFF"u8) && data.AsSpan(8, 4).SequenceEqual("WEBP"u8))
+        {
+            return "webp";
+        }
+
+        return "unknown";
+    }
+
+    private static (int? Width, int? Height) GetImageDimensions(byte[] data)
+    {
+        return TryGetPngDimensions(data)
+            ?? TryGetJpegDimensions(data)
+            ?? TryGetGifDimensions(data)
+            ?? TryGetWebPDimensions(data)
+            ?? ((int?)null, null);
+    }
+
+    private static (int? Width, int? Height)? TryGetPngDimensions(byte[] data)
+    {
+        if (data.Length < 24 || !IsPng(data))
+        {
+            return null;
+        }
+
+        return (ReadBigEndianInt32(data, 16), ReadBigEndianInt32(data, 20));
+    }
+
+    private static bool IsPng(byte[] data)
+    {
+        return data.Length >= 8
+            && data[0] == 137
+            && data[1] == 80
+            && data[2] == 78
+            && data[3] == 71
+            && data[4] == 13
+            && data[5] == 10
+            && data[6] == 26
+            && data[7] == 10;
+    }
+
+    private static (int? Width, int? Height)? TryGetJpegDimensions(byte[] data)
+    {
+        if (data.Length < 4 || data[0] != 0xFF || data[1] != 0xD8)
+        {
+            return null;
+        }
+
+        var index = 2;
+
+        while (index + 8 < data.Length)
+        {
+            if (data[index] != 0xFF)
+            {
+                index++;
+                continue;
+            }
+
+            while (index < data.Length && data[index] == 0xFF)
+            {
+                index++;
+            }
+
+            if (index >= data.Length)
+            {
+                return null;
+            }
+
+            var marker = data[index++];
+
+            if (marker is 0xD8 or 0xD9 or 0x01)
+            {
+                continue;
+            }
+
+            if (index + 2 > data.Length)
+            {
+                return null;
+            }
+
+            var segmentLength = ReadBigEndianInt16(data, index);
+
+            if (segmentLength < 2 || index + segmentLength > data.Length)
+            {
+                return null;
+            }
+
+            if (marker is >= 0xC0 and <= 0xC3 or >= 0xC5 and <= 0xC7 or >= 0xC9 and <= 0xCB or >= 0xCD and <= 0xCF)
+            {
+                return (ReadBigEndianInt16(data, index + 5), ReadBigEndianInt16(data, index + 3));
+            }
+
+            index += segmentLength;
+        }
+
+        return null;
+    }
+
+    private static (int? Width, int? Height)? TryGetGifDimensions(byte[] data)
+    {
+        if (data.Length < 10 || !data.AsSpan(0, 3).SequenceEqual("GIF"u8))
+        {
+            return null;
+        }
+
+        return (ReadLittleEndianInt16(data, 6), ReadLittleEndianInt16(data, 8));
+    }
+
+    private static (int? Width, int? Height)? TryGetWebPDimensions(byte[] data)
+    {
+        if (data.Length < 30 || !data.AsSpan(0, 4).SequenceEqual("RIFF"u8) || !data.AsSpan(8, 4).SequenceEqual("WEBP"u8))
+        {
+            return null;
+        }
+
+        if (data.AsSpan(12, 4).SequenceEqual("VP8X"u8) && data.Length >= 30)
+        {
+            return (1 + ReadLittleEndianInt24(data, 24), 1 + ReadLittleEndianInt24(data, 27));
+        }
+
+        if (data.AsSpan(12, 4).SequenceEqual("VP8 "u8) && data.Length >= 30)
+        {
+            return (ReadLittleEndianInt16(data, 26) & 0x3FFF, ReadLittleEndianInt16(data, 28) & 0x3FFF);
+        }
+
+        return null;
+    }
+
+    private static int ReadBigEndianInt32(byte[] data, int index)
+    {
+        return data[index] << 24 | data[index + 1] << 16 | data[index + 2] << 8 | data[index + 3];
+    }
+
+    private static int ReadBigEndianInt16(byte[] data, int index)
+    {
+        return data[index] << 8 | data[index + 1];
+    }
+
+    private static int ReadLittleEndianInt16(byte[] data, int index)
+    {
+        return data[index] | data[index + 1] << 8;
+    }
+
+    private static int ReadLittleEndianInt24(byte[] data, int index)
+    {
+        return data[index] | data[index + 1] << 8 | data[index + 2] << 16;
     }
 
     private static string GetPropertyAddress(Property? property)

@@ -1,0 +1,1076 @@
+@model RenovatorApp.Web.ViewModels.InspectionEditViewModel
+@{
+    ViewData["Title"] = Model.PageTitle;
+}
+
+<div class="page-header-row">
+    <div>
+        <h1>@Model.PageTitle</h1>
+    </div>
+</div>
+
+<form asp-controller="Inspections" asp-action="Edit" asp-route-id="@Model.Id" method="post">
+    <ul class="nav nav-tabs mb-3" id="inspectionEditTabs" role="tablist">
+        <li class="nav-item" role="presentation">
+            <button class="nav-link active" id="general-tab" data-bs-toggle="tab" data-bs-target="#general-panel" type="button" role="tab" aria-controls="general-panel" aria-selected="true">
+                General
+            </button>
+        </li>
+        <li class="nav-item" role="presentation">
+            <button class="nav-link" id="property-tab" data-bs-toggle="tab" data-bs-target="#property-panel" type="button" role="tab" aria-controls="property-panel" aria-selected="false">
+                Property
+            </button>
+        </li>
+        <li class="nav-item" role="presentation">
+            <button class="nav-link" id="client-tab" data-bs-toggle="tab" data-bs-target="#client-panel" type="button" role="tab" aria-controls="client-panel" aria-selected="false">
+                Client
+            </button>
+        </li>
+        <li class="nav-item" role="presentation">
+            <button class="nav-link" id="buildings-tab" data-bs-toggle="tab" data-bs-target="#buildings-panel" type="button" role="tab" aria-controls="buildings-panel" aria-selected="false">
+                Buildings
+            </button>
+        </li>
+    </ul>
+
+    <div class="tab-content" id="inspectionEditTabContent">
+        <div class="tab-pane fade show active" id="general-panel" role="tabpanel" aria-labelledby="general-tab" tabindex="0">
+            <section class="detail-section">
+                <h2>General</h2>
+
+                <div class="mb-3">
+                    <label class="form-label" asp-for="Title"></label>
+                    <input class="form-control" asp-for="Title" type="text" />
+                </div>
+
+                <div class="mb-3">
+                    <label class="form-label" asp-for="InspectionDate">Inspection Date</label>
+                    <input class="form-control" asp-for="InspectionDate" asp-format="{0:yyyy-MM-dd}" type="date" min="2025-01-01" style="max-width: 14rem;" />
+                </div>
+
+                <div class="mb-3">
+                    <label class="form-label" asp-for="InspectorName">Inspector</label>
+                    <div class="input-group">
+                        <input class="form-control" asp-for="InspectorName" type="text" />
+                        <button class="btn btn-outline-secondary"
+                                type="button"
+                                data-bs-toggle="modal"
+                                data-bs-target="#inspectorPickerModal"
+                                aria-label="Select inspector">
+                            <svg aria-hidden="true" fill="none" height="16" viewBox="0 0 24 24" width="16" xmlns="http://www.w3.org/2000/svg">
+                                <path d="m21 21-4.35-4.35m1.35-5.65a7 7 0 1 1-14 0 7 7 0 0 1 14 0Z" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round" stroke-width="2" />
+                            </svg>
+                        </button>
+                    </div>
+                </div>
+
+                <div class="mb-0">
+                    <label class="form-label" asp-for="GeneralNotes">General notes</label>
+                    <textarea class="form-control" asp-for="GeneralNotes" rows="5"></textarea>
+                </div>
+            </section>
+        </div>
+
+        <div class="tab-pane fade" id="property-panel" role="tabpanel" aria-labelledby="property-tab" tabindex="0">
+            <section class="detail-section">
+                <h2>Property</h2>
+
+                <div class="mb-3">
+                    <label class="form-label" asp-for="PropertyAddress.Street1">Street 1</label>
+                    <input class="form-control" asp-for="PropertyAddress.Street1" type="text" />
+                </div>
+
+                <div class="mb-3">
+                    <label class="form-label" asp-for="PropertyAddress.Street2">Street 2</label>
+                    <input class="form-control" asp-for="PropertyAddress.Street2" type="text" />
+                </div>
+
+                <div class="row">
+                    <div class="col-md-5 mb-3">
+                        <label class="form-label" asp-for="PropertyAddress.City">City</label>
+                        <input class="form-control" asp-for="PropertyAddress.City" type="text" />
+                    </div>
+                    <div class="col-md-3 mb-3">
+                        <label class="form-label" asp-for="PropertyAddress.State"></label>
+                        <input class="form-control" asp-for="PropertyAddress.State" type="text" />
+                    </div>
+                    <div class="col-md-4 mb-0">
+                        <label class="form-label" asp-for="PropertyAddress.PostalCode">Postal Code</label>
+                        <input class="form-control" asp-for="PropertyAddress.PostalCode" type="text" />
+                    </div>
+                </div>
+            </section>
+        </div>
+
+        <div class="tab-pane fade" id="client-panel" role="tabpanel" aria-labelledby="client-tab" tabindex="0">
+            <section class="detail-section">
+                <h2>Client</h2>
+
+                <input asp-for="Client.ClientId" type="hidden" />
+
+                <div class="row">
+                    <div class="col-md-6 mb-3">
+                        <label class="form-label" asp-for="Client.FirstName">First Name</label>
+                        <input class="form-control" asp-for="Client.FirstName" type="text" />
+                    </div>
+                    <div class="col-md-6 mb-3">
+                        <label class="form-label" asp-for="Client.LastName">Last Name</label>
+                        <input class="form-control" asp-for="Client.LastName" type="text" />
+                    </div>
+                </div>
+
+                <div class="mb-3">
+                    <label class="form-label" asp-for="Client.CompanyName">Company Name</label>
+                    <input class="form-control" asp-for="Client.CompanyName" type="text" />
+                </div>
+
+                <div class="row">
+                    <div class="col-md-6 mb-3">
+                        <label class="form-label" asp-for="Client.Phone"></label>
+                        <input class="form-control" asp-for="Client.Phone" type="tel" />
+                    </div>
+                    <div class="col-md-6 mb-3">
+                        <label class="form-label" asp-for="Client.Email"></label>
+                        <input class="form-control" asp-for="Client.Email" type="email" />
+                    </div>
+                </div>
+
+                <div class="mb-3">
+                    <label class="form-label" asp-for="Client.Street1">Street 1</label>
+                    <input class="form-control" asp-for="Client.Street1" type="text" />
+                </div>
+
+                <div class="mb-3">
+                    <label class="form-label" asp-for="Client.Street2">Street 2</label>
+                    <input class="form-control" asp-for="Client.Street2" type="text" />
+                </div>
+
+                <div class="row">
+                    <div class="col-md-5 mb-3">
+                        <label class="form-label" asp-for="Client.City"></label>
+                        <input class="form-control" asp-for="Client.City" type="text" />
+                    </div>
+                    <div class="col-md-3 mb-3">
+                        <label class="form-label" asp-for="Client.State"></label>
+                        <input class="form-control" asp-for="Client.State" type="text" />
+                    </div>
+                    <div class="col-md-4 mb-3">
+                        <label class="form-label" asp-for="Client.PostalCode">Postal Code</label>
+                        <input class="form-control" asp-for="Client.PostalCode" type="text" />
+                    </div>
+                </div>
+
+                <div class="mb-0">
+                    <label class="form-label" asp-for="Client.Notes"></label>
+                    <textarea class="form-control" asp-for="Client.Notes" rows="5"></textarea>
+                </div>
+            </section>
+        </div>
+
+        <div class="tab-pane fade" id="buildings-panel" role="tabpanel" aria-labelledby="buildings-tab" tabindex="0">
+            <section class="detail-section">
+                <h2>Buildings</h2>
+
+                @if (Model.Buildings.Count == 0)
+                {
+                    <p class="text-muted mb-0">No buildings found.</p>
+                }
+                else
+                {
+                    <div class="d-flex flex-wrap gap-2 mb-3" data-building-selector>
+                        @for (var buildingIndex = 0; buildingIndex < Model.Buildings.Count; buildingIndex++)
+                        {
+                            var building = Model.Buildings[buildingIndex];
+                            var isSelectedBuilding = buildingIndex == 0;
+
+                            <input asp-for="Buildings[buildingIndex].Id" type="hidden" />
+                            <button class="btn @(isSelectedBuilding ? "btn-primary" : "btn-outline-primary")"
+                                    type="button"
+                                    data-building-target="building-@building.Id"
+                                    aria-pressed="@(isSelectedBuilding ? "true" : "false")">
+                                @building.BuildingTypeName
+                            </button>
+                        }
+                    </div>
+
+                    @for (var buildingIndex = 0; buildingIndex < Model.Buildings.Count; buildingIndex++)
+                    {
+                        var building = Model.Buildings[buildingIndex];
+                        var isSelectedBuilding = buildingIndex == 0;
+
+                        <div class="@(isSelectedBuilding ? string.Empty : "d-none")" data-building-panel="building-@building.Id">
+                            @if (building.Areas.Count == 0)
+                            {
+                                <p class="text-muted mb-0">No inspection areas found for this building.</p>
+                            }
+                            else
+                            {
+                                <h3 class="h6 fw-bold">Areas</h3>
+                                <div class="d-flex flex-wrap gap-2 mb-3" data-area-selector>
+                                    @for (var areaIndex = 0; areaIndex < building.Areas.Count; areaIndex++)
+                                    {
+                                        var area = building.Areas[areaIndex];
+                                        var isSelectedArea = areaIndex == 0;
+
+                                        <input asp-for="Buildings[buildingIndex].Areas[areaIndex].Id" type="hidden" />
+                                        <button class="btn @(isSelectedArea ? "btn-secondary" : "btn-outline-secondary")"
+                                                type="button"
+                                                data-area-target="area-@area.Id"
+                                                aria-pressed="@(isSelectedArea ? "true" : "false")">
+                                            @area.AreaTypeName
+                                        </button>
+                                    }
+                                </div>
+
+                                @for (var areaIndex = 0; areaIndex < building.Areas.Count; areaIndex++)
+                                {
+                                    var area = building.Areas[areaIndex];
+                                    var isSelectedArea = areaIndex == 0;
+                                    var ratingOptions = new[]
+                                    {
+                                        (Value: 0, Label: "0 n/a"),
+                                        (Value: 1, Label: "1 bad"),
+                                        (Value: 2, Label: "2"),
+                                        (Value: 3, Label: "3 Average"),
+                                        (Value: 4, Label: "4"),
+                                        (Value: 5, Label: "5 best")
+                                    };
+
+                                    <div class="@(isSelectedArea ? string.Empty : "d-none")" data-area-panel="area-@area.Id">
+                                        <h3 class="h5">@area.DisplayName</h3>
+                                        <div class="d-flex flex-wrap gap-3 mb-3">
+                                            @foreach (var ratingOption in ratingOptions)
+                                            {
+                                                var radioId = $"building-{buildingIndex}-area-{areaIndex}-rating-{ratingOption.Value}";
+
+                                                <div class="form-check">
+                                                    <input class="form-check-input"
+                                                           id="@radioId"
+                                                           name="Buildings[@buildingIndex].Areas[@areaIndex].OverallRating"
+                                                           type="radio"
+                                                           value="@ratingOption.Value"
+                                                           checked="@(area.OverallRating == ratingOption.Value)" />
+                                                    <label class="form-check-label" for="@radioId">@ratingOption.Label</label>
+                                                </div>
+                                            }
+                                        </div>
+
+                                        @if (area.Notes.Count == 0)
+                                        {
+                                            <p class="text-muted mb-0">No notes found for this area.</p>
+                                        }
+                                        else
+                                        {
+                                            <div class="d-grid gap-3">
+                                                @for (var noteIndex = 0; noteIndex < area.Notes.Count; noteIndex++)
+                                                {
+                                                    var note = area.Notes[noteIndex];
+                                                    var estimateTableId = $"estimate-items-{note.Id}";
+                                                    var estimateEmptyId = $"estimate-empty-{note.Id}";
+                                                    var estimateInputsId = $"estimate-inputs-{note.Id}";
+                                                    var estimatePrefix = $"Buildings[{buildingIndex}].Areas[{areaIndex}].Notes[{noteIndex}].EstimateItems";
+
+                                                    <section class="border rounded p-3">
+                                                        <p class="mb-3">@(string.IsNullOrWhiteSpace(note.Text) ? "No note text." : note.Text)</p>
+
+                                                        <div class="d-flex flex-wrap align-items-center justify-content-between gap-3 mb-3">
+                                                            <div class="d-flex flex-wrap gap-3">
+                                                                <span><strong>Estimate:</strong> <span data-estimate-total-cost="@note.Id">@FormatCurrency(note.EstimateCost)</span></span>
+                                                                <span><strong>Hours:</strong> <span data-estimate-total-hours="@note.Id">@FormatHours(note.EstimateHours)</span></span>
+                                                            </div>
+                                                            <button class="btn btn-sm btn-outline-primary"
+                                                                    type="button"
+                                                                    data-add-part-note-id="@note.Id"
+                                                                    data-add-part-table-id="@estimateTableId"
+                                                                    data-add-part-empty-id="@estimateEmptyId"
+                                                                    data-add-part-inputs-id="@estimateInputsId"
+                                                                    data-add-part-prefix="@estimatePrefix"
+                                                                    data-add-part-next-index="@note.EstimateItems.Count"
+                                                                    data-bs-toggle="modal"
+                                                                    data-bs-target="#addPartModal">
+                                                                Add Part
+                                                            </button>
+                                                        </div>
+
+                                                        <p class="text-muted @(note.EstimateItems.Count == 0 ? "mb-3" : "d-none")" id="@estimateEmptyId">No estimate items found.</p>
+                                                        <div class="table-responsive mb-3 @(note.EstimateItems.Count == 0 ? "d-none" : string.Empty)" id="@estimateTableId">
+                                                            <table class="table table-sm mb-0">
+                                                                    <thead>
+                                                                        <tr>
+                                                                            <th scope="col">Name</th>
+                                                                            <th scope="col" class="text-end">Cost</th>
+                                                                            <th scope="col" class="text-end">Hours</th>
+                                                                            <th scope="col" class="text-end">Actions</th>
+                                                                        </tr>
+                                                                    </thead>
+                                                                    <tbody>
+                                                                        @for (var estimateItemIndex = 0; estimateItemIndex < note.EstimateItems.Count; estimateItemIndex++)
+                                                                        {
+                                                                            var estimateItem = note.EstimateItems[estimateItemIndex];
+                                                                            var estimateItemClientId = $"estimate-item-{estimateItem.Id}";
+
+                                                                            <tr data-estimate-item-row="@estimateItemClientId">
+                                                                                <td>@estimateItem.Name</td>
+                                                                                <td class="text-end">@FormatCurrency(estimateItem.Cost)</td>
+                                                                                <td class="text-end">@FormatHours(estimateItem.Hours)</td>
+                                                                                <td class="text-end">
+                                                                                    <div class="d-inline-flex gap-1">
+                                                                                        <button class="btn btn-sm btn-success"
+                                                                                                type="button"
+                                                                                                aria-label="Edit estimate item">
+                                                                                            <svg aria-hidden="true" fill="none" height="14" viewBox="0 0 24 24" width="14" xmlns="http://www.w3.org/2000/svg">
+                                                                                                <path d="M12 20h9" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round" stroke-width="2" />
+                                                                                                <path d="M16.5 3.5a2.12 2.12 0 0 1 3 3L7 19l-4 1 1-4 12.5-12.5Z" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round" stroke-width="2" />
+                                                                                            </svg>
+                                                                                        </button>
+                                                                                        <button class="btn btn-sm btn-danger"
+                                                                                                type="button"
+                                                                                                data-delete-estimate-item-id="@estimateItemClientId"
+                                                                                                data-delete-estimate-note-id="@note.Id"
+                                                                                                data-delete-estimate-table-id="@estimateTableId"
+                                                                                                data-delete-estimate-empty-id="@estimateEmptyId"
+                                                                                                aria-label="Delete estimate item">
+                                                                                            <svg aria-hidden="true" fill="none" height="14" viewBox="0 0 24 24" width="14" xmlns="http://www.w3.org/2000/svg">
+                                                                                                <path d="M3 6h18" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round" stroke-width="2" />
+                                                                                                <path d="M8 6V4h8v2" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round" stroke-width="2" />
+                                                                                                <path d="M19 6 18 20H6L5 6" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round" stroke-width="2" />
+                                                                                                <path d="M10 11v5M14 11v5" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round" stroke-width="2" />
+                                                                                            </svg>
+                                                                                        </button>
+                                                                                    </div>
+                                                                                </td>
+                                                                            </tr>
+                                                                        }
+                                                                    </tbody>
+                                                            </table>
+                                                        </div>
+                                                        <div id="@estimateInputsId">
+                                                            @for (var estimateItemIndex = 0; estimateItemIndex < note.EstimateItems.Count; estimateItemIndex++)
+                                                            {
+                                                                var estimateItem = note.EstimateItems[estimateItemIndex];
+                                                                var inputPrefix = $"{estimatePrefix}[{estimateItemIndex}]";
+                                                                var estimateItemClientId = $"estimate-item-{estimateItem.Id}";
+
+                                                                <span data-estimate-item-inputs="@estimateItemClientId">
+                                                                    <input name="@(inputPrefix).Id" type="hidden" value="@estimateItem.Id" />
+                                                                    <input name="@(inputPrefix).Name" type="hidden" value="@estimateItem.Name" />
+                                                                    <input data-estimate-cost-input="@note.Id" name="@(inputPrefix).Cost" type="hidden" value="@estimateItem.Cost" />
+                                                                    <input data-estimate-hours-input="@note.Id" name="@(inputPrefix).Hours" type="hidden" value="@estimateItem.Hours" />
+                                                                    <input name="@(inputPrefix).IsNew" type="hidden" value="@estimateItem.IsNew" />
+                                                                </span>
+                                                            }
+                                                        </div>
+
+                                                        <div class="fw-bold mb-2">Photos</div>
+                                                        @if (note.Photos.Count == 0)
+                                                        {
+                                                            <p class="text-muted mb-0">No pictures found.</p>
+                                                        }
+                                                        else
+                                                        {
+                                                            <div class="d-flex flex-wrap gap-2">
+                                                                @for (var photoIndex = 0; photoIndex < note.Photos.Count; photoIndex++)
+                                                                {
+                                                                    var photo = note.Photos[photoIndex];
+                                                                    var croppedInputId = $"cropped-photo-{photo.Id}";
+                                                                    var thumbnailImageId = $"thumbnail-photo-{photo.Id}";
+
+                                                                    <input id="@croppedInputId"
+                                                                           name="Buildings[@buildingIndex].Areas[@areaIndex].Notes[@noteIndex].Photos[@photoIndex].CroppedDataUrl"
+                                                                           type="hidden"
+                                                                           value="@photo.CroppedDataUrl" />
+                                                                    <button class="btn p-0 border-0"
+                                                                            type="button"
+                                                                            data-photo-src="@GetPhotoSource(photo)"
+                                                                            data-photo-alt="@GetPhotoAlt(photo)"
+                                                                            data-photo-file-name="@GetPhotoFileName(photo)"
+                                                                            data-photo-size="@FormatBytes(photo.SizeBytes)"
+                                                                            data-photo-dimensions="@FormatDimensions(photo)"
+                                                                            data-photo-type="@photo.ImageType"
+                                                                            data-cropped-input-id="@croppedInputId"
+                                                                            data-thumbnail-image-id="@thumbnailImageId"
+                                                                            data-bs-toggle="modal"
+                                                                            data-bs-target="#inspectionPhotoModal">
+                                                                        <img class="img-thumbnail"
+                                                                             id="@thumbnailImageId"
+                                                                             src="@GetPhotoSource(photo)"
+                                                                             alt="@GetPhotoAlt(photo)"
+                                                                             style="width: 192px; height: 144px; object-fit: contain;" />
+                                                                    </button>
+                                                                }
+                                                            </div>
+                                                        }
+                                                    </section>
+                                                }
+                                            </div>
+                                        }
+                                    </div>
+                                }
+                            }
+                        </div>
+                    }
+                }
+            </section>
+        </div>
+    </div>
+
+    <div class="d-flex justify-content-end gap-2 mt-4">
+        @if (Model.Id.HasValue)
+        {
+            <a class="btn btn-secondary"
+               asp-controller="Inspections"
+               asp-action="@Model.CancelAction"
+               asp-route-id="@Model.Id">
+                Cancel
+            </a>
+        }
+        else
+        {
+            <a class="btn btn-secondary"
+               asp-controller="Inspections"
+               asp-action="@Model.CancelAction">
+                Cancel
+            </a>
+        }
+        <button class="btn btn-primary" type="submit">Save</button>
+    </div>
+</form>
+
+<div class="modal fade" id="addPartModal" tabindex="-1" aria-labelledby="addPartModalLabel" aria-hidden="true">
+    <div class="modal-dialog">
+        <div class="modal-content">
+            <form id="addPartForm">
+                <div class="modal-header">
+                    <h2 class="modal-title fs-5" id="addPartModalLabel">Add Part</h2>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+                </div>
+                <div class="modal-body">
+                    <div class="mb-3">
+                        <label class="form-label" for="addPartName">Name</label>
+                        <input class="form-control" id="addPartName" type="text" required />
+                    </div>
+                    <div class="mb-3">
+                        <label class="form-label" for="addPartCost">Cost</label>
+                        <input class="form-control" id="addPartCost" min="0" step="0.01" type="number" required />
+                    </div>
+                    <div class="mb-0">
+                        <label class="form-label" for="addPartHours">Hours</label>
+                        <input class="form-control" id="addPartHours" min="0" step="0.01" type="number" required />
+                    </div>
+                </div>
+                <div class="modal-footer">
+                    <button class="btn btn-secondary" type="button" data-bs-dismiss="modal">Cancel</button>
+                    <button class="btn btn-primary" type="submit">Save</button>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
+
+<div class="modal fade" id="deletePartModal" tabindex="-1" aria-labelledby="deletePartModalLabel" aria-hidden="true">
+    <div class="modal-dialog">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h2 class="modal-title fs-5" id="deletePartModalLabel">Delete Part</h2>
+                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+            </div>
+            <div class="modal-body">
+                Delete this part. Are you sure?
+            </div>
+            <div class="modal-footer">
+                <button class="btn btn-secondary" type="button" data-bs-dismiss="modal">No</button>
+                <button class="btn btn-danger" id="confirmDeletePartButton" type="button">Yes</button>
+            </div>
+        </div>
+    </div>
+</div>
+
+<div class="modal fade" id="inspectorPickerModal" tabindex="-1" aria-labelledby="inspectorPickerModalLabel" aria-hidden="true">
+    <div class="modal-dialog modal-dialog-scrollable">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h2 class="modal-title fs-5" id="inspectorPickerModalLabel">Select Inspector</h2>
+                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+            </div>
+            <div class="modal-body">
+                @if (Model.Inspectors.Count == 0)
+                {
+                    <p class="text-muted mb-0">No inspectors found.</p>
+                }
+                else
+                {
+                    <div class="d-grid gap-2">
+                        @foreach (var inspector in Model.Inspectors)
+                        {
+                            <button class="btn btn-outline-secondary text-start p-3"
+                                    type="button"
+                                    data-inspector-name="@inspector.FullName">
+                                <strong>@inspector.FullName</strong>
+                                <div class="small text-muted">@inspector.Email</div>
+                                <div class="small text-muted">@inspector.Phone</div>
+                                <div class="small text-muted">@FormatCurrency(inspector.HourlyRate) / hour</div>
+                            </button>
+                        }
+                    </div>
+                }
+            </div>
+            <div class="modal-footer">
+                <button class="btn btn-secondary" type="button" data-bs-dismiss="modal">Cancel</button>
+            </div>
+        </div>
+    </div>
+</div>
+
+<div class="modal fade" id="inspectionPhotoModal" tabindex="-1" aria-labelledby="inspectionPhotoModalLabel" aria-hidden="true">
+    <div class="modal-dialog modal-dialog-centered" style="max-width: 80vw;">
+        <div class="modal-content" style="height: 80vh;">
+            <div class="modal-header">
+                <h2 class="modal-title fs-5" id="inspectionPhotoModalLabel">Inspection Picture</h2>
+                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+            </div>
+            <div class="modal-body overflow-hidden p-2" style="min-height: 0;">
+                <div class="position-relative d-flex align-items-center justify-content-center w-100 h-100"
+                     id="inspectionPhotoCropSurface"
+                     style="cursor: crosshair;">
+                    <img id="inspectionPhotoModalImage"
+                         src=""
+                         alt=""
+                         draggable="false"
+                         style="width: 100%; height: 100%; object-fit: contain; user-select: none;" />
+                    <div class="position-absolute border border-2 border-light d-none"
+                         id="inspectionPhotoCropBox"
+                         style="box-shadow: 0 0 0 9999px rgba(0, 0, 0, .35); pointer-events: none;"></div>
+                </div>
+            </div>
+            <div class="modal-footer justify-content-between">
+                <div class="d-flex flex-wrap gap-3 small">
+                    <span><strong>File:</strong> <span id="inspectionPhotoModalFileName"></span></span>
+                    <span><strong>Size:</strong> <span id="inspectionPhotoModalSize"></span></span>
+                    <span><strong>Dimensions:</strong> <span id="inspectionPhotoModalDimensions"></span></span>
+                    <span><strong>Type:</strong> <span id="inspectionPhotoModalType"></span></span>
+                </div>
+                <div class="d-flex gap-2">
+                    <button class="btn btn-outline-secondary" id="inspectionPhotoRestoreButton" type="button">Restore</button>
+                    <button class="btn btn-secondary" type="button" data-bs-dismiss="modal">Cancel</button>
+                    <button class="btn btn-primary" id="inspectionPhotoSaveButton" type="button">Save</button>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+@functions {
+    private static string FormatCurrency(decimal value)
+    {
+        return $"${value:N2}";
+    }
+
+    private static string FormatHours(decimal value)
+    {
+        return value.ToString("0.##");
+    }
+
+    private static string FormatBytes(long value)
+    {
+        return $"{value:N0} bytes";
+    }
+
+    private static string FormatDimensions(RenovatorApp.Web.ViewModels.InspectionAreaNotePhotoEditViewModel photo)
+    {
+        return photo.WidthPixels.HasValue && photo.HeightPixels.HasValue
+            ? $"{photo.WidthPixels.Value} x {photo.HeightPixels.Value} px"
+            : "Unknown";
+    }
+
+    private static string GetPhotoSource(RenovatorApp.Web.ViewModels.InspectionAreaNotePhotoEditViewModel photo)
+    {
+        var contentType = string.IsNullOrWhiteSpace(photo.ContentType) ? "image/jpeg" : photo.ContentType;
+
+        return $"data:{contentType};base64,{Convert.ToBase64String(photo.Data)}";
+    }
+
+    private static string GetPhotoAlt(RenovatorApp.Web.ViewModels.InspectionAreaNotePhotoEditViewModel photo)
+    {
+        return string.IsNullOrWhiteSpace(photo.FileName) ? "Inspection note picture" : photo.FileName;
+    }
+
+    private static string GetPhotoFileName(RenovatorApp.Web.ViewModels.InspectionAreaNotePhotoEditViewModel photo)
+    {
+        return string.IsNullOrWhiteSpace(photo.FileName) ? "Unnamed picture" : photo.FileName;
+    }
+}
+
+@section Scripts {
+    <script>
+        document.querySelectorAll('[data-building-target]').forEach(button => {
+            button.addEventListener('click', () => {
+                const target = button.dataset.buildingTarget;
+                const section = button.closest('.detail-section');
+
+                section.querySelectorAll('[data-building-target]').forEach(item => {
+                    const isSelected = item === button;
+                    item.classList.toggle('btn-primary', isSelected);
+                    item.classList.toggle('btn-outline-primary', !isSelected);
+                    item.setAttribute('aria-pressed', isSelected.toString());
+                });
+
+                section.querySelectorAll('[data-building-panel]').forEach(panel => {
+                    panel.classList.toggle('d-none', panel.dataset.buildingPanel !== target);
+                });
+            });
+        });
+
+        document.querySelectorAll('[data-area-target]').forEach(button => {
+            button.addEventListener('click', () => {
+                const target = button.dataset.areaTarget;
+                const buildingPanel = button.closest('[data-building-panel]');
+
+                buildingPanel.querySelectorAll('[data-area-target]').forEach(item => {
+                    const isSelected = item === button;
+                    item.classList.toggle('btn-secondary', isSelected);
+                    item.classList.toggle('btn-outline-secondary', !isSelected);
+                    item.setAttribute('aria-pressed', isSelected.toString());
+                });
+
+                buildingPanel.querySelectorAll('[data-area-panel]').forEach(panel => {
+                    panel.classList.toggle('d-none', panel.dataset.areaPanel !== target);
+                });
+            });
+        });
+
+        const inspectorPickerModal = document.getElementById('inspectorPickerModal');
+        const inspectorNameInput = document.getElementById('InspectorName');
+
+        document.querySelectorAll('[data-inspector-name]').forEach(button => {
+            button.addEventListener('click', () => {
+                if (inspectorNameInput) {
+                    inspectorNameInput.value = button.dataset.inspectorName || '';
+                }
+
+                bootstrap.Modal.getOrCreateInstance(inspectorPickerModal).hide();
+            });
+        });
+
+        const addPartModal = document.getElementById('addPartModal');
+        const addPartForm = document.getElementById('addPartForm');
+        const addPartName = document.getElementById('addPartName');
+        const addPartCost = document.getElementById('addPartCost');
+        const addPartHours = document.getElementById('addPartHours');
+        const deletePartModal = document.getElementById('deletePartModal');
+        const confirmDeletePartButton = document.getElementById('confirmDeletePartButton');
+        let activeAddPartButton = null;
+        let activeDeletePartButton = null;
+
+        function formatCurrencyValue(value) {
+            return new Intl.NumberFormat('en-US', { style: 'currency', currency: 'USD' }).format(value);
+        }
+
+        function formatHoursValue(value) {
+            return Number.isInteger(value) ? value.toString() : value.toFixed(2).replace(/0+$/, '').replace(/\.$/, '');
+        }
+
+        function createHiddenInput(name, value) {
+            const input = document.createElement('input');
+
+            input.type = 'hidden';
+            input.name = name;
+            input.value = value;
+
+            return input;
+        }
+
+        function createClientId() {
+            return crypto.randomUUID
+                ? crypto.randomUUID()
+                : `new-${Date.now()}-${Math.random().toString(16).slice(2)}`;
+        }
+
+        function recalculateEstimateTotals(noteId) {
+            let totalCost = 0;
+            let totalHours = 0;
+
+            document.querySelectorAll(`[data-estimate-cost-input="${noteId}"]`).forEach(input => {
+                totalCost += Number.parseFloat(input.value) || 0;
+            });
+            document.querySelectorAll(`[data-estimate-hours-input="${noteId}"]`).forEach(input => {
+                totalHours += Number.parseFloat(input.value) || 0;
+            });
+
+            const totalCostElement = document.querySelector(`[data-estimate-total-cost="${noteId}"]`);
+            const totalHoursElement = document.querySelector(`[data-estimate-total-hours="${noteId}"]`);
+
+            if (totalCostElement) {
+                totalCostElement.textContent = formatCurrencyValue(totalCost);
+            }
+
+            if (totalHoursElement) {
+                totalHoursElement.textContent = formatHoursValue(totalHours);
+            }
+        }
+
+        function updateEstimateEmptyState(tableContainer, emptyMessage) {
+            const hasRows = (tableContainer?.querySelectorAll('tbody tr').length || 0) > 0;
+
+            tableContainer?.classList.toggle('d-none', !hasRows);
+            emptyMessage?.classList.toggle('d-none', hasRows);
+            emptyMessage?.classList.toggle('mb-3', !hasRows);
+        }
+
+        addPartModal?.addEventListener('show.bs.modal', event => {
+            activeAddPartButton = event.relatedTarget;
+            addPartForm?.reset();
+        });
+
+        addPartForm?.addEventListener('submit', event => {
+            event.preventDefault();
+
+            if (!activeAddPartButton) {
+                return;
+            }
+
+            const noteId = activeAddPartButton.dataset.addPartNoteId;
+            const tableContainer = document.getElementById(activeAddPartButton.dataset.addPartTableId || '');
+            const tableBody = tableContainer?.querySelector('tbody');
+            const emptyMessage = document.getElementById(activeAddPartButton.dataset.addPartEmptyId || '');
+            const inputsContainer = document.getElementById(activeAddPartButton.dataset.addPartInputsId || '');
+            const prefix = activeAddPartButton.dataset.addPartPrefix;
+            const nextIndex = Number.parseInt(activeAddPartButton.dataset.addPartNextIndex || '0', 10);
+            const name = addPartName.value.trim();
+            const cost = Number.parseFloat(addPartCost.value) || 0;
+            const hours = Number.parseFloat(addPartHours.value) || 0;
+
+            if (!name || !tableBody || !inputsContainer || !prefix || !noteId) {
+                return;
+            }
+
+            const estimateItemClientId = `estimate-item-${createClientId()}`;
+            const row = document.createElement('tr');
+            row.dataset.estimateItemRow = estimateItemClientId;
+            row.innerHTML = `
+                <td>${name}</td>
+                <td class="text-end">${formatCurrencyValue(cost)}</td>
+                <td class="text-end">${formatHoursValue(hours)}</td>
+                <td class="text-end">
+                    <div class="d-inline-flex gap-1">
+                        <button class="btn btn-sm btn-success" type="button" aria-label="Edit estimate item">
+                            <svg aria-hidden="true" fill="none" height="14" viewBox="0 0 24 24" width="14" xmlns="http://www.w3.org/2000/svg">
+                                <path d="M12 20h9" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round" stroke-width="2" />
+                                <path d="M16.5 3.5a2.12 2.12 0 0 1 3 3L7 19l-4 1 1-4 12.5-12.5Z" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round" stroke-width="2" />
+                            </svg>
+                        </button>
+                        <button class="btn btn-sm btn-danger"
+                                type="button"
+                                data-delete-estimate-item-id="${estimateItemClientId}"
+                                data-delete-estimate-note-id="${noteId}"
+                                data-delete-estimate-table-id="${activeAddPartButton.dataset.addPartTableId || ''}"
+                                data-delete-estimate-empty-id="${activeAddPartButton.dataset.addPartEmptyId || ''}"
+                                aria-label="Delete estimate item">
+                            <svg aria-hidden="true" fill="none" height="14" viewBox="0 0 24 24" width="14" xmlns="http://www.w3.org/2000/svg">
+                                <path d="M3 6h18" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round" stroke-width="2" />
+                                <path d="M8 6V4h8v2" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round" stroke-width="2" />
+                                <path d="M19 6 18 20H6L5 6" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round" stroke-width="2" />
+                                <path d="M10 11v5M14 11v5" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round" stroke-width="2" />
+                            </svg>
+                        </button>
+                    </div>
+                </td>`;
+            tableBody.appendChild(row);
+
+            const inputPrefix = `${prefix}[${nextIndex}]`;
+            const costInput = createHiddenInput(`${inputPrefix}.Cost`, cost.toString());
+            const hoursInput = createHiddenInput(`${inputPrefix}.Hours`, hours.toString());
+            costInput.dataset.estimateCostInput = noteId;
+            hoursInput.dataset.estimateHoursInput = noteId;
+
+            const inputGroup = document.createElement('span');
+            inputGroup.dataset.estimateItemInputs = estimateItemClientId;
+            inputGroup.appendChild(createHiddenInput(`${inputPrefix}.Id`, createClientId()));
+            inputGroup.appendChild(createHiddenInput(`${inputPrefix}.Name`, name));
+            inputGroup.appendChild(costInput);
+            inputGroup.appendChild(hoursInput);
+            inputGroup.appendChild(createHiddenInput(`${inputPrefix}.IsNew`, 'true'));
+            inputsContainer.appendChild(inputGroup);
+
+            activeAddPartButton.dataset.addPartNextIndex = (nextIndex + 1).toString();
+            emptyMessage?.classList.add('d-none');
+            tableContainer?.classList.remove('d-none');
+            recalculateEstimateTotals(noteId);
+            bootstrap.Modal.getOrCreateInstance(addPartModal).hide();
+        });
+
+        document.addEventListener('click', event => {
+            const deleteButton = event.target.closest('[data-delete-estimate-item-id]');
+
+            if (!deleteButton) {
+                return;
+            }
+
+            activeDeletePartButton = deleteButton;
+            bootstrap.Modal.getOrCreateInstance(deletePartModal).show();
+        });
+
+        confirmDeletePartButton?.addEventListener('click', () => {
+            if (!activeDeletePartButton) {
+                return;
+            }
+
+            const estimateItemId = activeDeletePartButton.dataset.deleteEstimateItemId;
+            const noteId = activeDeletePartButton.dataset.deleteEstimateNoteId;
+            const tableContainer = document.getElementById(activeDeletePartButton.dataset.deleteEstimateTableId || '');
+            const emptyMessage = document.getElementById(activeDeletePartButton.dataset.deleteEstimateEmptyId || '');
+
+            document.querySelector(`[data-estimate-item-row="${estimateItemId}"]`)?.remove();
+            document.querySelector(`[data-estimate-item-inputs="${estimateItemId}"]`)?.remove();
+
+            if (noteId) {
+                recalculateEstimateTotals(noteId);
+            }
+
+            updateEstimateEmptyState(tableContainer, emptyMessage);
+            bootstrap.Modal.getOrCreateInstance(deletePartModal).hide();
+            activeDeletePartButton = null;
+        });
+
+        const photoModal = document.getElementById('inspectionPhotoModal');
+        const photoModalImage = document.getElementById('inspectionPhotoModalImage');
+        const photoCropSurface = document.getElementById('inspectionPhotoCropSurface');
+        const photoCropBox = document.getElementById('inspectionPhotoCropBox');
+        const photoRestoreButton = document.getElementById('inspectionPhotoRestoreButton');
+        const photoSaveButton = document.getElementById('inspectionPhotoSaveButton');
+        const photoModalFileName = document.getElementById('inspectionPhotoModalFileName');
+        const photoModalSize = document.getElementById('inspectionPhotoModalSize');
+        const photoModalDimensions = document.getElementById('inspectionPhotoModalDimensions');
+        const photoModalType = document.getElementById('inspectionPhotoModalType');
+        let activePhotoButton = null;
+        let activeCroppedInput = null;
+        let activeThumbnailImage = null;
+        let activeOriginalPhotoSrc = '';
+        let cropStart = null;
+        let cropSelection = null;
+
+        function resetCropSelection() {
+            cropStart = null;
+            cropSelection = null;
+            photoCropBox?.classList.add('d-none');
+
+            if (photoCropBox) {
+                photoCropBox.style.left = '0';
+                photoCropBox.style.top = '0';
+                photoCropBox.style.width = '0';
+                photoCropBox.style.height = '0';
+            }
+        }
+
+        function getSurfacePoint(event) {
+            const surfaceRect = photoCropSurface.getBoundingClientRect();
+
+            return {
+                x: Math.max(0, Math.min(event.clientX - surfaceRect.left, surfaceRect.width)),
+                y: Math.max(0, Math.min(event.clientY - surfaceRect.top, surfaceRect.height))
+            };
+        }
+
+        function getRenderedImageRect() {
+            const elementRect = photoModalImage.getBoundingClientRect();
+            const surfaceRect = photoCropSurface.getBoundingClientRect();
+            const naturalWidth = photoModalImage.naturalWidth;
+            const naturalHeight = photoModalImage.naturalHeight;
+
+            if (!naturalWidth || !naturalHeight || !elementRect.width || !elementRect.height) {
+                return {
+                    left: elementRect.left - surfaceRect.left,
+                    top: elementRect.top - surfaceRect.top,
+                    width: elementRect.width,
+                    height: elementRect.height
+                };
+            }
+
+            const imageRatio = naturalWidth / naturalHeight;
+            const elementRatio = elementRect.width / elementRect.height;
+            let renderedWidth = elementRect.width;
+            let renderedHeight = elementRect.height;
+
+            if (imageRatio > elementRatio) {
+                renderedHeight = elementRect.width / imageRatio;
+            } else {
+                renderedWidth = elementRect.height * imageRatio;
+            }
+
+            return {
+                left: elementRect.left - surfaceRect.left + (elementRect.width - renderedWidth) / 2,
+                top: elementRect.top - surfaceRect.top + (elementRect.height - renderedHeight) / 2,
+                width: renderedWidth,
+                height: renderedHeight
+            };
+        }
+
+        function updateCropSelection(point) {
+            const imageRect = getRenderedImageRect();
+            const imageLeft = imageRect.left;
+            const imageTop = imageRect.top;
+            const imageRight = imageLeft + imageRect.width;
+            const imageBottom = imageTop + imageRect.height;
+            const startX = Math.max(imageLeft, Math.min(cropStart.x, imageRight));
+            const startY = Math.max(imageTop, Math.min(cropStart.y, imageBottom));
+            const endX = Math.max(imageLeft, Math.min(point.x, imageRight));
+            const endY = Math.max(imageTop, Math.min(point.y, imageBottom));
+            const left = Math.min(startX, endX);
+            const top = Math.min(startY, endY);
+            const width = Math.abs(endX - startX);
+            const height = Math.abs(endY - startY);
+
+            cropSelection = { left, top, width, height, imageLeft, imageTop, imageWidth: imageRect.width, imageHeight: imageRect.height };
+
+            if (photoCropBox) {
+                photoCropBox.style.left = `${left}px`;
+                photoCropBox.style.top = `${top}px`;
+                photoCropBox.style.width = `${width}px`;
+                photoCropBox.style.height = `${height}px`;
+                photoCropBox.classList.toggle('d-none', width < 4 || height < 4);
+            }
+        }
+
+        function getCroppedPhotoDataUrl() {
+            if (!cropSelection || cropSelection.width < 4 || cropSelection.height < 4 || !photoModalImage.naturalWidth || !photoModalImage.naturalHeight) {
+                return photoModalImage.src || '';
+            }
+
+            const scaleX = photoModalImage.naturalWidth / cropSelection.imageWidth;
+            const scaleY = photoModalImage.naturalHeight / cropSelection.imageHeight;
+            const sourceX = Math.max(0, Math.round((cropSelection.left - cropSelection.imageLeft) * scaleX));
+            const sourceY = Math.max(0, Math.round((cropSelection.top - cropSelection.imageTop) * scaleY));
+            const sourceWidth = Math.max(1, Math.round(cropSelection.width * scaleX));
+            const sourceHeight = Math.max(1, Math.round(cropSelection.height * scaleY));
+            const canvas = document.createElement('canvas');
+            const context = canvas.getContext('2d');
+
+            canvas.width = sourceWidth;
+            canvas.height = sourceHeight;
+            context.drawImage(photoModalImage, sourceX, sourceY, sourceWidth, sourceHeight, 0, 0, sourceWidth, sourceHeight);
+
+            return canvas.toDataURL('image/png');
+        }
+
+        function getDataUrlSizeBytes(dataUrl) {
+            const base64 = dataUrl.split(',')[1] || '';
+            const padding = base64.endsWith('==') ? 2 : base64.endsWith('=') ? 1 : 0;
+
+            return Math.max(0, Math.floor(base64.length * 3 / 4) - padding);
+        }
+
+        function formatBytes(value) {
+            return `${value.toLocaleString()} bytes`;
+        }
+
+        function updateModalMetadataFromImage(dataUrl) {
+            photoModalSize.textContent = formatBytes(getDataUrlSizeBytes(dataUrl));
+            photoModalDimensions.textContent = `${photoModalImage.naturalWidth} x ${photoModalImage.naturalHeight} px`;
+            photoModalType.textContent = dataUrl.startsWith('data:image/png') ? 'png' : photoModalType.textContent;
+        }
+
+        photoModal?.addEventListener('show.bs.modal', event => {
+            const button = event.relatedTarget;
+
+            if (!button || !photoModalImage) {
+                return;
+            }
+
+            activePhotoButton = button;
+            activeOriginalPhotoSrc = button.dataset.photoSrc || '';
+            activeCroppedInput = document.getElementById(button.dataset.croppedInputId || '');
+            activeThumbnailImage = document.getElementById(button.dataset.thumbnailImageId || '');
+            resetCropSelection();
+
+            photoModalImage.src = activeCroppedInput?.value || activeOriginalPhotoSrc;
+            photoModalImage.alt = button.dataset.photoAlt || '';
+            photoModalFileName.textContent = button.dataset.photoFileName || '';
+            photoModalSize.textContent = button.dataset.photoSize || '';
+            photoModalDimensions.textContent = button.dataset.photoDimensions || '';
+            photoModalType.textContent = button.dataset.photoType || '';
+        });
+
+        photoModal?.addEventListener('hidden.bs.modal', () => {
+            if (!photoModalImage) {
+                return;
+            }
+
+            photoModalImage.src = '';
+            photoModalImage.alt = '';
+            photoModalFileName.textContent = '';
+            photoModalSize.textContent = '';
+            photoModalDimensions.textContent = '';
+            photoModalType.textContent = '';
+            activePhotoButton = null;
+            activeCroppedInput = null;
+            activeThumbnailImage = null;
+            activeOriginalPhotoSrc = '';
+            resetCropSelection();
+        });
+
+        photoCropSurface?.addEventListener('pointerdown', event => {
+            if (!photoModalImage.src) {
+                return;
+            }
+
+            cropStart = getSurfacePoint(event);
+            updateCropSelection(cropStart);
+            photoCropSurface.setPointerCapture(event.pointerId);
+        });
+
+        photoCropSurface?.addEventListener('pointermove', event => {
+            if (!cropStart) {
+                return;
+            }
+
+            updateCropSelection(getSurfacePoint(event));
+        });
+
+        photoCropSurface?.addEventListener('pointerup', event => {
+            if (!cropStart) {
+                return;
+            }
+
+            updateCropSelection(getSurfacePoint(event));
+            cropStart = null;
+            photoCropSurface.releasePointerCapture(event.pointerId);
+        });
+
+        photoSaveButton?.addEventListener('click', () => {
+            if (!activeCroppedInput || !activeThumbnailImage || !photoModalImage.src) {
+                return;
+            }
+
+            const croppedDataUrl = getCroppedPhotoDataUrl();
+
+            activeCroppedInput.value = croppedDataUrl;
+            activeThumbnailImage.src = croppedDataUrl;
+            resetCropSelection();
+            photoModalImage.addEventListener('load', () => updateModalMetadataFromImage(croppedDataUrl), { once: true });
+            photoModalImage.src = croppedDataUrl;
+            bootstrap.Modal.getOrCreateInstance(photoModal).hide();
+        });
+
+        photoRestoreButton?.addEventListener('click', () => {
+            if (!activeOriginalPhotoSrc) {
+                return;
+            }
+
+            if (activeCroppedInput) {
+                activeCroppedInput.value = '';
+            }
+
+            if (activeThumbnailImage) {
+                activeThumbnailImage.src = activeOriginalPhotoSrc;
+            }
+
+            photoModalImage.src = activeOriginalPhotoSrc;
+            resetCropSelection();
+
+            if (activePhotoButton) {
+                photoModalSize.textContent = activePhotoButton.dataset.photoSize || '';
+                photoModalDimensions.textContent = activePhotoButton.dataset.photoDimensions || '';
+                photoModalType.textContent = activePhotoButton.dataset.photoType || '';
+            }
+        });
+    </script>
+}

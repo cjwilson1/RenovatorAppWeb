@@ -54,4 +54,13 @@ public sealed class InspectionDataService
                         .ThenInclude(note => note.Photos)
             .FirstOrDefaultAsync(inspection => inspection.Id == inspectionId, cancellationToken);
     }
+
+    public async Task<IReadOnlyList<Inspector>> GetInspectorsAsync(CancellationToken cancellationToken = default)
+    {
+        return await _dbContext.Inspectors
+            .AsNoTracking()
+            .OrderBy(inspector => inspector.LastName)
+            .ThenBy(inspector => inspector.FirstName)
+            .ToListAsync(cancellationToken);
+    }
 }
