@@ -62,6 +62,11 @@ namespace RenovatorApp.Infrastructure.Data.Migrations
                 );
 
                 DROP INDEX IF EXISTS "IX_Customer_QuickBooksCustomerId";
+
+                ALTER TABLE "Address" ALTER COLUMN "PropertyId" DROP NOT NULL;
+                ALTER TABLE "Address" ADD COLUMN IF NOT EXISTS "Street3" text NOT NULL DEFAULT '';
+                ALTER TABLE "Address" ADD COLUMN IF NOT EXISTS "CountrySubDivisionCode" text NOT NULL DEFAULT '';
+                ALTER TABLE "Address" ADD COLUMN IF NOT EXISTS "Country" text NOT NULL DEFAULT '';
                 """);
 
             migrationBuilder.Sql("""
