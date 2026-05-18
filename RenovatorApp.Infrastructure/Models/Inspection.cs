@@ -10,7 +10,7 @@ public sealed class Inspection
     public string InspectorName { get; set; } = string.Empty;
     public string GeneralNotes { get; set; } = string.Empty;
     public Guid PropertyId { get; set; } = Guid.NewGuid();
-    public Guid? ClientId { get; set; }
+    public Guid? CustomerId { get; set; }
     public Property Property { get; set; } = null!;
-    public Client? Client { get; set; }
+    public Customer? Customer { get; set; }
 }

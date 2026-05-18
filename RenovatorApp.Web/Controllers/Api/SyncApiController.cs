@@ -126,8 +126,8 @@ public sealed class SyncApiController : ControllerBase
                 item.Phone,
                 item.Email,
                 item.IsDefault)).ToList(),
-            (request.Clients ?? []).Select(item => new MobileSyncClient(
-                item.ClientId,
+            (request.Customers ?? []).Select(item => new MobileSyncCustomer(
+                item.CustomerId,
                 item.FirstName,
                 item.LastName,
                 item.CompanyName,
@@ -164,7 +164,7 @@ public sealed class SyncApiController : ControllerBase
                 item.InspectorName,
                 item.GeneralNotes,
                 item.PropertyId,
-                item.ClientId)).ToList(),
+                item.CustomerId)).ToList(),
             (request.InspectionAreas ?? []).Select(item => new MobileSyncInspectionArea(
                 item.Id,
                 item.PropertyId,

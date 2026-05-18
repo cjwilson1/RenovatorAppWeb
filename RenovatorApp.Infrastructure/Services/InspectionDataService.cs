@@ -19,7 +19,7 @@ public sealed class InspectionDataService
             .AsNoTracking()
             .Include(inspection => inspection.Property)
                 .ThenInclude(property => property.Address)
-            .Include(inspection => inspection.Client)
+            .Include(inspection => inspection.Customer)
             .OrderByDescending(inspection => inspection.InspectionDate)
             .ThenBy(inspection => inspection.Title)
             .ToListAsync(cancellationToken);
@@ -29,7 +29,8 @@ public sealed class InspectionDataService
     {
         return await _dbContext.Inspections
             .AsNoTracking()
-            .Include(inspection => inspection.Client)
+            .Include(inspection => inspection.Customer)
+                .ThenInclude(customer => customer!.BillAddress)
             .Include(inspection => inspection.Property)
                 .ThenInclude(property => property.Address)
             .Include(inspection => inspection.Property)
@@ -71,5 +72,11 @@ public sealed class InspectionDataService
             .Include(part => part.PartSource)
             .OrderBy(part => part.Name)
             .ToListAsync(cancellationToken);
+    }
+
+    public async Task AddDocumentAsync(Document document, CancellationToken cancellationToken = default)
+    {
+        _dbContext.Documents.Add(document);
+        await _dbContext.SaveChangesAsync(cancellationToken);
     }
 }

@@ -1,0 +1,50 @@
+ClientID
+ABJkPS4KkWBfMrgUQPq4xnYm1urAT6RRg1Y2wlBtocbwYeD82j
+ABJkPS4KkWBfMrgUQPq4xnYm1urAT6RRg1Y2wlBtocbwYeD82j
+
+Client Secret
+pXCnsE6c3Y0MZLepGV0dOTMiwSG9yXNw2FmtA8Do
+pXCnsE6c3Y0MZLepGV0dOTMiwSG9yXNw2FmtA8Do
+
+Redirect URI
+http://localhost:5138/QuickBooks/Callback
+
+
+Sandbox Company US 9409
+CompanyID
+9341457102568050
+
+
+
+OAuth 2.0 Playground
+Step 1
+Get authorization code
+Select Workspace - I selected "Renovator App"
+Select App - I selected "Renovator App (Sandbox)"
+
+The playground is configured and ready to use with your own app's credentials from the Keys tab on the app dashboard, including the playground's OAuth 2.0 redirect URI. If this redirect URI is no longer listed on your Keys tab, click here to add it.
+
+I clicked "here" to add redirect URL.
+
+It then gave me my same ClietnID and Client Secret Keys I already had.
+
+Oauth Settings
+Scopes - I selected "com.intuit.quickbooks.accounting"
+
+clicked on "Get Authorization code"
+
+
+
+Outh2 window opened
+
+Title: Welccome, Courtney
+Uh oh, there’s a connection problem.
+Sorry, but Renovator App didn’t connect. Please try again later, or contact customer support for help.
+
+Error:
+There is no sandbox companies found for the user
+
+
+
+View error details (for Developers)
+The redirect_uri query parameter value is invalid. Make sure it is listed in the Redirect URIs section on your app's keys tab and matches it exactly. Click here to learn more about the redirect_uri query parameter.

@@ -13,8 +13,8 @@ public sealed class RenovatorAppDbContext : DbContext
     public DbSet<AppSetting> AppSettings => Set<AppSetting>();
     public DbSet<Building> Buildings => Set<Building>();
     public DbSet<BuildingType> BuildingTypes => Set<BuildingType>();
-    public DbSet<Client> Clients => Set<Client>();
     public DbSet<Customer> Customers => Set<Customer>();
+    public DbSet<Document> Documents => Set<Document>();
     public DbSet<Employee> Employees => Set<Employee>();
     public DbSet<Inspection> Inspections => Set<Inspection>();
     public DbSet<InspectionArea> InspectionAreas => Set<InspectionArea>();
@@ -43,8 +43,8 @@ public sealed class RenovatorAppDbContext : DbContext
         modelBuilder.Entity<AppSetting>().ToTable("Settings");
         modelBuilder.Entity<Building>().ToTable("Building");
         modelBuilder.Entity<BuildingType>().ToTable("BuildingType");
-        modelBuilder.Entity<Client>().ToTable("Client");
         modelBuilder.Entity<Customer>().ToTable("Customer");
+        modelBuilder.Entity<Document>().ToTable("Documents");
         modelBuilder.Entity<Employee>().ToTable("Employee");
         modelBuilder.Entity<Inspection>().ToTable("Inspection");
         modelBuilder.Entity<InspectionArea>().ToTable("InspectionArea");
@@ -65,8 +65,8 @@ public sealed class RenovatorAppDbContext : DbContext
         modelBuilder.Entity<AppSetting>().HasKey(setting => setting.Id);
         modelBuilder.Entity<Building>().HasKey(building => building.Id);
         modelBuilder.Entity<BuildingType>().HasKey(buildingType => buildingType.Id);
-        modelBuilder.Entity<Client>().HasKey(client => client.ClientId);
         modelBuilder.Entity<Customer>().HasKey(customer => customer.CustomerId);
+        modelBuilder.Entity<Document>().HasKey(document => document.DocumentId);
         modelBuilder.Entity<Employee>().HasKey(employee => employee.EmployeeId);
         modelBuilder.Entity<Inspection>().HasKey(inspection => inspection.Id);
         modelBuilder.Entity<InspectionArea>().HasKey(area => area.Id);
@@ -107,6 +107,12 @@ public sealed class RenovatorAppDbContext : DbContext
             .HasForeignKey(employee => employee.PrimaryAddressId)
             .OnDelete(DeleteBehavior.SetNull);
 
+        modelBuilder.Entity<Document>()
+            .HasOne(document => document.Customer)
+            .WithMany(customer => customer.Documents)
+            .HasForeignKey(document => document.CustomerId)
+            .OnDelete(DeleteBehavior.SetNull);
+
         modelBuilder.Entity<Inspection>()
             .HasOne(inspection => inspection.Property)
             .WithMany(property => property.Inspections)
@@ -114,9 +120,9 @@ public sealed class RenovatorAppDbContext : DbContext
             .OnDelete(DeleteBehavior.Restrict);
 
         modelBuilder.Entity<Inspection>()
-            .HasOne(inspection => inspection.Client)
-            .WithMany(client => client.Inspections)
-            .HasForeignKey(inspection => inspection.ClientId)
+            .HasOne(inspection => inspection.Customer)
+            .WithMany(customer => customer.Inspections)
+            .HasForeignKey(inspection => inspection.CustomerId)
             .OnDelete(DeleteBehavior.SetNull);
 
         modelBuilder.Entity<Building>()
@@ -184,11 +190,13 @@ public sealed class RenovatorAppDbContext : DbContext
     {
         modelBuilder.Entity<AppSetting>().HasIndex(setting => setting.Name).IsUnique();
         modelBuilder.Entity<BuildingType>().HasIndex(buildingType => buildingType.Name).IsUnique();
-        modelBuilder.Entity<Client>().HasIndex(client => client.LastName);
-        modelBuilder.Entity<Client>().HasIndex(client => client.CompanyName);
-        modelBuilder.Entity<Customer>().HasIndex(customer => customer.QuickBooksCustomerId).IsUnique();
+        modelBuilder.Entity<Customer>().HasIndex(customer => customer.QuickBooksCustomerId).IsUnique().HasFilter("\"QuickBooksCustomerId\" <> ''");
         modelBuilder.Entity<Customer>().HasIndex(customer => customer.DisplayName);
         modelBuilder.Entity<Customer>().HasIndex(customer => customer.CompanyName);
+        modelBuilder.Entity<Customer>().HasIndex(customer => customer.FamilyName);
+        modelBuilder.Entity<Document>().HasIndex(document => document.CustomerId);
+        modelBuilder.Entity<Document>().HasIndex(document => document.CreateDate);
+        modelBuilder.Entity<Document>().HasIndex(document => document.DocumentType);
         modelBuilder.Entity<Employee>().HasIndex(employee => employee.QuickBooksEmployeeId).IsUnique();
         modelBuilder.Entity<Employee>().HasIndex(employee => employee.DisplayName);
         modelBuilder.Entity<Employee>().HasIndex(employee => employee.FamilyName);

@@ -30,16 +30,17 @@
                 <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
             </div>
             <div class="modal-body">
-                <p class="mb-3">Choose a document format.</p>
-                <div class="d-grid gap-2">
-                    <a class="btn btn-primary"
-                       asp-controller="Inspections"
-                       asp-action="ReportPdf"
-                       asp-route-id="@Model.Inspection.Id">
-                        PDF
-                    </a>
-                    <button class="btn btn-outline-secondary" type="button" disabled>Word</button>
-                </div>
+                <form asp-controller="Inspections" asp-action="ReportPdf" asp-route-id="@Model.Inspection.Id" method="post">
+                    <div class="mb-3">
+                        <label class="form-label" for="reportName">Report Name</label>
+                        <input class="form-control" id="reportName" name="reportName" value="@Model.DefaultReportName" />
+                    </div>
+                    <p class="mb-3">Choose a document format.</p>
+                    <div class="d-grid gap-2">
+                        <button class="btn btn-primary" type="submit">PDF</button>
+                        <button class="btn btn-outline-secondary" type="button" disabled>Word</button>
+                    </div>
+                </form>
             </div>
             <div class="modal-footer">
                 <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Close</button>
@@ -67,22 +68,22 @@
     </section>
 
     <section class="detail-section">
-        <h2>Client</h2>
-        @if (Model.Inspection.Client is null)
+        <h2>Customer</h2>
+        @if (Model.Inspection.Customer is null)
         {
-            <p>No client assigned</p>
+            <p>No customer assigned</p>
         }
         else
         {
             <dl>
                 <dt>Name</dt>
-                <dd>@(string.IsNullOrWhiteSpace(Model.ClientName) ? "No client assigned" : Model.ClientName)</dd>
+                <dd>@(string.IsNullOrWhiteSpace(Model.CustomerName) ? "No customer assigned" : Model.CustomerName)</dd>
                 <dt>Phone</dt>
-                <dd>@(string.IsNullOrWhiteSpace(Model.Inspection.Client.Phone) ? "No phone number" : Model.Inspection.Client.Phone)</dd>
+                <dd>@(string.IsNullOrWhiteSpace(Model.Inspection.Customer.PrimaryPhone) ? "No phone number" : Model.Inspection.Customer.PrimaryPhone)</dd>
                 <dt>Email</dt>
-                <dd>@(string.IsNullOrWhiteSpace(Model.Inspection.Client.Email) ? "No email address" : Model.Inspection.Client.Email)</dd>
+                <dd>@(string.IsNullOrWhiteSpace(Model.Inspection.Customer.PrimaryEmailAddress) ? "No email address" : Model.Inspection.Customer.PrimaryEmailAddress)</dd>
                 <dt>Address</dt>
-                <dd>@GetClientAddress()</dd>
+                <dd>@GetCustomerAddress()</dd>
             </dl>
         }
     </section>
@@ -275,24 +276,25 @@
         return string.IsNullOrWhiteSpace(photo.FileName) ? "Inspection note picture" : photo.FileName;
     }
 
-    private string GetClientAddress()
+    private string GetCustomerAddress()
     {
-        var client = Model.Inspection.Client;
+        var customer = Model.Inspection.Customer;
 
-        if (client is null)
+        if (customer is null)
         {
-            return "No client address";
+            return "No customer address";
         }
 
-        var streetAddress = string.Join(" ", new[] { client.Street1, client.Street2 }
+        var streetAddress = string.Join(" ", new[] { customer.BillAddress?.Street1, customer.BillAddress?.Street2 }
             .Where(value => !string.IsNullOrWhiteSpace(value)));
-        var cityState = string.Join(", ", new[] { client.City, client.State }
+        var cityState = string.Join(", ", new[] { customer.BillAddress?.City, customer.BillAddress?.State }
             .Where(value => !string.IsNullOrWhiteSpace(value)));
-        var cityStateZip = string.Join(" ", new[] { cityState, client.PostalCode }
+        var cityStateZip = string.Join(" ", new[] { cityState, customer.BillAddress?.PostalCode }
             .Where(value => !string.IsNullOrWhiteSpace(value)));
         var fullAddress = string.Join(" - ", new[] { streetAddress, cityStateZip }
             .Where(value => !string.IsNullOrWhiteSpace(value)));
 
-        return string.IsNullOrWhiteSpace(fullAddress) ? "No client address" : fullAddress;
+        return string.IsNullOrWhiteSpace(fullAddress) ? "No customer address" : fullAddress;
     }
 }
+

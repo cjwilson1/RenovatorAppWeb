@@ -1,0 +1,145 @@
+@model RenovatorApp.Web.ViewModels.EmployeesIndexViewModel
+@{
+    ViewData["Title"] = "Employees";
+    var previousPage = Math.Max(1, Model.Page - 1);
+    var nextPage = Math.Min(Model.TotalPages, Model.Page + 1);
+}
+
+<div class="page-header-row">
+    <div>
+        <h1>Employees</h1>
+        <p class="text-muted">@Model.TotalEmployees employee@(Model.TotalEmployees == 1 ? string.Empty : "s")</p>
+    </div>
+    <div class="customer-sync-actions">
+        <span class="text-muted">QuickBooks sync: @FormatDate(Model.LastQuickBooksSyncDateUtc)</span>
+        <form asp-controller="QuickBooks" asp-action="SyncEmployees" method="post">
+            @Html.AntiForgeryToken()
+            <button class="btn btn-primary" type="submit">Sync QuickBooks</button>
+        </form>
+    </div>
+</div>
+
+@if (!string.IsNullOrWhiteSpace(Model.StatusMessage))
+{
+    <div class="alert alert-info" role="alert">@Model.StatusMessage</div>
+}
+
+<form class="customer-search-row" id="employeeSearchForm" method="get">
+    <input class="form-control"
+           id="employeeSearch"
+           name="search"
+           placeholder="Search Employees"
+           type="search"
+           value="@Model.Search" />
+    <button class="btn btn-outline-secondary" id="clearEmployeeSearch" type="button">Clear</button>
+    <input id="employeePage" name="page" type="hidden" value="@Model.Page" />
+</form>
+
+<div class="table-responsive">
+    <table class="table table-striped align-middle">
+        <thead>
+            <tr>
+                <th scope="col">Display Name</th>
+                <th scope="col">Contact</th>
+                <th scope="col">Email</th>
+                <th scope="col">Phone</th>
+                <th scope="col">Active</th>
+            </tr>
+        </thead>
+        <tbody>
+            @if (Model.Employees.Count == 0)
+            {
+                <tr>
+                    <td class="text-muted" colspan="5">No employees found.</td>
+                </tr>
+            }
+            else
+            {
+                @foreach (var employee in Model.Employees)
+                {
+                    <tr class="clickable-table-row"
+                        data-href="@Url.Action("Details", "Employees", new { id = employee.EmployeeId })"
+                        tabindex="0"
+                        aria-label="Open @employee.DisplayName">
+                        <td><strong>@employee.DisplayName</strong></td>
+                        <td>@employee.ContactName</td>
+                        <td>@employee.Email</td>
+                        <td>@employee.Phone</td>
+                        <td>@employee.Active</td>
+                    </tr>
+                }
+            }
+        </tbody>
+    </table>
+</div>
+
+<div class="d-flex align-items-center justify-content-between gap-3">
+    <div class="btn-group" role="group" aria-label="Employee pages">
+        <a class="btn btn-outline-secondary @(Model.Page == 1 ? "disabled" : string.Empty)"
+           asp-controller="Employees"
+           asp-action="Index"
+           asp-route-search="@Model.Search"
+           asp-route-page="@previousPage">
+            Previous
+        </a>
+        <a class="btn btn-outline-secondary @(Model.Page == Model.TotalPages ? "disabled" : string.Empty)"
+           asp-controller="Employees"
+           asp-action="Index"
+           asp-route-search="@Model.Search"
+           asp-route-page="@nextPage">
+            Next
+        </a>
+    </div>
+    <span class="text-muted">Page @Model.Page of @Model.TotalPages</span>
+</div>
+
+@section Scripts {
+    <script>
+        const searchForm = document.getElementById('employeeSearchForm');
+        const searchInput = document.getElementById('employeeSearch');
+        const pageInput = document.getElementById('employeePage');
+        const clearSearchButton = document.getElementById('clearEmployeeSearch');
+        let searchTimer;
+
+        document.querySelectorAll('.clickable-table-row').forEach((row) => {
+            const navigate = () => {
+                const href = row.getAttribute('data-href');
+                if (href) {
+                    window.location.href = href;
+                }
+            };
+
+            row.addEventListener('click', navigate);
+            row.addEventListener('keydown', (event) => {
+                if (event.key === 'Enter' || event.key === ' ') {
+                    event.preventDefault();
+                    navigate();
+                }
+            });
+        });
+
+        searchInput?.addEventListener('input', () => {
+            window.clearTimeout(searchTimer);
+            const value = (searchInput.value || '').trim();
+            searchTimer = window.setTimeout(() => {
+                if (value.length === 0 || value.length >= 2) {
+                    pageInput.value = '1';
+                    searchForm.submit();
+                }
+            }, 350);
+        });
+
+        clearSearchButton?.addEventListener('click', () => {
+            searchInput.value = '';
+            pageInput.value = '1';
+            searchForm.submit();
+        });
+    </script>
+}
+
+@functions {
+    private static string FormatDate(DateTime? value)
+    {
+        return value is null ? "Never" : value.Value.ToLocalTime().ToString("g");
+    }
+}

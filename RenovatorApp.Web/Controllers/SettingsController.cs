@@ -7,6 +7,7 @@ using RenovatorApp.Infrastructure.Services;
 using RenovatorApp.Web.ViewModels;
 using System.Globalization;
 using System.Net;
+using System.Text;
 using System.Text.Json;
 using System.Text.RegularExpressions;
 
@@ -15,6 +16,11 @@ namespace RenovatorApp.Web.Controllers;
 public sealed class SettingsController : Controller
 {
     private static readonly int[] PageSizeOptions = [10, 15, 25, 50, 100];
+    private static readonly JsonSerializerOptions PartsTransferJsonOptions = new()
+    {
+        PropertyNameCaseInsensitive = true,
+        WriteIndented = true
+    };
     private readonly RenovatorAppDbContext _dbContext;
     private readonly InspectionDataService _inspectionDataService;
     private readonly IHttpClientFactory _httpClientFactory;
@@ -86,7 +92,8 @@ public sealed class SettingsController : Controller
             PageSize = pageSize,
             TotalParts = totalParts,
             TotalPages = totalPages,
-            PageSizeOptions = PageSizeOptions
+            PageSizeOptions = PageSizeOptions,
+            StatusMessage = TempData["PartsManagerStatus"] as string ?? string.Empty
         });
     }
 
@@ -121,6 +128,82 @@ public sealed class SettingsController : Controller
     public IActionResult AddPart()
     {
         return View(new AddPartViewModel());
+    }
+
+    public async Task<IActionResult> ExportParts(CancellationToken cancellationToken)
+    {
+        var partSources = await _dbContext.PartSources
+            .AsNoTracking()
+            .OrderBy(source => source.Name)
+            .Select(source => new PartsTransferPartSource(
+                source.PartSourceId,
+                source.Name))
+            .ToListAsync(cancellationToken);
+
+        var parts = await _dbContext.Parts
+            .AsNoTracking()
+            .OrderBy(part => part.Name)
+            .Select(part => new PartsTransferPart(
+                part.PartId,
+                part.PartSourceId,
+                part.Name,
+                part.Description,
+                part.ModelNumber,
+                part.Manufacturer,
+                part.Sku,
+                part.Url,
+                part.ImageUrl,
+                part.Cost,
+                part.IsPackage,
+                part.PackageUnits))
+            .ToListAsync(cancellationToken);
+
+        var export = new PartsTransferFile(
+            1,
+            DateTime.UtcNow,
+            partSources,
+            parts);
+
+        var json = JsonSerializer.Serialize(export, PartsTransferJsonOptions);
+        var fileName = $"renovator-parts-export-{DateTime.UtcNow:yyyyMMdd-HHmmss}.json";
+
+        return File(Encoding.UTF8.GetBytes(json), "application/json", fileName);
+    }
+
+    [HttpPost]
+    [ValidateAntiForgeryToken]
+    public async Task<IActionResult> ImportParts(IFormFile? importFile, CancellationToken cancellationToken)
+    {
+        if (importFile is null || importFile.Length == 0)
+        {
+            TempData["PartsManagerStatus"] = "Choose a parts export file before importing.";
+            return RedirectToAction(nameof(PartsManager));
+        }
+
+        PartsTransferFile? import;
+        try
+        {
+            await using var stream = importFile.OpenReadStream();
+            import = await JsonSerializer.DeserializeAsync<PartsTransferFile>(stream, PartsTransferJsonOptions, cancellationToken);
+        }
+        catch (JsonException)
+        {
+            TempData["PartsManagerStatus"] = "The selected file is not a valid parts export file.";
+            return RedirectToAction(nameof(PartsManager));
+        }
+
+        if (import is null || import.Version < 1)
+        {
+            TempData["PartsManagerStatus"] = "The selected file is not a valid parts export file.";
+            return RedirectToAction(nameof(PartsManager));
+        }
+
+        var result = await ImportPartsAsync(import, cancellationToken);
+
+        TempData["PartsManagerStatus"] =
+            $"Import complete. Part sources: {result.PartSourcesCreated} added, {result.PartSourcesUpdated} updated. Parts: {result.PartsCreated} added, {result.PartsUpdated} updated.";
+
+        return RedirectToAction(nameof(PartsManager));
     }
 
     [HttpPost]
@@ -328,6 +411,158 @@ public sealed class SettingsController : Controller
         model.ModelNumber = model.ModelNumber?.Trim() ?? string.Empty;
         model.ImageUrl = model.ImageUrl?.Trim() ?? string.Empty;
         model.ErrorMessage = model.ErrorMessage?.Trim() ?? string.Empty;
+    }
+
+    private async Task<PartsImportResult> ImportPartsAsync(PartsTransferFile import, CancellationToken cancellationToken)
+    {
+        var existingSources = await _dbContext.PartSources.ToListAsync(cancellationToken);
+        var sourceIdMap = new Dictionary<Guid, Guid>();
+        var result = new PartsImportResult();
+
+        foreach (var importedSource in import.PartSources)
+        {
+            var importedName = TrimTransferText(importedSource.Name);
+            if (string.IsNullOrWhiteSpace(importedName))
+            {
+                continue;
+            }
+
+            var source = existingSources.FirstOrDefault(item => item.PartSourceId == importedSource.PartSourceId)
+                ?? existingSources.FirstOrDefault(item => item.Name.Equals(importedName, StringComparison.OrdinalIgnoreCase));
+
+            if (source is null)
+            {
+                source = new PartSource
+                {
+                    PartSourceId = importedSource.PartSourceId,
+                    Name = importedName
+                };
+
+                _dbContext.PartSources.Add(source);
+                existingSources.Add(source);
+                result.PartSourcesCreated++;
+            }
+            else
+            {
+                if (source.Name != importedName)
+                {
+                    source.Name = importedName;
+                }
+
+                result.PartSourcesUpdated++;
+            }
+
+            sourceIdMap[importedSource.PartSourceId] = source.PartSourceId;
+        }
+
+        var existingParts = await _dbContext.Parts.ToListAsync(cancellationToken);
+
+        foreach (var importedPart in import.Parts)
+        {
+            var normalizedPart = NormalizeTransferPart(importedPart);
+            if (string.IsNullOrWhiteSpace(normalizedPart.Name))
+            {
+                continue;
+            }
+
+            if (!sourceIdMap.TryGetValue(normalizedPart.PartSourceId, out var mappedSourceId))
+            {
+                continue;
+            }
+
+            var part = FindExistingPart(existingParts, normalizedPart);
+
+            if (part is null)
+            {
+                part = new Part
+                {
+                    PartId = normalizedPart.PartId,
+                    PartSourceId = mappedSourceId
+                };
+
+                _dbContext.Parts.Add(part);
+                existingParts.Add(part);
+                result.PartsCreated++;
+            }
+            else
+            {
+                result.PartsUpdated++;
+            }
+
+            part.PartSourceId = mappedSourceId;
+            part.Name = normalizedPart.Name;
+            part.Description = normalizedPart.Description;
+            part.ModelNumber = normalizedPart.ModelNumber;
+            part.Manufacturer = normalizedPart.Manufacturer;
+            part.Sku = normalizedPart.Sku;
+            part.Url = normalizedPart.Url;
+            part.ImageUrl = normalizedPart.ImageUrl;
+            part.Cost = normalizedPart.Cost;
+            part.IsPackage = normalizedPart.IsPackage;
+            part.PackageUnits = normalizedPart.PackageUnits;
+        }
+
+        await _dbContext.SaveChangesAsync(cancellationToken);
+        return result;
+    }
+
+    private static Part? FindExistingPart(IReadOnlyList<Part> existingParts, PartsTransferPart importedPart)
+    {
+        var byId = existingParts.FirstOrDefault(part => part.PartId == importedPart.PartId);
+        if (byId is not null)
+        {
+            return byId;
+        }
+
+        if (!string.IsNullOrWhiteSpace(importedPart.Url))
+        {
+            var byUrl = existingParts.FirstOrDefault(part => part.Url.Equals(importedPart.Url, StringComparison.OrdinalIgnoreCase));
+            if (byUrl is not null)
+            {
+                return byUrl;
+            }
+        }
+
+        if (!string.IsNullOrWhiteSpace(importedPart.Sku) && !string.IsNullOrWhiteSpace(importedPart.Manufacturer))
+        {
+            var bySku = existingParts.FirstOrDefault(part =>
+                part.Sku.Equals(importedPart.Sku, StringComparison.OrdinalIgnoreCase)
+                && part.Manufacturer.Equals(importedPart.Manufacturer, StringComparison.OrdinalIgnoreCase));
+
+            if (bySku is not null)
+            {
+                return bySku;
+            }
+        }
+
+        if (!string.IsNullOrWhiteSpace(importedPart.ModelNumber) && !string.IsNullOrWhiteSpace(importedPart.Manufacturer))
+        {
+            return existingParts.FirstOrDefault(part =>
+                part.ModelNumber.Equals(importedPart.ModelNumber, StringComparison.OrdinalIgnoreCase)
+                && part.Manufacturer.Equals(importedPart.Manufacturer, StringComparison.OrdinalIgnoreCase));
+        }
+
+        return null;
+    }
+
+    private static PartsTransferPart NormalizeTransferPart(PartsTransferPart part)
+    {
+        return part with
+        {
+            Name = TrimTransferText(part.Name),
+            Description = TrimTransferText(part.Description),
+            ModelNumber = TrimTransferText(part.ModelNumber),
+            Manufacturer = TrimTransferText(part.Manufacturer),
+            Sku = TrimTransferText(part.Sku),
+            Url = TrimTransferText(part.Url),
+            ImageUrl = TrimTransferText(part.ImageUrl),
+            PackageUnits = Math.Max(0, part.PackageUnits)
+        };
+    }
+
+    private static string TrimTransferText(string? value)
+    {
+        return value?.Trim() ?? string.Empty;
     }
 
     private static async Task<ScrapedPartData> TryScrapeWithBrowserAsync(Uri uri, ICollection<string> debugMessages, CancellationToken cancellationToken)
@@ -906,5 +1141,37 @@ public sealed class SettingsController : Controller
             ModelNumber = CleanText(ModelNumber);
             return this;
         }
+    }
+
+    private sealed record PartsTransferFile(
+        int Version,
+        DateTime ExportedAtUtc,
+        IReadOnlyList<PartsTransferPartSource> PartSources,
+        IReadOnlyList<PartsTransferPart> Parts);
+
+    private sealed record PartsTransferPartSource(
+        Guid PartSourceId,
+        string Name);
+
+    private sealed record PartsTransferPart(
+        Guid PartId,
+        Guid PartSourceId,
+        string Name,
+        string Description,
+        string ModelNumber,
+        string Manufacturer,
+        string Sku,
+        string Url,
+        string ImageUrl,
+        decimal Cost,
+        bool IsPackage,
+        int PackageUnits);
+
+    private sealed class PartsImportResult
+    {
+        public int PartSourcesCreated { get; set; }
+        public int PartSourcesUpdated { get; set; }
+        public int PartsCreated { get; set; }
+        public int PartsUpdated { get; set; }
     }
 }

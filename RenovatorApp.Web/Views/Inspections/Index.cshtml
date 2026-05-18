@@ -26,9 +26,9 @@ else
                 <div>
                     <strong>@inspection.Title</strong>
                     <div class="text-muted">@inspection.PropertyAddress</div>
-                    @if (!string.IsNullOrWhiteSpace(inspection.ClientName))
+                    @if (!string.IsNullOrWhiteSpace(inspection.CustomerName))
                     {
-                        <div class="text-muted">@inspection.ClientName</div>
+                        <div class="text-muted">@inspection.CustomerName</div>
                     }
                 </div>
                 <span class="text-muted">@inspection.InspectionDate.ToString("d")</span>
@@ -36,3 +36,4 @@ else
         }
     </div>
 }
+

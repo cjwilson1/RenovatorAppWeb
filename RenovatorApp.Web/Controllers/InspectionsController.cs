@@ -40,7 +40,8 @@ public sealed class InspectionsController : Controller
         {
             Inspection = inspection,
             PropertyAddress = GetPropertyAddress(inspection.Property),
-            ClientName = GetClientName(inspection.Client)
+            CustomerName = GetCustomerName(inspection.Customer),
+            DefaultReportName = BuildDefaultReportName(inspection.Title, DateTime.Now)
         });
     }
 
@@ -72,7 +73,7 @@ public sealed class InspectionsController : Controller
             InspectorName = inspection.InspectorName,
             GeneralNotes = inspection.GeneralNotes,
             PropertyAddress = ToPropertyAddressEditViewModel(inspection.Property.Address),
-            Client = ToClientEditViewModel(inspection.Client),
+            Customer = ToCustomerEditViewModel(inspection.Customer),
             Buildings = ToBuildingEditViewModels(inspection.Property),
             Inspectors = await GetInspectorPickerItemsAsync(cancellationToken),
             Parts = await GetPartPickerItemsAsync(cancellationToken)
@@ -91,7 +92,9 @@ public sealed class InspectionsController : Controller
         return RedirectToAction(nameof(Index));
     }
 
-    public async Task<IActionResult> ReportPdf(Guid id, CancellationToken cancellationToken)
+    [HttpPost]
+    [ValidateAntiForgeryToken]
+    public async Task<IActionResult> ReportPdf(Guid id, string reportName, CancellationToken cancellationToken)
     {
         var inspection = await _inspectionDataService.GetInspectionDetailAsync(id, cancellationToken);
 
@@ -101,10 +104,10 @@ public sealed class InspectionsController : Controller
         }
 
         var propertyAddress = GetPropertyAddress(inspection.Property);
-        var clientName = GetClientName(inspection.Client);
+        var customerName = GetCustomerName(inspection.Customer);
         var logoPath = Path.Combine(_webHostEnvironment.WebRootPath, "images", "MikeHandymanLogo.png");
         var estimateItems = GetEstimateItems(inspection);
-        var document = Document.Create(container =>
+        var document = QuestPDF.Fluent.Document.Create(container =>
         {
             container.Page(page =>
             {
@@ -126,7 +129,7 @@ public sealed class InspectionsController : Controller
                         });
                         column.Item().Text($"Inspector: {inspection.InspectorName}");
                         column.Item().Text($"Property: {(string.IsNullOrWhiteSpace(propertyAddress) ? "No property address" : propertyAddress)}");
-                        column.Item().Text($"Client: {(string.IsNullOrWhiteSpace(clientName) ? "No client assigned" : clientName)}");
+                        column.Item().Text($"Customer: {(string.IsNullOrWhiteSpace(customerName) ? "No customer assigned" : customerName)}");
                         column.Item().PaddingTop(10).Element(container => ComposeBuildings(container, inspection));
                         column.Item().PaddingTop(8).Element(container => ComposeSummary(container, estimateItems));
                     });
@@ -155,7 +158,26 @@ public sealed class InspectionsController : Controller
         });
 
         var pdfBytes = document.GeneratePdf();
-        var fileName = $"{GetSafeFileName(inspection.Title)}-InspectionReport.pdf";
+        const string extension = ".pdf";
+        var documentName = GetSafeReportName(reportName);
+        var fileName = $"{documentName}{extension}";
+        var documentsDirectory = Path.Combine(_webHostEnvironment.ContentRootPath, "Documents", "Inspections");
+        Directory.CreateDirectory(documentsDirectory);
+
+        var documentPath = GetAvailableDocumentPath(documentsDirectory, fileName);
+        fileName = Path.GetFileName(documentPath);
+        await System.IO.File.WriteAllBytesAsync(documentPath, pdfBytes, cancellationToken);
+
+        await _inspectionDataService.AddDocumentAsync(new RenovatorApp.Infrastructure.Models.Document
+        {
+            DocumentName = Path.GetFileNameWithoutExtension(fileName),
+            CustomerId = inspection.CustomerId,
+            CreateDate = DateTime.UtcNow,
+            DocumentType = "inspection",
+            Filename = fileName,
+            Extension = extension,
+            Path = documentPath
+        }, cancellationToken);
 
         return File(pdfBytes, "application/pdf", fileName);
     }
@@ -493,7 +515,7 @@ public sealed class InspectionsController : Controller
             inspection.InspectionDate,
             inspection.InspectorName,
             GetPropertyAddress(inspection.Property),
-            GetClientName(inspection.Client));
+            GetCustomerName(inspection.Customer));
     }
 
     private static InspectionPropertyAddressEditViewModel ToPropertyAddressEditViewModel(Address? address)
@@ -554,27 +576,27 @@ public sealed class InspectionsController : Controller
             .ToList();
     }
 
-    private static InspectionClientEditViewModel ToClientEditViewModel(Client? client)
+    private static InspectionCustomerEditViewModel ToCustomerEditViewModel(Customer? customer)
     {
-        if (client is null)
+        if (customer is null)
         {
-            return new InspectionClientEditViewModel();
+            return new InspectionCustomerEditViewModel();
         }
 
-        return new InspectionClientEditViewModel
+        return new InspectionCustomerEditViewModel
         {
-            ClientId = client.ClientId,
-            FirstName = client.FirstName,
-            LastName = client.LastName,
-            CompanyName = client.CompanyName,
-            Phone = client.Phone,
-            Email = client.Email,
-            Street1 = client.Street1,
-            Street2 = client.Street2,
-            City = client.City,
-            State = client.State,
-            PostalCode = client.PostalCode,
-            Notes = client.Notes
+            CustomerId = customer.CustomerId,
+            FirstName = customer.GivenName,
+            LastName = customer.FamilyName,
+            CompanyName = customer.CompanyName,
+            Phone = customer.PrimaryPhone,
+            Email = customer.PrimaryEmailAddress,
+            Street1 = customer.BillAddress?.Street1 ?? string.Empty,
+            Street2 = customer.BillAddress?.Street2 ?? string.Empty,
+            City = customer.BillAddress?.City ?? string.Empty,
+            State = customer.BillAddress?.State ?? string.Empty,
+            PostalCode = customer.BillAddress?.PostalCode ?? string.Empty,
+            Notes = customer.Notes
         };
     }
 
@@ -858,25 +880,55 @@ public sealed class InspectionsController : Controller
         }.Where(value => !string.IsNullOrWhiteSpace(value)));
     }
 
-    private static string GetClientName(Client? client)
+    private static string GetCustomerName(Customer? customer)
     {
-        if (client is null)
+        if (customer is null)
         {
             return string.Empty;
         }
 
-        var name = $"{client.FirstName} {client.LastName}".Trim();
+        var name = $"{customer.GivenName} {customer.FamilyName}".Trim();
 
-        return string.IsNullOrWhiteSpace(name) ? client.CompanyName : name;
+        return string.IsNullOrWhiteSpace(name) ? customer.CompanyName : name;
     }
 
-    private static string GetSafeFileName(string value)
+    private static string BuildDefaultReportName(string inspectionName, DateTime dateTime)
+    {
+        return $"{GetSafeReportName(inspectionName)}_{dateTime:yyyyddMM_HHmm}";
+    }
+
+    private static string GetSafeReportName(string value)
     {
         var invalidCharacters = Path.GetInvalidFileNameChars();
         var safeName = new string(value
-            .Select(character => invalidCharacters.Contains(character) ? '-' : character)
+            .Where(character => !invalidCharacters.Contains(character))
+            .Where(character => !char.IsPunctuation(character) || character is '_' or '-')
             .ToArray());
 
         return string.IsNullOrWhiteSpace(safeName) ? "Inspection" : safeName;
     }
+
+    private static string GetAvailableDocumentPath(string directory, string fileName)
+    {
+        var path = Path.Combine(directory, fileName);
+
+        if (!System.IO.File.Exists(path))
+        {
+            return path;
+        }
+
+        var nameWithoutExtension = Path.GetFileNameWithoutExtension(fileName);
+        var extension = Path.GetExtension(fileName);
+        var counter = 2;
+
+        do
+        {
+            path = Path.Combine(directory, $"{nameWithoutExtension}_{counter}{extension}");
+            counter++;
+        }
+        while (System.IO.File.Exists(path));
+
+        return path;
+    }
 }
+

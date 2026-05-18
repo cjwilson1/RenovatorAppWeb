@@ -1,0 +1,141 @@
+@model RenovatorApp.Web.ViewModels.EmployeeDetailViewModel
+
+@{
+    ViewData["Title"] = "Employee";
+}
+
+<div class="page-header-row">
+    <div>
+        <h1>@Model.DisplayName</h1>
+        <p class="text-muted">@Model.PrimaryEmailAddress</p>
+    </div>
+    <a class="btn btn-secondary" asp-controller="Employees" asp-action="Index">Close</a>
+</div>
+
+<div class="detail-grid">
+    <section class="detail-section">
+        <h2>Identity</h2>
+        <dl>
+            <dt>QuickBooks ID</dt>
+            <dd>@Model.QuickBooksEmployeeId</dd>
+            <dt>Sync Token</dt>
+            <dd>@Model.SyncToken</dd>
+            <dt>Employee Number</dt>
+            <dd>@Model.EmployeeNumber</dd>
+            <dt>Print On Check Name</dt>
+            <dd>@Model.PrintOnCheckName</dd>
+        </dl>
+    </section>
+
+    <section class="detail-section">
+        <h2>Name</h2>
+        <dl>
+            <dt>Title</dt>
+            <dd>@Model.Title</dd>
+            <dt>Given Name</dt>
+            <dd>@Model.GivenName</dd>
+            <dt>Middle Name</dt>
+            <dd>@Model.MiddleName</dd>
+            <dt>Family Name</dt>
+            <dd>@Model.FamilyName</dd>
+            <dt>Suffix</dt>
+            <dd>@Model.Suffix</dd>
+        </dl>
+    </section>
+
+    <section class="detail-section">
+        <h2>Contact</h2>
+        <dl>
+            <dt>Email</dt>
+            <dd>@Model.PrimaryEmailAddress</dd>
+            <dt>Primary Phone</dt>
+            <dd>@Model.PrimaryPhone</dd>
+            <dt>Mobile</dt>
+            <dd>@Model.MobilePhone</dd>
+        </dl>
+    </section>
+
+    <section class="detail-section">
+        <h2>Status</h2>
+        <dl>
+            <dt>Active</dt>
+            <dd>@Model.Active</dd>
+            <dt>Billable Time</dt>
+            <dd>@Model.BillableTime</dd>
+            <dt>Organization</dt>
+            <dd>@Model.Organization</dd>
+            <dt>Gender</dt>
+            <dd>@Model.Gender</dd>
+        </dl>
+    </section>
+
+    <section class="detail-section">
+        <h2>Rates</h2>
+        <dl>
+            <dt>Bill Rate</dt>
+            <dd>@FormatCurrency(Model.BillRate)</dd>
+            <dt>Hourly Cost Rate</dt>
+            <dd>@FormatCurrency(Model.HourlyCostRate)</dd>
+        </dl>
+    </section>
+
+    <section class="detail-section">
+        <h2>Dates</h2>
+        <dl>
+            <dt>Hired Date</dt>
+            <dd>@FormatDate(Model.HiredDate)</dd>
+            <dt>Released Date</dt>
+            <dd>@FormatDate(Model.ReleasedDate)</dd>
+            <dt>Birth Date</dt>
+            <dd>@FormatDate(Model.BirthDate)</dd>
+            <dt>QuickBooks Created</dt>
+            <dd>@FormatDate(Model.QuickBooksCreateTime)</dd>
+            <dt>QuickBooks Updated</dt>
+            <dd>@FormatDate(Model.QuickBooksLastUpdatedTime)</dd>
+            <dt>Created Date</dt>
+            <dd>@FormatDate(Model.CreatedDate)</dd>
+            <dt>Last Sync Date</dt>
+            <dd>@FormatDate(Model.LastSyncDate)</dd>
+            <dt>Last Edit Date</dt>
+            <dd>@FormatDate(Model.LastEditDate)</dd>
+        </dl>
+    </section>
+
+    <section class="detail-section">
+        <h2>Primary Address</h2>
+        @RenderAddress(Model.PrimaryAddress)
+    </section>
+</div>
+
+@functions {
+    private static string FormatCurrency(decimal value)
+    {
+        return $"${value:N2}";
+    }
+
+    private static string FormatDate(DateTime? value)
+    {
+        return value is null ? string.Empty : value.Value.ToLocalTime().ToString("g");
+    }
+
+    private static Microsoft.AspNetCore.Html.IHtmlContent RenderAddress(RenovatorApp.Web.ViewModels.EmployeeAddressViewModel? address)
+    {
+        if (address is null)
+        {
+            return new Microsoft.AspNetCore.Html.HtmlString("<p class=\"text-muted\">No address.</p>");
+        }
+
+        var lines = new[]
+        {
+            address.Street1,
+            address.Street2,
+            address.Street3,
+            string.Join(", ", new[] { address.City, address.State }.Where(value => !string.IsNullOrWhiteSpace(value))),
+            address.PostalCode,
+            address.CountrySubDivisionCode,
+            address.Country
+        }.Where(value => !string.IsNullOrWhiteSpace(value));
+
+        return new Microsoft.AspNetCore.Html.HtmlString($"<p>{System.Net.WebUtility.HtmlEncode(string.Join("<br>", lines))}</p>".Replace("&lt;br&gt;", "<br>"));
+    }
+}

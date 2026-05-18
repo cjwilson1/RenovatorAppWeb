@@ -37,6 +37,7 @@ public sealed class QuickBooksCustomerViewModel
 public sealed class PartsManagerViewModel
 {
     public IReadOnlyList<PartsManagerPartViewModel> Parts { get; init; } = [];
+    public string StatusMessage { get; init; } = string.Empty;
     public int Page { get; init; }
     public int PageSize { get; init; }
     public int TotalParts { get; init; }

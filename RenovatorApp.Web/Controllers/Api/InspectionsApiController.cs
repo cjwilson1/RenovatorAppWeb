@@ -40,7 +40,7 @@ public sealed class InspectionsApiController : ControllerBase
             inspection.UpdatedAtUtc,
             inspection.InspectorName,
             inspection.PropertyId,
-            inspection.ClientId);
+            inspection.CustomerId);
     }
 
     private static InspectionDetailDto ToDetailDto(Inspection inspection)
@@ -49,7 +49,7 @@ public sealed class InspectionsApiController : ControllerBase
             ToSummaryDto(inspection),
             inspection.GeneralNotes,
             ToPropertyDto(inspection.Property),
-            ToClientDto(inspection.Client),
+            ToCustomerDto(inspection.Customer),
             inspection.Property.Buildings
                 .OrderBy(building => building.SortOrder)
                 .ThenBy(building => building.Name)
@@ -73,17 +73,17 @@ public sealed class InspectionsApiController : ControllerBase
             property.Address.PostalCode);
     }
 
-    private static ClientDto? ToClientDto(Client? client)
+    private static CustomerDto? ToCustomerDto(Customer? customer)
     {
-        return client is null
+        return customer is null
             ? null
-            : new ClientDto(
-                client.ClientId,
-                client.FirstName,
-                client.LastName,
-                client.CompanyName,
-                client.Phone,
-                client.Email);
+            : new CustomerDto(
+                customer.CustomerId,
+                customer.GivenName,
+                customer.FamilyName,
+                customer.CompanyName,
+                customer.PrimaryPhone,
+                customer.PrimaryEmailAddress);
     }
 
     private static AreaDto ToAreaDto(InspectionArea area)
@@ -108,13 +108,13 @@ public sealed class InspectionsApiController : ControllerBase
         DateTime UpdatedAtUtc,
         string InspectorName,
         Guid PropertyId,
-        Guid? ClientId);
+        Guid? CustomerId);
 
     public sealed record InspectionDetailDto(
         InspectionSummaryDto Inspection,
         string GeneralNotes,
         PropertyDto Property,
-        ClientDto? Client,
+        CustomerDto? Customer,
         IReadOnlyList<BuildingDto> Buildings,
         IReadOnlyList<AreaDto> PropertyAreas);
 
@@ -126,7 +126,7 @@ public sealed class InspectionsApiController : ControllerBase
         string State,
         string PostalCode);
 
-    public sealed record ClientDto(
+    public sealed record CustomerDto(
         Guid Id,
         string FirstName,
         string LastName,

@@ -32,8 +32,8 @@
             </button>
         </li>
         <li class="nav-item" role="presentation">
-            <button class="nav-link" id="client-tab" data-bs-toggle="tab" data-bs-target="#client-panel" type="button" role="tab" aria-controls="client-panel" aria-selected="false">
-                Client
+            <button class="nav-link" id="customer-tab" data-bs-toggle="tab" data-bs-target="#customer-panel" type="button" role="tab" aria-controls="customer-panel" aria-selected="false">
+                Customer
             </button>
         </li>
         <li class="nav-item" role="presentation">
@@ -112,67 +112,67 @@
             </section>
         </div>
 
-        <div class="tab-pane fade" id="client-panel" role="tabpanel" aria-labelledby="client-tab" tabindex="0">
+        <div class="tab-pane fade" id="customer-panel" role="tabpanel" aria-labelledby="customer-tab" tabindex="0">
             <section class="detail-section">
-                <h2>Client</h2>
+                <h2>Customer</h2>
 
-                <input asp-for="Client.ClientId" type="hidden" />
-
-                <div class="row">
-                    <div class="col-md-6 mb-3">
-                        <label class="form-label" asp-for="Client.FirstName">First Name</label>
-                        <input class="form-control" asp-for="Client.FirstName" type="text" />
-                    </div>
-                    <div class="col-md-6 mb-3">
-                        <label class="form-label" asp-for="Client.LastName">Last Name</label>
-                        <input class="form-control" asp-for="Client.LastName" type="text" />
-                    </div>
-                </div>
-
-                <div class="mb-3">
-                    <label class="form-label" asp-for="Client.CompanyName">Company Name</label>
-                    <input class="form-control" asp-for="Client.CompanyName" type="text" />
-                </div>
+                <input asp-for="Customer.CustomerId" type="hidden" />
 
                 <div class="row">
                     <div class="col-md-6 mb-3">
-                        <label class="form-label" asp-for="Client.Phone"></label>
-                        <input class="form-control" asp-for="Client.Phone" type="tel" />
+                        <label class="form-label" asp-for="Customer.FirstName">First Name</label>
+                        <input class="form-control" asp-for="Customer.FirstName" type="text" />
                     </div>
                     <div class="col-md-6 mb-3">
-                        <label class="form-label" asp-for="Client.Email"></label>
-                        <input class="form-control" asp-for="Client.Email" type="email" />
+                        <label class="form-label" asp-for="Customer.LastName">Last Name</label>
+                        <input class="form-control" asp-for="Customer.LastName" type="text" />
                     </div>
                 </div>
 
                 <div class="mb-3">
-                    <label class="form-label" asp-for="Client.Street1">Street 1</label>
-                    <input class="form-control" asp-for="Client.Street1" type="text" />
+                    <label class="form-label" asp-for="Customer.CompanyName">Company Name</label>
+                    <input class="form-control" asp-for="Customer.CompanyName" type="text" />
+                </div>
+
+                <div class="row">
+                    <div class="col-md-6 mb-3">
+                        <label class="form-label" asp-for="Customer.Phone"></label>
+                        <input class="form-control" asp-for="Customer.Phone" type="tel" />
+                    </div>
+                    <div class="col-md-6 mb-3">
+                        <label class="form-label" asp-for="Customer.Email"></label>
+                        <input class="form-control" asp-for="Customer.Email" type="email" />
+                    </div>
                 </div>
 
                 <div class="mb-3">
-                    <label class="form-label" asp-for="Client.Street2">Street 2</label>
-                    <input class="form-control" asp-for="Client.Street2" type="text" />
+                    <label class="form-label" asp-for="Customer.Street1">Street 1</label>
+                    <input class="form-control" asp-for="Customer.Street1" type="text" />
+                </div>
+
+                <div class="mb-3">
+                    <label class="form-label" asp-for="Customer.Street2">Street 2</label>
+                    <input class="form-control" asp-for="Customer.Street2" type="text" />
                 </div>
 
                 <div class="row">
                     <div class="col-md-5 mb-3">
-                        <label class="form-label" asp-for="Client.City"></label>
-                        <input class="form-control" asp-for="Client.City" type="text" />
+                        <label class="form-label" asp-for="Customer.City"></label>
+                        <input class="form-control" asp-for="Customer.City" type="text" />
                     </div>
                     <div class="col-md-3 mb-3">
-                        <label class="form-label" asp-for="Client.State"></label>
-                        <input class="form-control" asp-for="Client.State" type="text" />
+                        <label class="form-label" asp-for="Customer.State"></label>
+                        <input class="form-control" asp-for="Customer.State" type="text" />
                     </div>
                     <div class="col-md-4 mb-3">
-                        <label class="form-label" asp-for="Client.PostalCode">Postal Code</label>
-                        <input class="form-control" asp-for="Client.PostalCode" type="text" />
+                        <label class="form-label" asp-for="Customer.PostalCode">Postal Code</label>
+                        <input class="form-control" asp-for="Customer.PostalCode" type="text" />
                     </div>
                 </div>
 
                 <div class="mb-0">
-                    <label class="form-label" asp-for="Client.Notes"></label>
-                    <textarea class="form-control" asp-for="Client.Notes" rows="5"></textarea>
+                    <label class="form-label" asp-for="Customer.Notes"></label>
+                    <textarea class="form-control" asp-for="Customer.Notes" rows="5"></textarea>
                 </div>
             </section>
         </div>
@@ -327,9 +327,9 @@
                                                                         @for (var estimateItemIndex = 0; estimateItemIndex < note.EstimateItems.Count; estimateItemIndex++)
                                                                         {
                                                                             var estimateItem = note.EstimateItems[estimateItemIndex];
-                                                                            var estimateItemClientId = $"estimate-item-{estimateItem.Id}";
+                                                                            var estimateItemLocalId = $"estimate-item-{estimateItem.Id}";
 
-                                                                            <tr data-estimate-item-row="@estimateItemClientId">
+                                                                            <tr data-estimate-item-row="@estimateItemLocalId">
                                                                                 <td data-estimate-item-name>@estimateItem.Name</td>
                                                                                 <td class="text-end" data-estimate-item-cost>@FormatCurrency(estimateItem.Cost)</td>
                                                                                 <td class="text-end" data-estimate-item-hours>@FormatHours(estimateItem.Hours)</td>
@@ -337,7 +337,7 @@
                                                                                     <div class="d-inline-flex gap-1">
                                                                                         <button class="btn btn-sm btn-success"
                                                                                                 type="button"
-                                                                                                data-edit-estimate-item-id="@estimateItemClientId"
+                                                                                                data-edit-estimate-item-id="@estimateItemLocalId"
                                                                                                 data-edit-estimate-note-id="@note.Id"
                                                                                                 aria-label="Edit estimate item">
                                                                                             <svg aria-hidden="true" fill="none" height="14" viewBox="0 0 24 24" width="14" xmlns="http://www.w3.org/2000/svg">
@@ -347,7 +347,7 @@
                                                                                         </button>
                                                                                         <button class="btn btn-sm btn-danger"
                                                                                                 type="button"
-                                                                                                data-delete-estimate-item-id="@estimateItemClientId"
+                                                                                                data-delete-estimate-item-id="@estimateItemLocalId"
                                                                                                 data-delete-estimate-note-id="@note.Id"
                                                                                                 data-delete-estimate-table-id="@estimateTableId"
                                                                                                 data-delete-estimate-empty-id="@estimateEmptyId"
@@ -371,9 +371,9 @@
                                                             {
                                                                 var estimateItem = note.EstimateItems[estimateItemIndex];
                                                                 var inputPrefix = $"{estimatePrefix}[{estimateItemIndex}]";
-                                                                var estimateItemClientId = $"estimate-item-{estimateItem.Id}";
+                                                                var estimateItemLocalId = $"estimate-item-{estimateItem.Id}";
 
-                                                                <span data-estimate-item-inputs="@estimateItemClientId">
+                                                                <span data-estimate-item-inputs="@estimateItemLocalId">
                                                                     <input name="@(inputPrefix).Id" type="hidden" value="@estimateItem.Id" />
                                                                     <input data-estimate-name-input name="@(inputPrefix).Name" type="hidden" value="@estimateItem.Name" />
                                                                     <input data-estimate-cost-input="@note.Id" name="@(inputPrefix).Cost" type="hidden" value="@estimateItem.Cost" />
@@ -797,7 +797,7 @@
             return input;
         }
 
-        function createClientId() {
+        function createLocalId() {
             return crypto.randomUUID
                 ? crypto.randomUUID()
                 : `new-${Date.now()}-${Math.random().toString(16).slice(2)}`;
@@ -861,9 +861,9 @@
                 return;
             }
 
-            const estimateItemClientId = `estimate-item-${createClientId()}`;
+            const estimateItemLocalId = `estimate-item-${createLocalId()}`;
             const row = document.createElement('tr');
-            row.dataset.estimateItemRow = estimateItemClientId;
+            row.dataset.estimateItemRow = estimateItemLocalId;
             row.innerHTML = `
                 <td data-estimate-item-name>${name}</td>
                 <td class="text-end" data-estimate-item-cost>${formatCurrencyValue(cost)}</td>
@@ -872,7 +872,7 @@
                     <div class="d-inline-flex gap-1">
                         <button class="btn btn-sm btn-success"
                                 type="button"
-                                data-edit-estimate-item-id="${estimateItemClientId}"
+                                data-edit-estimate-item-id="${estimateItemLocalId}"
                                 data-edit-estimate-note-id="${noteId}"
                                 aria-label="Edit estimate item">
                             <svg aria-hidden="true" fill="none" height="14" viewBox="0 0 24 24" width="14" xmlns="http://www.w3.org/2000/svg">
@@ -882,7 +882,7 @@
                         </button>
                         <button class="btn btn-sm btn-danger"
                                 type="button"
-                                data-delete-estimate-item-id="${estimateItemClientId}"
+                                data-delete-estimate-item-id="${estimateItemLocalId}"
                                 data-delete-estimate-note-id="${noteId}"
                                 data-delete-estimate-table-id="${activeAddPartButton.dataset.addPartTableId || ''}"
                                 data-delete-estimate-empty-id="${activeAddPartButton.dataset.addPartEmptyId || ''}"
@@ -905,8 +905,8 @@
             hoursInput.dataset.estimateHoursInput = noteId;
 
             const inputGroup = document.createElement('span');
-            inputGroup.dataset.estimateItemInputs = estimateItemClientId;
-            inputGroup.appendChild(createHiddenInput(`${inputPrefix}.Id`, createClientId()));
+            inputGroup.dataset.estimateItemInputs = estimateItemLocalId;
+            inputGroup.appendChild(createHiddenInput(`${inputPrefix}.Id`, createLocalId()));
             const nameInput = createHiddenInput(`${inputPrefix}.Name`, name);
             nameInput.dataset.estimateNameInput = '';
             inputGroup.appendChild(nameInput);
@@ -1303,3 +1303,5 @@
         });
     </script>
 }
+
+

@@ -61,14 +61,14 @@ X-Api-Key: your-long-random-secret
 Content-Type: application/json
 ```
 
-The sync endpoint accepts graph data in dependency order: lookup tables, inspectors, clients, properties, addresses, buildings, inspections, areas, notes, estimate items, and photos. All arrays are optional so the phone can send only the rows that changed.
+The sync endpoint accepts graph data in dependency order: lookup tables, inspectors, customers, properties, addresses, buildings, inspections, areas, notes, estimate items, and photos. All arrays are optional so the phone can send only the rows that changed.
 
 ```json
 {
   "deviceId": "phone-123",
   "lastSyncedAtUtc": "2026-05-13T20:00:00Z",
   "inspectors": [],
-  "clients": [],
+  "customers": [],
   "properties": [],
   "addresses": [],
   "buildings": [],

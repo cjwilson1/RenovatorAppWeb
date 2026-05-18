@@ -1,0 +1,197 @@
+@model RenovatorApp.Web.ViewModels.CustomerDetailViewModel
+
+@{
+    ViewData["Title"] = "Customer";
+}
+
+<div class="page-header-row">
+    <div>
+        <h1>@Model.DisplayName</h1>
+        <p class="text-muted">@Model.CompanyName</p>
+    </div>
+    <a class="btn btn-secondary" asp-controller="Customers" asp-action="Index">Close</a>
+</div>
+
+<div class="detail-grid">
+    <section class="detail-section">
+        <h2>Name</h2>
+        <dl>
+            <dt>Title</dt>
+            <dd>@Model.Title</dd>
+            <dt>Given Name</dt>
+            <dd>@Model.GivenName</dd>
+            <dt>Middle Name</dt>
+            <dd>@Model.MiddleName</dd>
+            <dt>Family Name</dt>
+            <dd>@Model.FamilyName</dd>
+            <dt>Suffix</dt>
+            <dd>@Model.Suffix</dd>
+        </dl>
+    </section>
+
+    <section class="detail-section">
+        <h2>Contact</h2>
+        <dl>
+            <dt>Email</dt>
+            <dd>@Model.PrimaryEmailAddress</dd>
+            <dt>Primary Phone</dt>
+            <dd>@Model.PrimaryPhone</dd>
+            <dt>Alternate Phone</dt>
+            <dd>@Model.AlternatePhone</dd>
+            <dt>Mobile</dt>
+            <dd>@Model.MobilePhone</dd>
+            <dt>Fax</dt>
+            <dd>@Model.Fax</dd>
+            <dt>Website</dt>
+            <dd>@Model.Website</dd>
+        </dl>
+    </section>
+
+    <section class="detail-section">
+        <h2>Bill Address</h2>
+        @RenderAddress(Model.BillAddress)
+    </section>
+
+    <section class="detail-section detail-section-full">
+        <h2>Documents</h2>
+        @if (Model.Documents.Count == 0)
+        {
+            <p class="text-muted">No documents.</p>
+        }
+        else
+        {
+            <div class="table-responsive">
+                <table class="table table-sm align-middle mb-0">
+                    <thead>
+                        <tr>
+                            <th scope="col">Name</th>
+                            <th scope="col">Type</th>
+                            <th scope="col">Create Date</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        @foreach (var document in Model.Documents)
+                        {
+                            <tr>
+                                <td>
+                                    <a asp-controller="Customers"
+                                       asp-action="Document"
+                                       asp-route-id="@Model.CustomerId"
+                                       asp-route-documentId="@document.DocumentId"
+                                       target="_blank"
+                                       rel="noopener noreferrer">
+                                        @document.DocumentName
+                                    </a>
+                                </td>
+                                <td>@document.DocumentType</td>
+                                <td>@FormatDate(document.CreateDate)</td>
+                            </tr>
+                        }
+                    </tbody>
+                </table>
+            </div>
+        }
+    </section>
+
+    <section class="detail-section">
+        <h2>Accounting</h2>
+        <dl>
+            <dt>Balance</dt>
+            <dd>@FormatCurrency(Model.Balance)</dd>
+            <dt>Balance With Jobs</dt>
+            <dd>@FormatCurrency(Model.BalanceWithJobs)</dd>
+            <dt>Preferred Delivery</dt>
+            <dd>@Model.PreferredDeliveryMethod</dd>
+            <dt>Parent</dt>
+            <dd>@Model.ParentRef</dd>
+            <dt>Payment Method</dt>
+            <dd>@Model.PaymentMethodRef</dd>
+            <dt>Sales Term</dt>
+            <dd>@Model.SalesTermRef</dd>
+            <dt>Currency</dt>
+            <dd>@Model.CurrencyRef</dd>
+        </dl>
+    </section>
+
+    <section class="detail-section">
+        <h2>Ship Address</h2>
+        @RenderAddress(Model.ShipAddress)
+    </section>
+
+    <section class="detail-section">
+        <h2>Dates</h2>
+        <dl>
+            <dt>QuickBooks Created</dt>
+            <dd>@FormatDate(Model.QuickBooksCreateTime)</dd>
+            <dt>QuickBooks Updated</dt>
+            <dd>@FormatDate(Model.QuickBooksLastUpdatedTime)</dd>
+            <dt>Created Date</dt>
+            <dd>@FormatDate(Model.CreatedDate)</dd>
+            <dt>Last Sync Date</dt>
+            <dd>@FormatDate(Model.LastSyncDate)</dd>
+            <dt>Last Edit Date</dt>
+            <dd>@FormatDate(Model.LastEditDate)</dd>
+        </dl>
+    </section>
+
+    <section class="detail-section">
+        <h2>Status</h2>
+        <dl>
+            <dt>Active</dt>
+            <dd>@Model.Active</dd>
+            <dt>Taxable</dt>
+            <dd>@Model.Taxable</dd>
+            <dt>Job</dt>
+            <dd>@Model.Job</dd>
+            <dt>Bill With Parent</dt>
+            <dd>@Model.BillWithParent</dd>
+        </dl>
+    </section>
+
+    <section class="detail-section">
+        <h2>Identity</h2>
+        <dl>
+            <dt>QuickBooks ID</dt>
+            <dd>@Model.QuickBooksCustomerId</dd>
+            <dt>Sync Token</dt>
+            <dd>@Model.SyncToken</dd>
+            <dt>Fully Qualified Name</dt>
+            <dd>@Model.FullyQualifiedName</dd>
+            <dt>Print On Check Name</dt>
+            <dd>@Model.PrintOnCheckName</dd>
+        </dl>
+    </section>
+</div>
+
+@functions {
+    private static string FormatCurrency(decimal value)
+    {
+        return $"${value:N2}";
+    }
+
+    private static string FormatDate(DateTime? value)
+    {
+        return value is null ? string.Empty : value.Value.ToLocalTime().ToString("g");
+    }
+
+    private static Microsoft.AspNetCore.Html.IHtmlContent RenderAddress(RenovatorApp.Web.ViewModels.CustomerAddressViewModel? address)
+    {
+        if (address is null)
+        {
+            return new Microsoft.AspNetCore.Html.HtmlString("<p class=\"text-muted\">No address.</p>");
+        }
+
+        var lines = new[]
+        {
+            address.Street1,
+            address.Street2,
+            address.Street3,
+            string.Join(", ", new[] { address.City, address.State }.Where(value => !string.IsNullOrWhiteSpace(value))),
+            address.PostalCode,
+            address.CountrySubDivisionCode,
+            address.Country
+        }.Where(value => !string.IsNullOrWhiteSpace(value));
+
+        return new Microsoft.AspNetCore.Html.HtmlString($"<p>{System.Net.WebUtility.HtmlEncode(string.Join("<br>", lines))}</p>".Replace("&lt;br&gt;", "<br>"));
+    }
+}

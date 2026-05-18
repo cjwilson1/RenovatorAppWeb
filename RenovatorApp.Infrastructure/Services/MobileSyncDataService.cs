@@ -196,43 +196,29 @@ public sealed class MobileSyncDataService
             results.Add(MobileSyncResult.Updated(nameof(Inspector), item.Id));
         }
 
-        foreach (var item in batch.Clients)
+        foreach (var item in batch.Customers)
         {
-            var entity = await _dbContext.Clients.FindAsync([item.ClientId], cancellationToken);
+            var entity = await _dbContext.Customers
+                .Include(customer => customer.BillAddress)
+                .FirstOrDefaultAsync(customer => customer.CustomerId == item.CustomerId, cancellationToken);
 
             if (entity is null)
             {
-                _dbContext.Clients.Add(new Client
+                entity = new Customer
                 {
-                    ClientId = item.ClientId,
-                    FirstName = item.FirstName,
-                    LastName = item.LastName,
-                    CompanyName = item.CompanyName,
-                    Phone = item.Phone,
-                    Email = item.Email,
-                    Street1 = item.Street1,
-                    Street2 = item.Street2,
-                    City = item.City,
-                    State = item.State,
-                    PostalCode = item.PostalCode,
-                    Notes = item.Notes
-                });
-                results.Add(MobileSyncResult.Created(nameof(Client), item.ClientId));
+                    CustomerId = item.CustomerId,
+                    Active = true
+                };
+                ApplyCustomer(item, entity);
+                ApplyCustomerAddress(item, entity);
+                _dbContext.Customers.Add(entity);
+                results.Add(MobileSyncResult.Created(nameof(Customer), item.CustomerId));
                 continue;
             }
 
-            entity.FirstName = item.FirstName;
-            entity.LastName = item.LastName;
-            entity.CompanyName = item.CompanyName;
-            entity.Phone = item.Phone;
-            entity.Email = item.Email;
-            entity.Street1 = item.Street1;
-            entity.Street2 = item.Street2;
-            entity.City = item.City;
-            entity.State = item.State;
-            entity.PostalCode = item.PostalCode;
-            entity.Notes = item.Notes;
-            results.Add(MobileSyncResult.Updated(nameof(Client), item.ClientId));
+            ApplyCustomer(item, entity);
+            ApplyCustomerAddress(item, entity);
+            results.Add(MobileSyncResult.Updated(nameof(Customer), item.CustomerId));
         }
 
         foreach (var item in batch.Properties)
@@ -320,7 +306,7 @@ public sealed class MobileSyncDataService
                     InspectorName = item.InspectorName,
                     GeneralNotes = item.GeneralNotes,
                     PropertyId = item.PropertyId,
-                    ClientId = item.ClientId
+                    CustomerId = item.CustomerId
                 });
                 results.Add(MobileSyncResult.Created(nameof(Inspection), item.Id));
                 continue;
@@ -339,7 +325,7 @@ public sealed class MobileSyncDataService
             entity.InspectorName = item.InspectorName;
             entity.GeneralNotes = item.GeneralNotes;
             entity.PropertyId = item.PropertyId;
-            entity.ClientId = item.ClientId;
+            entity.CustomerId = item.CustomerId;
             results.Add(MobileSyncResult.Updated(nameof(Inspection), item.Id));
         }
 
@@ -523,6 +509,45 @@ public sealed class MobileSyncDataService
             return false;
         }
     }
+
+    private static void ApplyCustomer(MobileSyncCustomer item, Customer entity)
+    {
+        entity.GivenName = item.FirstName;
+        entity.FamilyName = item.LastName;
+        entity.CompanyName = item.CompanyName;
+        entity.PrimaryPhone = item.Phone;
+        entity.PrimaryEmailAddress = item.Email;
+        entity.Notes = item.Notes;
+
+        var displayName = string.Join(" ", new[] { item.FirstName, item.LastName }.Where(value => !string.IsNullOrWhiteSpace(value)));
+        entity.DisplayName = string.IsNullOrWhiteSpace(displayName) ? item.CompanyName : displayName;
+        entity.FullyQualifiedName = entity.DisplayName;
+    }
+
+    private void ApplyCustomerAddress(MobileSyncCustomer item, Customer entity)
+    {
+        if (string.IsNullOrWhiteSpace(item.Street1)
+            && string.IsNullOrWhiteSpace(item.Street2)
+            && string.IsNullOrWhiteSpace(item.City)
+            && string.IsNullOrWhiteSpace(item.State)
+            && string.IsNullOrWhiteSpace(item.PostalCode))
+        {
+            return;
+        }
+
+        var address = entity.BillAddress;
+        if (address is null)
+        {
+            address = new Address();
+            entity.BillAddress = address;
+        }
+
+        address.Street1 = item.Street1;
+        address.Street2 = item.Street2;
+        address.City = item.City;
+        address.State = item.State;
+        address.PostalCode = item.PostalCode;
+    }
 }
 
 public sealed record MobileSyncBatch(
@@ -533,7 +558,7 @@ public sealed record MobileSyncBatch(
     IReadOnlyList<MobileSyncInspectionAreaType> InspectionAreaTypes,
     IReadOnlyList<MobileSyncBuildingType> BuildingTypes,
     IReadOnlyList<MobileSyncInspector> Inspectors,
-    IReadOnlyList<MobileSyncClient> Clients,
+    IReadOnlyList<MobileSyncCustomer> Customers,
     IReadOnlyList<MobileSyncProperty> Properties,
     IReadOnlyList<MobileSyncAddress> Addresses,
     IReadOnlyList<MobileSyncBuilding> Buildings,
@@ -559,11 +584,11 @@ public sealed record MobileSyncInspectionAreaCategory(Guid Id, string Name, int 
 public sealed record MobileSyncInspectionAreaType(Guid AreaTypeId, Guid CategoryId, string Name, int SortOrder);
 public sealed record MobileSyncBuildingType(Guid Id, string Name);
 public sealed record MobileSyncInspector(Guid Id, string FirstName, string LastName, decimal HourlyRate, string Phone, string Email, bool IsDefault);
-public sealed record MobileSyncClient(Guid ClientId, string FirstName, string LastName, string CompanyName, string Phone, string Email, string Street1, string Street2, string City, string State, string PostalCode, string Notes);
+public sealed record MobileSyncCustomer(Guid CustomerId, string FirstName, string LastName, string CompanyName, string Phone, string Email, string Street1, string Street2, string City, string State, string PostalCode, string Notes);
 public sealed record MobileSyncProperty(Guid Id);
 public sealed record MobileSyncAddress(Guid Id, Guid PropertyId, string Street1, string Street2, string City, string State, string PostalCode);
 public sealed record MobileSyncBuilding(Guid Id, Guid PropertyId, Guid BuildingTypeId, string Name, int SortOrder);
-public sealed record MobileSyncInspection(Guid Id, DateTime CreatedAtUtc, DateTime UpdatedAtUtc, string Title, DateTime InspectionDate, string InspectorName, string GeneralNotes, Guid PropertyId, Guid? ClientId);
+public sealed record MobileSyncInspection(Guid Id, DateTime CreatedAtUtc, DateTime UpdatedAtUtc, string Title, DateTime InspectionDate, string InspectorName, string GeneralNotes, Guid PropertyId, Guid? CustomerId);
 public sealed record MobileSyncInspectionArea(Guid Id, Guid PropertyId, Guid? BuildingId, Guid AreaTypeId, string DisplayName, int OverallRating, int SortOrder);
 public sealed record MobileSyncInspectionAreaNote(Guid Id, Guid PropertyId, Guid? BuildingId, Guid AreaId, DateTime CreatedAtUtc, DateTime UpdatedAtUtc, string Text);
 public sealed record MobileSyncInspectionAreaNoteEstimateItem(Guid Id, Guid PropertyId, Guid? BuildingId, Guid AreaId, Guid AreaNoteId, DateTime CreatedAtUtc, DateTime UpdatedAtUtc, string Name, decimal Cost, decimal Hours);

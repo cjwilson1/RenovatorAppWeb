@@ -8,13 +8,14 @@ public sealed record InspectionListItemViewModel(
     DateTime InspectionDate,
     string InspectorName,
     string PropertyAddress,
-    string ClientName);
+    string CustomerName);
 
 public sealed class InspectionDetailViewModel
 {
     public required Inspection Inspection { get; init; }
     public string PropertyAddress { get; init; } = string.Empty;
-    public string ClientName { get; init; } = string.Empty;
+    public string CustomerName { get; init; } = string.Empty;
+    public string DefaultReportName { get; init; } = string.Empty;
 }
 
 public sealed class InspectionEditViewModel
@@ -25,7 +26,7 @@ public sealed class InspectionEditViewModel
     public string InspectorName { get; init; } = string.Empty;
     public string GeneralNotes { get; init; } = string.Empty;
     public InspectionPropertyAddressEditViewModel PropertyAddress { get; init; } = new();
-    public InspectionClientEditViewModel Client { get; init; } = new();
+    public InspectionCustomerEditViewModel Customer { get; init; } = new();
     public IReadOnlyList<InspectionBuildingEditViewModel> Buildings { get; init; } = [];
     public IReadOnlyList<InspectorPickerItemViewModel> Inspectors { get; init; } = [];
     public IReadOnlyList<PartPickerItemViewModel> Parts { get; init; } = [];
@@ -62,9 +63,9 @@ public sealed class InspectionPropertyAddressEditViewModel
     public string PostalCode { get; init; } = string.Empty;
 }
 
-public sealed class InspectionClientEditViewModel
+public sealed class InspectionCustomerEditViewModel
 {
-    public Guid? ClientId { get; init; }
+    public Guid? CustomerId { get; init; }
     public string FirstName { get; init; } = string.Empty;
     public string LastName { get; init; } = string.Empty;
     public string CompanyName { get; init; } = string.Empty;

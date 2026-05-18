@@ -2,6 +2,7 @@
 using System;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Infrastructure;
+using Microsoft.EntityFrameworkCore.Migrations;
 using Microsoft.EntityFrameworkCore.Storage.ValueConversion;
 using Npgsql.EntityFrameworkCore.PostgreSQL.Metadata;
 using RenovatorApp.Infrastructure.Data;
@@ -11,9 +12,11 @@ using RenovatorApp.Infrastructure.Data;
 namespace RenovatorApp.Infrastructure.Data.Migrations
 {
     [DbContext(typeof(RenovatorAppDbContext))]
-    partial class RenovatorAppDbContextModelSnapshot : ModelSnapshot
+    [Migration("20260518203908_ReplaceClientWithCustomer")]
+    partial class ReplaceClientWithCustomer
     {
-        protected override void BuildModel(ModelBuilder modelBuilder)
+        /// <inheritdoc />
+        protected override void BuildTargetModel(ModelBuilder modelBuilder)
         {
 #pragma warning disable 612, 618
             modelBuilder
@@ -311,49 +314,6 @@ namespace RenovatorApp.Infrastructure.Data.Migrations
                     b.HasIndex("ShipAddressId");
 
                     b.ToTable("Customer", (string)null);
-                });
-
-            modelBuilder.Entity("RenovatorApp.Infrastructure.Models.Document", b =>
-                {
-                    b.Property<Guid>("DocumentId")
-                        .ValueGeneratedOnAdd()
-                        .HasColumnType("uuid");
-
-                    b.Property<DateTime>("CreateDate")
-                        .HasColumnType("timestamp with time zone");
-
-                    b.Property<Guid?>("CustomerId")
-                        .HasColumnType("uuid");
-
-                    b.Property<string>("DocumentName")
-                        .IsRequired()
-                        .HasColumnType("text");
-
-                    b.Property<string>("DocumentType")
-                        .IsRequired()
-                        .HasColumnType("text");
-
-                    b.Property<string>("Extension")
-                        .IsRequired()
-                        .HasColumnType("text");
-
-                    b.Property<string>("Filename")
-                        .IsRequired()
-                        .HasColumnType("text");
-
-                    b.Property<string>("Path")
-                        .IsRequired()
-                        .HasColumnType("text");
-
-                    b.HasKey("DocumentId");
-
-                    b.HasIndex("CreateDate");
-
-                    b.HasIndex("CustomerId");
-
-                    b.HasIndex("DocumentType");
-
-                    b.ToTable("Documents", (string)null);
                 });
 
             modelBuilder.Entity("RenovatorApp.Infrastructure.Models.Employee", b =>
@@ -888,16 +848,6 @@ namespace RenovatorApp.Infrastructure.Data.Migrations
                     b.Navigation("ShipAddress");
                 });
 
-            modelBuilder.Entity("RenovatorApp.Infrastructure.Models.Document", b =>
-                {
-                    b.HasOne("RenovatorApp.Infrastructure.Models.Customer", "Customer")
-                        .WithMany("Documents")
-                        .HasForeignKey("CustomerId")
-                        .OnDelete(DeleteBehavior.SetNull);
-
-                    b.Navigation("Customer");
-                });
-
             modelBuilder.Entity("RenovatorApp.Infrastructure.Models.Employee", b =>
                 {
                     b.HasOne("RenovatorApp.Infrastructure.Models.Address", "PrimaryAddress")
@@ -1028,8 +978,6 @@ namespace RenovatorApp.Infrastructure.Data.Migrations
 
             modelBuilder.Entity("RenovatorApp.Infrastructure.Models.Customer", b =>
                 {
-                    b.Navigation("Documents");
-
                     b.Navigation("Inspections");
                 });
 
