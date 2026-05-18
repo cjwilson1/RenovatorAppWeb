@@ -32,6 +32,7 @@
         <thead>
             <tr>
                 <th scope="col">Name</th>
+                <th scope="col">Image</th>
                 <th scope="col">Source</th>
                 <th scope="col">SKU</th>
                 <th scope="col">Manufacturer</th>
@@ -43,7 +44,7 @@
             @if (Model.Parts.Count == 0)
             {
                 <tr>
-                    <td class="text-muted" colspan="6">No parts found.</td>
+                    <td class="text-muted" colspan="7">No parts found.</td>
                 </tr>
             }
             else
@@ -59,6 +60,14 @@
                             @if (!string.IsNullOrWhiteSpace(part.Description))
                             {
                                 <div class="small text-muted">@part.Description</div>
+                            }
+                        </td>
+                        <td>
+                            @if (!string.IsNullOrWhiteSpace(part.ImageUrl))
+                            {
+                                <img alt="@part.Name"
+                                     class="parts-manager-thumbnail"
+                                     src="@ResolvePartImageUrl(part.ImageUrl)" />
                             }
                         </td>
                         <td>@part.SourceName</td>
@@ -122,5 +131,23 @@
     private static string FormatCurrency(decimal value)
     {
         return $"${value:N2}";
+    }
+
+    private static string ResolvePartImageUrl(string value)
+    {
+        if (string.IsNullOrWhiteSpace(value))
+        {
+            return string.Empty;
+        }
+
+        var trimmed = value.Trim();
+        if (trimmed.StartsWith("http://", StringComparison.OrdinalIgnoreCase)
+            || trimmed.StartsWith("https://", StringComparison.OrdinalIgnoreCase)
+            || trimmed.StartsWith('/'))
+        {
+            return trimmed;
+        }
+
+        return $"/images/Parts/{Uri.EscapeDataString(trimmed)}";
     }
 }

@@ -29,9 +29,38 @@ public sealed class SettingsController : Controller
         _httpClientFactory = httpClientFactory;
     }
 
-    public IActionResult Index()
+    public async Task<IActionResult> Index(CancellationToken cancellationToken)
     {
-        return View();
+        var quickBooksSettings = await _dbContext.AppSettings
+            .AsNoTracking()
+            .Where(setting => setting.Name.StartsWith("QuickBooks:"))
+            .ToDictionaryAsync(setting => setting.Name, setting => setting.Value, cancellationToken);
+
+        quickBooksSettings.TryGetValue("QuickBooks:RealmId", out var realmId);
+        quickBooksSettings.TryGetValue("QuickBooks:AccessTokenExpiresAtUtc", out var accessTokenExpiresAtValue);
+        var accessTokenExpiresAtUtc = DateTime.TryParse(
+            accessTokenExpiresAtValue,
+            CultureInfo.InvariantCulture,
+            DateTimeStyles.AssumeUniversal | DateTimeStyles.AdjustToUniversal,
+            out var parsedAccessTokenExpiresAtUtc)
+            ? parsedAccessTokenExpiresAtUtc
+            : (DateTime?)null;
+
+        var isConfigured = !string.IsNullOrWhiteSpace(GetQuickBooksConfigValue("ClientId"))
+            && !string.IsNullOrWhiteSpace(GetQuickBooksConfigValue("ClientSecret"));
+
+        return View(new SettingsIndexViewModel
+        {
+            QuickBooks = new QuickBooksConnectionViewModel
+            {
+                IsConfigured = isConfigured,
+                IsConnected = !string.IsNullOrWhiteSpace(realmId),
+                RealmId = realmId ?? string.Empty,
+                Environment = GetQuickBooksConfigValue("Environment") is { Length: > 0 } environment ? environment : "sandbox",
+                AccessTokenExpiresAtUtc = accessTokenExpiresAtUtc,
+                StatusMessage = TempData["QuickBooksStatus"] as string ?? string.Empty
+            }
+        });
     }
 
     public async Task<IActionResult> PartsManager(int page = 1, int pageSize = 10, CancellationToken cancellationToken = default)
@@ -232,7 +261,7 @@ public sealed class SettingsController : Controller
             Manufacturer = model.Manufacturer,
             Sku = model.Sku,
             Url = model.Url,
-            ImageUrl = string.Empty,
+            ImageUrl = model.ImageUrl,
             Cost = ParseCost(model.Price),
             IsPackage = false,
             PackageUnits = 0
@@ -651,6 +680,12 @@ public sealed class SettingsController : Controller
             IsPackage = part.IsPackage,
             PackageUnits = part.PackageUnits
         };
+    }
+
+    private string GetQuickBooksConfigValue(string name)
+    {
+        return HttpContext.RequestServices
+            .GetRequiredService<IConfiguration>()[$"QuickBooks:{name}"] ?? string.Empty;
     }
 
     private static ScrapedPartData ScrapePartPage(string html)

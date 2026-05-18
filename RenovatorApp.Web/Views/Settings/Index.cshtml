@@ -1,3 +1,5 @@
+@model RenovatorApp.Web.ViewModels.SettingsIndexViewModel
+
 @{
     ViewData["Title"] = "Settings";
 }
@@ -8,14 +10,59 @@
     </div>
 </div>
 
-<a class="app-hero app-hero-link"
+<a class="detail-section app-hero-link d-block"
    asp-controller="Settings"
    asp-action="PartsManager">
-    <div>
-        <h1>Parts Manager</h1>
-        <p>Manage parts used in inspection estimates.</p>
-    </div>
+    <h2>Parts Manager</h2>
+    <p class="text-muted">Manage parts used in inspection estimates.</p>
 </a>
+
+<section class="detail-section mt-3">
+    <div class="d-flex align-items-start justify-content-between gap-3">
+        <div>
+            <h2>QuickBooks</h2>
+            @if (!string.IsNullOrWhiteSpace(Model.QuickBooks.StatusMessage))
+            {
+                <p class="text-muted">@Model.QuickBooks.StatusMessage</p>
+            }
+            else if (!Model.QuickBooks.IsConfigured)
+            {
+                <p class="text-muted">Add QuickBooks ClientId and ClientSecret configuration before connecting.</p>
+            }
+            else if (Model.QuickBooks.IsConnected)
+            {
+                <p class="text-muted">
+                    Connected to realm @Model.QuickBooks.RealmId
+                    @if (Model.QuickBooks.AccessTokenExpiresAtUtc is not null)
+                    {
+                        <span>until @(Model.QuickBooks.AccessTokenExpiresAtUtc.Value.ToLocalTime().ToString("g")).</span>
+                    }
+                </p>
+            }
+            else
+            {
+                <p class="text-muted">Connect this app to QuickBooks to retrieve customer data.</p>
+            }
+        </div>
+        <div class="d-flex gap-2">
+            @if (Model.QuickBooks.IsConnected)
+            {
+                <a class="btn btn-outline-primary" asp-controller="QuickBooks" asp-action="Customers">View Customers</a>
+                <form asp-controller="QuickBooks" asp-action="Disconnect" method="post">
+                    @Html.AntiForgeryToken()
+                    <button class="btn btn-outline-secondary" type="submit">Disconnect</button>
+                </form>
+            }
+
+            <a class="btn btn-primary @(Model.QuickBooks.IsConfigured ? string.Empty : "disabled")"
+               asp-controller="QuickBooks"
+               asp-action="Connect"
+               aria-disabled="@(!Model.QuickBooks.IsConfigured)">
+                @(Model.QuickBooks.IsConnected ? "Reconnect QuickBooks" : "Connect QuickBooks")
+            </a>
+        </div>
+    </div>
+</section>
 
 <div class="d-flex justify-content-end mt-4">
     <a class="btn btn-secondary" asp-controller="Home" asp-action="Index">Home</a>

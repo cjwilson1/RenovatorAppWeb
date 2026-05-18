@@ -32,11 +32,19 @@ namespace RenovatorApp.Infrastructure.Data.Migrations
                         .IsRequired()
                         .HasColumnType("text");
 
+                    b.Property<string>("Country")
+                        .IsRequired()
+                        .HasColumnType("text");
+
+                    b.Property<string>("CountrySubDivisionCode")
+                        .IsRequired()
+                        .HasColumnType("text");
+
                     b.Property<string>("PostalCode")
                         .IsRequired()
                         .HasColumnType("text");
 
-                    b.Property<Guid>("PropertyId")
+                    b.Property<Guid?>("PropertyId")
                         .HasColumnType("uuid");
 
                     b.Property<string>("State")
@@ -48,6 +56,10 @@ namespace RenovatorApp.Infrastructure.Data.Migrations
                         .HasColumnType("text");
 
                     b.Property<string>("Street2")
+                        .IsRequired()
+                        .HasColumnType("text");
+
+                    b.Property<string>("Street3")
                         .IsRequired()
                         .HasColumnType("text");
 
@@ -184,6 +196,298 @@ namespace RenovatorApp.Infrastructure.Data.Migrations
                     b.HasIndex("LastName");
 
                     b.ToTable("Client", (string)null);
+                });
+
+            modelBuilder.Entity("RenovatorApp.Infrastructure.Models.Customer", b =>
+                {
+                    b.Property<Guid>("CustomerId")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("uuid");
+
+                    b.Property<bool>("Active")
+                        .HasColumnType("boolean");
+
+                    b.Property<string>("AlternatePhone")
+                        .IsRequired()
+                        .HasColumnType("text");
+
+                    b.Property<decimal>("Balance")
+                        .HasPrecision(12, 2)
+                        .HasColumnType("numeric(12,2)");
+
+                    b.Property<decimal>("BalanceWithJobs")
+                        .HasPrecision(12, 2)
+                        .HasColumnType("numeric(12,2)");
+
+                    b.Property<Guid?>("BillAddressId")
+                        .HasColumnType("uuid");
+
+                    b.Property<bool>("BillWithParent")
+                        .HasColumnType("boolean");
+
+                    b.Property<string>("CompanyName")
+                        .IsRequired()
+                        .HasColumnType("text");
+
+                    b.Property<DateTime>("CreatedDate")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<string>("CurrencyRefName")
+                        .IsRequired()
+                        .HasColumnType("text");
+
+                    b.Property<string>("CurrencyRefValue")
+                        .IsRequired()
+                        .HasColumnType("text");
+
+                    b.Property<string>("DisplayName")
+                        .IsRequired()
+                        .HasColumnType("text");
+
+                    b.Property<string>("FamilyName")
+                        .IsRequired()
+                        .HasColumnType("text");
+
+                    b.Property<string>("Fax")
+                        .IsRequired()
+                        .HasColumnType("text");
+
+                    b.Property<string>("FullyQualifiedName")
+                        .IsRequired()
+                        .HasColumnType("text");
+
+                    b.Property<string>("GivenName")
+                        .IsRequired()
+                        .HasColumnType("text");
+
+                    b.Property<bool>("Job")
+                        .HasColumnType("boolean");
+
+                    b.Property<DateTime?>("LastEditDate")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<DateTime?>("LastSyncDate")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<string>("MiddleName")
+                        .IsRequired()
+                        .HasColumnType("text");
+
+                    b.Property<string>("MobilePhone")
+                        .IsRequired()
+                        .HasColumnType("text");
+
+                    b.Property<string>("Notes")
+                        .IsRequired()
+                        .HasColumnType("text");
+
+                    b.Property<string>("ParentRefName")
+                        .IsRequired()
+                        .HasColumnType("text");
+
+                    b.Property<string>("ParentRefValue")
+                        .IsRequired()
+                        .HasColumnType("text");
+
+                    b.Property<string>("PaymentMethodRefName")
+                        .IsRequired()
+                        .HasColumnType("text");
+
+                    b.Property<string>("PaymentMethodRefValue")
+                        .IsRequired()
+                        .HasColumnType("text");
+
+                    b.Property<string>("PreferredDeliveryMethod")
+                        .IsRequired()
+                        .HasColumnType("text");
+
+                    b.Property<string>("PrimaryEmailAddress")
+                        .IsRequired()
+                        .HasColumnType("text");
+
+                    b.Property<string>("PrimaryPhone")
+                        .IsRequired()
+                        .HasColumnType("text");
+
+                    b.Property<string>("PrintOnCheckName")
+                        .IsRequired()
+                        .HasColumnType("text");
+
+                    b.Property<DateTime?>("QuickBooksCreateTime")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<string>("QuickBooksCustomerId")
+                        .IsRequired()
+                        .HasColumnType("text");
+
+                    b.Property<DateTime?>("QuickBooksLastUpdatedTime")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<string>("SalesTermRefName")
+                        .IsRequired()
+                        .HasColumnType("text");
+
+                    b.Property<string>("SalesTermRefValue")
+                        .IsRequired()
+                        .HasColumnType("text");
+
+                    b.Property<Guid?>("ShipAddressId")
+                        .HasColumnType("uuid");
+
+                    b.Property<string>("Suffix")
+                        .IsRequired()
+                        .HasColumnType("text");
+
+                    b.Property<string>("SyncToken")
+                        .IsRequired()
+                        .HasColumnType("text");
+
+                    b.Property<bool>("Taxable")
+                        .HasColumnType("boolean");
+
+                    b.Property<string>("Title")
+                        .IsRequired()
+                        .HasColumnType("text");
+
+                    b.Property<string>("Website")
+                        .IsRequired()
+                        .HasColumnType("text");
+
+                    b.HasKey("CustomerId");
+
+                    b.HasIndex("BillAddressId");
+
+                    b.HasIndex("CompanyName");
+
+                    b.HasIndex("DisplayName");
+
+                    b.HasIndex("QuickBooksCustomerId")
+                        .IsUnique();
+
+                    b.HasIndex("ShipAddressId");
+
+                    b.ToTable("Customer", (string)null);
+                });
+
+            modelBuilder.Entity("RenovatorApp.Infrastructure.Models.Employee", b =>
+                {
+                    b.Property<Guid>("EmployeeId")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("uuid");
+
+                    b.Property<bool>("Active")
+                        .HasColumnType("boolean");
+
+                    b.Property<DateTime?>("BirthDate")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<decimal>("BillRate")
+                        .HasPrecision(12, 2)
+                        .HasColumnType("numeric(12,2)");
+
+                    b.Property<bool>("BillableTime")
+                        .HasColumnType("boolean");
+
+                    b.Property<DateTime>("CreatedDate")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<string>("DisplayName")
+                        .IsRequired()
+                        .HasColumnType("text");
+
+                    b.Property<string>("EmployeeNumber")
+                        .IsRequired()
+                        .HasColumnType("text");
+
+                    b.Property<string>("FamilyName")
+                        .IsRequired()
+                        .HasColumnType("text");
+
+                    b.Property<string>("Gender")
+                        .IsRequired()
+                        .HasColumnType("text");
+
+                    b.Property<string>("GivenName")
+                        .IsRequired()
+                        .HasColumnType("text");
+
+                    b.Property<DateTime?>("HiredDate")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<decimal>("HourlyCostRate")
+                        .HasPrecision(12, 2)
+                        .HasColumnType("numeric(12,2)");
+
+                    b.Property<DateTime?>("LastEditDate")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<DateTime?>("LastSyncDate")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<string>("MiddleName")
+                        .IsRequired()
+                        .HasColumnType("text");
+
+                    b.Property<string>("MobilePhone")
+                        .IsRequired()
+                        .HasColumnType("text");
+
+                    b.Property<string>("Organization")
+                        .IsRequired()
+                        .HasColumnType("text");
+
+                    b.Property<string>("PrimaryEmailAddress")
+                        .IsRequired()
+                        .HasColumnType("text");
+
+                    b.Property<Guid?>("PrimaryAddressId")
+                        .HasColumnType("uuid");
+
+                    b.Property<string>("PrimaryPhone")
+                        .IsRequired()
+                        .HasColumnType("text");
+
+                    b.Property<string>("PrintOnCheckName")
+                        .IsRequired()
+                        .HasColumnType("text");
+
+                    b.Property<DateTime?>("QuickBooksCreateTime")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<string>("QuickBooksEmployeeId")
+                        .IsRequired()
+                        .HasColumnType("text");
+
+                    b.Property<DateTime?>("QuickBooksLastUpdatedTime")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<DateTime?>("ReleasedDate")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<string>("Suffix")
+                        .IsRequired()
+                        .HasColumnType("text");
+
+                    b.Property<string>("SyncToken")
+                        .IsRequired()
+                        .HasColumnType("text");
+
+                    b.Property<string>("Title")
+                        .IsRequired()
+                        .HasColumnType("text");
+
+                    b.HasKey("EmployeeId");
+
+                    b.HasIndex("DisplayName");
+
+                    b.HasIndex("FamilyName");
+
+                    b.HasIndex("PrimaryAddressId");
+
+                    b.HasIndex("QuickBooksEmployeeId")
+                        .IsUnique();
+
+                    b.ToTable("Employee", (string)null);
                 });
 
             modelBuilder.Entity("RenovatorApp.Infrastructure.Models.Inspection", b =>
@@ -499,11 +803,11 @@ namespace RenovatorApp.Infrastructure.Data.Migrations
                         .IsRequired()
                         .HasColumnType("text");
 
-                    b.Property<Guid>("PartSourceId")
-                        .HasColumnType("uuid");
-
                     b.Property<int>("PackageUnits")
                         .HasColumnType("integer");
+
+                    b.Property<Guid>("PartSourceId")
+                        .HasColumnType("uuid");
 
                     b.Property<string>("Sku")
                         .IsRequired()
@@ -556,8 +860,7 @@ namespace RenovatorApp.Infrastructure.Data.Migrations
                     b.HasOne("RenovatorApp.Infrastructure.Models.Property", "Property")
                         .WithOne("Address")
                         .HasForeignKey("RenovatorApp.Infrastructure.Models.Address", "PropertyId")
-                        .OnDelete(DeleteBehavior.Cascade)
-                        .IsRequired();
+                        .OnDelete(DeleteBehavior.Cascade);
 
                     b.Navigation("Property");
                 });
@@ -579,6 +882,33 @@ namespace RenovatorApp.Infrastructure.Data.Migrations
                     b.Navigation("BuildingType");
 
                     b.Navigation("Property");
+                });
+
+            modelBuilder.Entity("RenovatorApp.Infrastructure.Models.Customer", b =>
+                {
+                    b.HasOne("RenovatorApp.Infrastructure.Models.Address", "BillAddress")
+                        .WithMany("BillingCustomers")
+                        .HasForeignKey("BillAddressId")
+                        .OnDelete(DeleteBehavior.SetNull);
+
+                    b.HasOne("RenovatorApp.Infrastructure.Models.Address", "ShipAddress")
+                        .WithMany("ShippingCustomers")
+                        .HasForeignKey("ShipAddressId")
+                        .OnDelete(DeleteBehavior.SetNull);
+
+                    b.Navigation("BillAddress");
+
+                    b.Navigation("ShipAddress");
+                });
+
+            modelBuilder.Entity("RenovatorApp.Infrastructure.Models.Employee", b =>
+                {
+                    b.HasOne("RenovatorApp.Infrastructure.Models.Address", "PrimaryAddress")
+                        .WithMany("Employees")
+                        .HasForeignKey("PrimaryAddressId")
+                        .OnDelete(DeleteBehavior.SetNull);
+
+                    b.Navigation("PrimaryAddress");
                 });
 
             modelBuilder.Entity("RenovatorApp.Infrastructure.Models.Inspection", b =>
@@ -678,6 +1008,15 @@ namespace RenovatorApp.Infrastructure.Data.Migrations
                         .IsRequired();
 
                     b.Navigation("PartSource");
+                });
+
+            modelBuilder.Entity("RenovatorApp.Infrastructure.Models.Address", b =>
+                {
+                    b.Navigation("BillingCustomers");
+
+                    b.Navigation("Employees");
+
+                    b.Navigation("ShippingCustomers");
                 });
 
             modelBuilder.Entity("RenovatorApp.Infrastructure.Models.Building", b =>

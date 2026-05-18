@@ -22,12 +22,18 @@
             .Where(value => !string.IsNullOrWhiteSpace(value)));
 
         <article class="part-result-panel" data-part-search="@searchText">
-            <div class="d-flex justify-content-between gap-3">
+            @if (!string.IsNullOrWhiteSpace(part.ImageUrl))
+            {
+                <img alt="@part.Name"
+                     class="find-part-thumbnail"
+                     src="@ResolvePartImageUrl(part.ImageUrl)" />
+            }
+            <div class="find-part-title-row">
                 <strong>@part.Name</strong>
-                <span>@FormatCurrency(part.Cost)</span>
+                <span class="find-part-price">@FormatCurrency(part.Cost)</span>
             </div>
-            <p class="small mb-2">@part.Description</p>
-            <div class="small text-muted">
+            <p class="small mb-2 find-part-description">@part.Description</p>
+            <div class="small text-muted find-part-meta">
                 @string.Join(" | ", new[] { part.SourceName, part.Sku, part.Manufacturer }
                     .Where(value => !string.IsNullOrWhiteSpace(value)))
             </div>
@@ -72,5 +78,23 @@
     private static string FormatCurrency(decimal value)
     {
         return $"${value:N2}";
+    }
+
+    private static string ResolvePartImageUrl(string value)
+    {
+        if (string.IsNullOrWhiteSpace(value))
+        {
+            return string.Empty;
+        }
+
+        var trimmed = value.Trim();
+        if (trimmed.StartsWith("http://", StringComparison.OrdinalIgnoreCase)
+            || trimmed.StartsWith("https://", StringComparison.OrdinalIgnoreCase)
+            || trimmed.StartsWith('/'))
+        {
+            return trimmed;
+        }
+
+        return $"/images/Parts/{Uri.EscapeDataString(trimmed)}";
     }
 }

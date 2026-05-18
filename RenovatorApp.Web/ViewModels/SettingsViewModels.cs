@@ -1,5 +1,39 @@
 namespace RenovatorApp.Web.ViewModels;
 
+public sealed class SettingsIndexViewModel
+{
+    public QuickBooksConnectionViewModel QuickBooks { get; init; } = new();
+}
+
+public sealed class QuickBooksConnectionViewModel
+{
+    public bool IsConfigured { get; init; }
+    public bool IsConnected { get; init; }
+    public string RealmId { get; init; } = string.Empty;
+    public string Environment { get; init; } = string.Empty;
+    public DateTime? AccessTokenExpiresAtUtc { get; init; }
+    public string StatusMessage { get; init; } = string.Empty;
+}
+
+public sealed class QuickBooksCustomersViewModel
+{
+    public bool IsConnected { get; init; }
+    public string StatusMessage { get; init; } = string.Empty;
+    public IReadOnlyList<QuickBooksCustomerViewModel> Customers { get; init; } = [];
+}
+
+public sealed class QuickBooksCustomerViewModel
+{
+    public string Id { get; init; } = string.Empty;
+    public string DisplayName { get; init; } = string.Empty;
+    public string CompanyName { get; init; } = string.Empty;
+    public string GivenName { get; init; } = string.Empty;
+    public string FamilyName { get; init; } = string.Empty;
+    public string Email { get; init; } = string.Empty;
+    public string Phone { get; init; } = string.Empty;
+    public string Active { get; init; } = string.Empty;
+}
+
 public sealed class PartsManagerViewModel
 {
     public IReadOnlyList<PartsManagerPartViewModel> Parts { get; init; } = [];
