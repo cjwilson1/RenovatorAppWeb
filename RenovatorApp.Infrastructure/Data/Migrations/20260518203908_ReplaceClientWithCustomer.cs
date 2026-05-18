@@ -15,9 +15,54 @@ namespace RenovatorApp.Infrastructure.Data.Migrations
                 name: "FK_Inspection_Client_ClientId",
                 table: "Inspection");
 
-            migrationBuilder.DropIndex(
-                name: "IX_Customer_QuickBooksCustomerId",
-                table: "Customer");
+            migrationBuilder.Sql("""
+                CREATE TABLE IF NOT EXISTS "Customer" (
+                    "CustomerId" uuid NOT NULL,
+                    "QuickBooksCustomerId" text NOT NULL DEFAULT '',
+                    "SyncToken" text NOT NULL DEFAULT '',
+                    "DisplayName" text NOT NULL DEFAULT '',
+                    "FullyQualifiedName" text NOT NULL DEFAULT '',
+                    "CompanyName" text NOT NULL DEFAULT '',
+                    "Title" text NOT NULL DEFAULT '',
+                    "GivenName" text NOT NULL DEFAULT '',
+                    "MiddleName" text NOT NULL DEFAULT '',
+                    "FamilyName" text NOT NULL DEFAULT '',
+                    "Suffix" text NOT NULL DEFAULT '',
+                    "PrintOnCheckName" text NOT NULL DEFAULT '',
+                    "PrimaryEmailAddress" text NOT NULL DEFAULT '',
+                    "PrimaryPhone" text NOT NULL DEFAULT '',
+                    "AlternatePhone" text NOT NULL DEFAULT '',
+                    "MobilePhone" text NOT NULL DEFAULT '',
+                    "Fax" text NOT NULL DEFAULT '',
+                    "Website" text NOT NULL DEFAULT '',
+                    "Notes" text NOT NULL DEFAULT '',
+                    "Active" boolean NOT NULL DEFAULT TRUE,
+                    "Taxable" boolean NOT NULL DEFAULT FALSE,
+                    "Job" boolean NOT NULL DEFAULT FALSE,
+                    "BillWithParent" boolean NOT NULL DEFAULT FALSE,
+                    "Balance" numeric(12,2) NOT NULL DEFAULT 0,
+                    "BalanceWithJobs" numeric(12,2) NOT NULL DEFAULT 0,
+                    "PreferredDeliveryMethod" text NOT NULL DEFAULT '',
+                    "ParentRefValue" text NOT NULL DEFAULT '',
+                    "ParentRefName" text NOT NULL DEFAULT '',
+                    "PaymentMethodRefValue" text NOT NULL DEFAULT '',
+                    "PaymentMethodRefName" text NOT NULL DEFAULT '',
+                    "SalesTermRefValue" text NOT NULL DEFAULT '',
+                    "SalesTermRefName" text NOT NULL DEFAULT '',
+                    "CurrencyRefValue" text NOT NULL DEFAULT '',
+                    "CurrencyRefName" text NOT NULL DEFAULT '',
+                    "QuickBooksCreateTime" timestamp with time zone NULL,
+                    "QuickBooksLastUpdatedTime" timestamp with time zone NULL,
+                    "BillAddressId" uuid NULL,
+                    "ShipAddressId" uuid NULL,
+                    "CreatedDate" timestamp with time zone NOT NULL DEFAULT NOW(),
+                    "LastSyncDate" timestamp with time zone NULL,
+                    "LastEditDate" timestamp with time zone NULL,
+                    CONSTRAINT "PK_Customer" PRIMARY KEY ("CustomerId")
+                );
+
+                DROP INDEX IF EXISTS "IX_Customer_QuickBooksCustomerId";
+                """);
 
             migrationBuilder.Sql("""
                 INSERT INTO "Address" ("Id", "PropertyId", "Street1", "Street2", "Street3", "City", "State", "CountrySubDivisionCode", "PostalCode", "Country")
