@@ -8,6 +8,12 @@ namespace RenovatorApp.Web.Services;
 public sealed class DatabaseViewerService
 {
     private const int MaxCellLength = 200;
+    private static readonly HashSet<string> TablesExcludedFromClear = new(StringComparer.OrdinalIgnoreCase)
+    {
+        "BuildingType",
+        "InspectionAreaCategory",
+        "InspectionAreaType"
+    };
     private readonly RenovatorAppDbContext _dbContext;
 
     public DatabaseViewerService(RenovatorAppDbContext dbContext)
@@ -64,7 +70,9 @@ public sealed class DatabaseViewerService
 
     public async Task ClearDatabaseAsync(CancellationToken cancellationToken = default)
     {
-        var tableNames = GetTableNames();
+        var tableNames = GetTableNames()
+            .Where(tableName => !TablesExcludedFromClear.Contains(tableName))
+            .ToList();
 
         if (tableNames.Count == 0)
         {
