@@ -1,3 +1,11 @@
+QuickBooks__ClientId=ABJkPS4KkWBfMrgUQPq4xnYm1urAT6RRg1Y2wlBtocbwYeD82j
+QuickBooks__ClientSecret=pXCnsE6c3Y0MZLepGV0dOTMiwSG9yXNw2FmtA8Do
+QuickBooks__RedirectUri=https://renovatorappweb-production.up.railway.app/QuickBooks/Callback
+QuickBooks__Environment=sandbox
+
+https://renovatorappweb-production.up.railway.app/QuickBooks/Callback
+
+
 ClientID
 ABJkPS4KkWBfMrgUQPq4xnYm1urAT6RRg1Y2wlBtocbwYeD82j
 ABJkPS4KkWBfMrgUQPq4xnYm1urAT6RRg1Y2wlBtocbwYeD82j

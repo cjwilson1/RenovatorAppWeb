@@ -586,7 +586,7 @@ public sealed record MobileSyncBuildingType(Guid Id, string Name);
 public sealed record MobileSyncInspector(Guid Id, string FirstName, string LastName, decimal HourlyRate, string Phone, string Email, bool IsDefault);
 public sealed record MobileSyncCustomer(Guid CustomerId, string FirstName, string LastName, string CompanyName, string Phone, string Email, string Street1, string Street2, string City, string State, string PostalCode, string Notes);
 public sealed record MobileSyncProperty(Guid Id);
-public sealed record MobileSyncAddress(Guid Id, Guid PropertyId, string Street1, string Street2, string City, string State, string PostalCode);
+public sealed record MobileSyncAddress(Guid Id, Guid? PropertyId, string Street1, string Street2, string City, string State, string PostalCode);
 public sealed record MobileSyncBuilding(Guid Id, Guid PropertyId, Guid BuildingTypeId, string Name, int SortOrder);
 public sealed record MobileSyncInspection(Guid Id, DateTime CreatedAtUtc, DateTime UpdatedAtUtc, string Title, DateTime InspectionDate, string InspectorName, string GeneralNotes, Guid PropertyId, Guid? CustomerId);
 public sealed record MobileSyncInspectionArea(Guid Id, Guid PropertyId, Guid? BuildingId, Guid AreaTypeId, string DisplayName, int OverallRating, int SortOrder);

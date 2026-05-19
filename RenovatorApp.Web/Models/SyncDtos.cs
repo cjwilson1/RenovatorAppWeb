@@ -96,7 +96,7 @@ public sealed record SyncPropertyDto(
 
 public sealed record SyncAddressDto(
     Guid Id,
-    Guid PropertyId,
+    Guid? PropertyId,
     string Street1,
     string Street2,
     string City,
