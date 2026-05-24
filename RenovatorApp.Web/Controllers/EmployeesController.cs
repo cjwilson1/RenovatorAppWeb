@@ -73,6 +73,39 @@ public sealed class EmployeesController : Controller
         return View(ToDetailViewModel(employee));
     }
 
+    [HttpPost]
+    [ValidateAntiForgeryToken]
+    public async Task<IActionResult> Details(Guid id, EmployeeDetailUpdateViewModel update, CancellationToken cancellationToken)
+    {
+        if (id != update.EmployeeId)
+        {
+            return BadRequest();
+        }
+
+        var employee = await _dbContext.Employees
+            .Include(item => item.PrimaryAddress)
+            .FirstOrDefaultAsync(item => item.EmployeeId == id, cancellationToken);
+
+        if (employee is null)
+        {
+            return NotFound();
+        }
+
+        if (!ModelState.IsValid)
+        {
+            return View(ToDetailViewModel(employee, update));
+        }
+
+        ApplyUpdate(employee, update);
+        TrackPrimaryAddress(employee);
+        employee.LastEditDate = DateTime.UtcNow;
+
+        await _dbContext.SaveChangesAsync(cancellationToken);
+        TempData["EmployeesStatus"] = "Employee updated.";
+
+        return RedirectToAction(nameof(Details), new { id });
+    }
+
     private static EmployeeRowViewModel ToRowViewModel(Employee employee)
     {
         return new EmployeeRowViewModel
@@ -120,6 +153,104 @@ public sealed class EmployeesController : Controller
             LastEditDate = employee.LastEditDate,
             PrimaryAddress = ToAddressViewModel(employee.PrimaryAddress)
         };
+    }
+
+    private static EmployeeDetailViewModel ToDetailViewModel(Employee employee, EmployeeDetailUpdateViewModel update)
+    {
+        update.PrimaryAddress ??= new EmployeeAddressUpdateViewModel();
+
+        var model = ToDetailViewModel(employee);
+        model.DisplayName = update.DisplayName;
+        model.PrintOnCheckName = update.PrintOnCheckName;
+        model.Title = update.Title;
+        model.GivenName = update.GivenName;
+        model.MiddleName = update.MiddleName;
+        model.FamilyName = update.FamilyName;
+        model.Suffix = update.Suffix;
+        model.PrimaryEmailAddress = update.PrimaryEmailAddress;
+        model.PrimaryPhone = update.PrimaryPhone;
+        model.MobilePhone = update.MobilePhone;
+        model.BillRate = update.BillRate;
+        model.HourlyCostRate = update.HourlyCostRate;
+        model.PrimaryAddress = new EmployeeAddressViewModel
+        {
+            Street1 = update.PrimaryAddress.Street1,
+            Street2 = update.PrimaryAddress.Street2,
+            Street3 = update.PrimaryAddress.Street3,
+            City = update.PrimaryAddress.City,
+            State = update.PrimaryAddress.State,
+            CountrySubDivisionCode = update.PrimaryAddress.CountrySubDivisionCode,
+            PostalCode = update.PrimaryAddress.PostalCode,
+            Country = update.PrimaryAddress.Country
+        };
+        return model;
+    }
+
+    private static void ApplyUpdate(Employee employee, EmployeeDetailUpdateViewModel update)
+    {
+        update.PrimaryAddress ??= new EmployeeAddressUpdateViewModel();
+
+        employee.DisplayName = Clean(update.DisplayName);
+        employee.PrintOnCheckName = Clean(update.PrintOnCheckName);
+        employee.Title = Clean(update.Title);
+        employee.GivenName = Clean(update.GivenName);
+        employee.MiddleName = Clean(update.MiddleName);
+        employee.FamilyName = Clean(update.FamilyName);
+        employee.Suffix = Clean(update.Suffix);
+        employee.PrimaryEmailAddress = Clean(update.PrimaryEmailAddress);
+        employee.PrimaryPhone = Clean(update.PrimaryPhone);
+        employee.MobilePhone = Clean(update.MobilePhone);
+        employee.BillRate = update.BillRate;
+        employee.HourlyCostRate = update.HourlyCostRate;
+
+        if (IsEmpty(update.PrimaryAddress))
+        {
+            employee.PrimaryAddress = null;
+            employee.PrimaryAddressId = null;
+            return;
+        }
+
+        employee.PrimaryAddress ??= new Address();
+        employee.PrimaryAddress.Street1 = Clean(update.PrimaryAddress.Street1);
+        employee.PrimaryAddress.Street2 = Clean(update.PrimaryAddress.Street2);
+        employee.PrimaryAddress.Street3 = Clean(update.PrimaryAddress.Street3);
+        employee.PrimaryAddress.City = Clean(update.PrimaryAddress.City);
+        employee.PrimaryAddress.State = Clean(update.PrimaryAddress.State);
+        employee.PrimaryAddress.CountrySubDivisionCode = Clean(update.PrimaryAddress.CountrySubDivisionCode);
+        employee.PrimaryAddress.PostalCode = Clean(update.PrimaryAddress.PostalCode);
+        employee.PrimaryAddress.Country = Clean(update.PrimaryAddress.Country);
+    }
+
+    private static bool IsEmpty(EmployeeAddressUpdateViewModel address)
+    {
+        return string.IsNullOrWhiteSpace(address.Street1)
+            && string.IsNullOrWhiteSpace(address.Street2)
+            && string.IsNullOrWhiteSpace(address.Street3)
+            && string.IsNullOrWhiteSpace(address.City)
+            && string.IsNullOrWhiteSpace(address.State)
+            && string.IsNullOrWhiteSpace(address.CountrySubDivisionCode)
+            && string.IsNullOrWhiteSpace(address.PostalCode)
+            && string.IsNullOrWhiteSpace(address.Country);
+    }
+
+    private static string Clean(string? value)
+    {
+        return value?.Trim() ?? string.Empty;
+    }
+
+    private void TrackPrimaryAddress(Employee employee)
+    {
+        if (employee.PrimaryAddress is null)
+        {
+            return;
+        }
+
+        if (_dbContext.Entry(employee.PrimaryAddress).State == EntityState.Detached)
+        {
+            _dbContext.Addresses.Add(employee.PrimaryAddress);
+        }
+
+        employee.PrimaryAddressId = employee.PrimaryAddress.Id;
     }
 
     private static EmployeeAddressViewModel? ToAddressViewModel(Address? address)

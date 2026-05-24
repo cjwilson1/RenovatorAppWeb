@@ -18,11 +18,16 @@ public sealed class CustomersController : Controller
         _dbContext = dbContext;
     }
 
-    public async Task<IActionResult> Index(string? search, int page = 1, CancellationToken cancellationToken = default)
+    public async Task<IActionResult> Index(string? search, bool showInactive = false, int page = 1, CancellationToken cancellationToken = default)
     {
         var normalizedSearch = (search ?? string.Empty).Trim();
         var lastSyncDateUtc = await GetLastQuickBooksSyncDateUtcAsync(cancellationToken);
         var query = _dbContext.Customers.AsNoTracking();
+
+        if (!showInactive)
+        {
+            query = query.Where(customer => customer.Active);
+        }
 
         if (normalizedSearch.Length >= 2)
         {
@@ -55,6 +60,7 @@ public sealed class CustomersController : Controller
             TotalCustomers = totalCustomers,
             TotalPages = totalPages,
             Search = normalizedSearch,
+            ShowInactive = showInactive,
             LastQuickBooksSyncDateUtc = lastSyncDateUtc,
             StatusMessage = TempData["CustomersStatus"] as string ?? string.Empty
         });
@@ -75,6 +81,41 @@ public sealed class CustomersController : Controller
         }
 
         return View(ToDetailViewModel(customer));
+    }
+
+    [HttpPost]
+    [ValidateAntiForgeryToken]
+    public async Task<IActionResult> Details(Guid id, CustomerDetailUpdateViewModel update, CancellationToken cancellationToken)
+    {
+        if (id != update.CustomerId)
+        {
+            return BadRequest();
+        }
+
+        var customer = await _dbContext.Customers
+            .Include(item => item.BillAddress)
+            .Include(item => item.Documents)
+            .Include(item => item.ShipAddress)
+            .FirstOrDefaultAsync(item => item.CustomerId == id, cancellationToken);
+
+        if (customer is null)
+        {
+            return NotFound();
+        }
+
+        if (!ModelState.IsValid)
+        {
+            return View(ToDetailViewModel(customer, update));
+        }
+
+        ApplyUpdate(customer, update);
+        TrackCustomerAddresses(customer);
+        customer.LastEditDate = DateTime.UtcNow;
+
+        await _dbContext.SaveChangesAsync(cancellationToken);
+        TempData["CustomersStatus"] = "Customer updated.";
+
+        return RedirectToAction(nameof(Details), new { id });
     }
 
     public async Task<IActionResult> Document(Guid id, Guid documentId, CancellationToken cancellationToken)
@@ -103,11 +144,42 @@ public sealed class CustomersController : Controller
         return PhysicalFile(documentPath, contentType);
     }
 
+    [HttpPost]
+    [ValidateAntiForgeryToken]
+    public async Task<IActionResult> Delete(Guid id, CancellationToken cancellationToken)
+    {
+        var customer = await _dbContext.Customers
+            .FirstOrDefaultAsync(item => item.CustomerId == id, cancellationToken);
+
+        if (customer is null)
+        {
+            return RedirectToAction(nameof(Index));
+        }
+
+        await using var transaction = await _dbContext.Database.BeginTransactionAsync(cancellationToken);
+
+        await _dbContext.Documents
+            .Where(document => document.CustomerId == id)
+            .ExecuteDeleteAsync(cancellationToken);
+
+        await _dbContext.Inspections
+            .Where(inspection => inspection.CustomerId == id)
+            .ExecuteDeleteAsync(cancellationToken);
+
+        _dbContext.Customers.Remove(customer);
+        await _dbContext.SaveChangesAsync(cancellationToken);
+        await transaction.CommitAsync(cancellationToken);
+
+        TempData["CustomersStatus"] = "Customer deleted.";
+        return RedirectToAction(nameof(Index));
+    }
+
     private static CustomerRowViewModel ToRowViewModel(Customer customer)
     {
         return new CustomerRowViewModel
         {
             CustomerId = customer.CustomerId,
+            QuickBooksCustomerId = customer.QuickBooksCustomerId,
             DisplayName = customer.DisplayName,
             CompanyName = customer.CompanyName,
             ContactName = string.Join(" ", new[] { customer.GivenName, customer.FamilyName }.Where(value => !string.IsNullOrWhiteSpace(value))),
@@ -170,6 +242,133 @@ public sealed class CustomersController : Controller
                 .ToList(),
             ShipAddress = ToAddressViewModel(customer.ShipAddress)
         };
+    }
+
+    private static CustomerDetailViewModel ToDetailViewModel(Customer customer, CustomerDetailUpdateViewModel update)
+    {
+        update.BillAddress ??= new CustomerAddressUpdateViewModel();
+        update.ShipAddress ??= new CustomerAddressUpdateViewModel();
+
+        var model = ToDetailViewModel(customer);
+        model.DisplayName = update.DisplayName;
+        model.CompanyName = update.CompanyName;
+        model.Title = update.Title;
+        model.GivenName = update.GivenName;
+        model.MiddleName = update.MiddleName;
+        model.FamilyName = update.FamilyName;
+        model.Suffix = update.Suffix;
+        model.PrintOnCheckName = update.PrintOnCheckName;
+        model.PrimaryEmailAddress = update.PrimaryEmailAddress;
+        model.PrimaryPhone = update.PrimaryPhone;
+        model.AlternatePhone = update.AlternatePhone;
+        model.MobilePhone = update.MobilePhone;
+        model.Fax = update.Fax;
+        model.Website = update.Website;
+        model.Notes = update.Notes;
+        model.BillAddress = ToAddressViewModel(update.BillAddress);
+        model.ShipAddress = ToAddressViewModel(update.ShipAddress);
+        return model;
+    }
+
+    private static void ApplyUpdate(Customer customer, CustomerDetailUpdateViewModel update)
+    {
+        update.BillAddress ??= new CustomerAddressUpdateViewModel();
+        update.ShipAddress ??= new CustomerAddressUpdateViewModel();
+
+        customer.DisplayName = Clean(update.DisplayName);
+        customer.FullyQualifiedName = Clean(update.DisplayName);
+        customer.CompanyName = Clean(update.CompanyName);
+        customer.Title = Clean(update.Title);
+        customer.GivenName = Clean(update.GivenName);
+        customer.MiddleName = Clean(update.MiddleName);
+        customer.FamilyName = Clean(update.FamilyName);
+        customer.Suffix = Clean(update.Suffix);
+        customer.PrintOnCheckName = Clean(update.PrintOnCheckName);
+        customer.PrimaryEmailAddress = Clean(update.PrimaryEmailAddress);
+        customer.PrimaryPhone = Clean(update.PrimaryPhone);
+        customer.AlternatePhone = Clean(update.AlternatePhone);
+        customer.MobilePhone = Clean(update.MobilePhone);
+        customer.Fax = Clean(update.Fax);
+        customer.Website = Clean(update.Website);
+        customer.Notes = Clean(update.Notes);
+        customer.BillAddress = ApplyAddress(customer.BillAddress, update.BillAddress);
+        customer.BillAddressId = customer.BillAddress?.Id;
+        customer.ShipAddress = ApplyAddress(customer.ShipAddress, update.ShipAddress);
+        customer.ShipAddressId = customer.ShipAddress?.Id;
+    }
+
+    private static Address? ApplyAddress(Address? address, CustomerAddressUpdateViewModel update)
+    {
+        if (IsAddressEmpty(update))
+        {
+            return null;
+        }
+
+        address ??= new Address();
+        address.Street1 = Clean(update.Street1);
+        address.Street2 = Clean(update.Street2);
+        address.Street3 = Clean(update.Street3);
+        address.City = Clean(update.City);
+        address.State = Clean(update.State);
+        address.CountrySubDivisionCode = Clean(update.CountrySubDivisionCode);
+        address.PostalCode = Clean(update.PostalCode);
+        address.Country = Clean(update.Country);
+        return address;
+    }
+
+    private static bool IsAddressEmpty(CustomerAddressUpdateViewModel address)
+    {
+        return string.IsNullOrWhiteSpace(address.Street1)
+            && string.IsNullOrWhiteSpace(address.Street2)
+            && string.IsNullOrWhiteSpace(address.Street3)
+            && string.IsNullOrWhiteSpace(address.City)
+            && string.IsNullOrWhiteSpace(address.State)
+            && string.IsNullOrWhiteSpace(address.CountrySubDivisionCode)
+            && string.IsNullOrWhiteSpace(address.PostalCode)
+            && string.IsNullOrWhiteSpace(address.Country);
+    }
+
+    private static CustomerAddressViewModel ToAddressViewModel(CustomerAddressUpdateViewModel address)
+    {
+        return new CustomerAddressViewModel
+        {
+            Street1 = address.Street1,
+            Street2 = address.Street2,
+            Street3 = address.Street3,
+            City = address.City,
+            State = address.State,
+            CountrySubDivisionCode = address.CountrySubDivisionCode,
+            PostalCode = address.PostalCode,
+            Country = address.Country
+        };
+    }
+
+    private void TrackCustomerAddresses(Customer customer)
+    {
+        TrackAddress(customer.BillAddress);
+        if (customer.BillAddress is not null)
+        {
+            customer.BillAddressId = customer.BillAddress.Id;
+        }
+
+        TrackAddress(customer.ShipAddress);
+        if (customer.ShipAddress is not null)
+        {
+            customer.ShipAddressId = customer.ShipAddress.Id;
+        }
+    }
+
+    private void TrackAddress(Address? address)
+    {
+        if (address is not null && _dbContext.Entry(address).State == EntityState.Detached)
+        {
+            _dbContext.Addresses.Add(address);
+        }
+    }
+
+    private static string Clean(string? value)
+    {
+        return value?.Trim() ?? string.Empty;
     }
 
     private static CustomerAddressViewModel? ToAddressViewModel(Address? address)

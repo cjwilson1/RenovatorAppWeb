@@ -24,7 +24,7 @@
     <div class="alert alert-info" role="alert">@Model.StatusMessage</div>
 }
 
-<form class="customer-search-row" id="customerSearchForm" method="get">
+<form class="customer-search-row customer-search-row-narrow" id="customerSearchForm" method="get">
     <input class="form-control"
            id="customerSearch"
            name="search"
@@ -32,6 +32,15 @@
            type="search"
            value="@Model.Search" />
     <button class="btn btn-outline-secondary" id="clearCustomerSearch" type="button">Clear</button>
+    <div class="form-check customer-show-inactive">
+        <input class="form-check-input"
+               id="showInactive"
+               name="showInactive"
+               type="checkbox"
+               value="true"
+               @(Model.ShowInactive ? "checked" : string.Empty) />
+        <label class="form-check-label" for="showInactive">Show Inactive</label>
+    </div>
     <input id="customerPage" name="page" type="hidden" value="@Model.Page" />
 </form>
 
@@ -61,7 +70,8 @@
                     <tr class="clickable-table-row"
                         data-href="@Url.Action("Details", "Customers", new { id = customer.CustomerId })"
                         tabindex="0"
-                        aria-label="Open @customer.DisplayName">
+                        aria-label="Open @customer.DisplayName"
+                        title="QBID: @customer.QuickBooksCustomerId&#10;CID: @customer.CustomerId">
                         <td><strong>@customer.DisplayName</strong></td>
                         <td>@customer.CompanyName</td>
                         <td>@customer.ContactName</td>
@@ -81,6 +91,7 @@
            asp-controller="Customers"
            asp-action="Index"
            asp-route-search="@Model.Search"
+           asp-route-showInactive="@Model.ShowInactive"
            asp-route-page="@previousPage">
             Previous
         </a>
@@ -88,6 +99,7 @@
            asp-controller="Customers"
            asp-action="Index"
            asp-route-search="@Model.Search"
+           asp-route-showInactive="@Model.ShowInactive"
            asp-route-page="@nextPage">
             Next
         </a>
@@ -101,6 +113,7 @@
         const searchInput = document.getElementById('customerSearch');
         const pageInput = document.getElementById('customerPage');
         const clearSearchButton = document.getElementById('clearCustomerSearch');
+        const showInactiveInput = document.getElementById('showInactive');
         let searchTimer;
 
         document.querySelectorAll('.clickable-table-row').forEach((row) => {
@@ -133,6 +146,11 @@
 
         clearSearchButton?.addEventListener('click', () => {
             searchInput.value = '';
+            pageInput.value = '1';
+            searchForm.submit();
+        });
+
+        showInactiveInput?.addEventListener('change', () => {
             pageInput.value = '1';
             searchForm.submit();
         });

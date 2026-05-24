@@ -4,138 +4,193 @@
     ViewData["Title"] = "Employee";
 }
 
-<div class="page-header-row">
-    <div>
-        <h1>@Model.DisplayName</h1>
-        <p class="text-muted">@Model.PrimaryEmailAddress</p>
+<form asp-action="Details" asp-route-id="@Model.EmployeeId" method="post">
+    <input asp-for="EmployeeId" type="hidden" />
+
+    <div class="page-header-row">
+        <div>
+            <h1>@Model.DisplayName</h1>
+            <p class="text-muted">@Model.PrimaryEmailAddress</p>
+        </div>
+        <div class="customer-sync-actions">
+            <button class="btn btn-primary" type="submit">Save</button>
+            <button class="btn btn-warning" type="submit" formaction="@Url.Action("SyncEmployee", "QuickBooks", new { id = Model.EmployeeId })">
+                QB Sync
+            </button>
+            <a class="btn btn-secondary" asp-controller="Employees" asp-action="Index">Close</a>
+        </div>
     </div>
-    <a class="btn btn-secondary" asp-controller="Employees" asp-action="Index">Close</a>
-</div>
 
-<div class="detail-grid">
-    <section class="detail-section">
-        <h2>Identity</h2>
-        <dl>
-            <dt>QuickBooks ID</dt>
-            <dd>@Model.QuickBooksEmployeeId</dd>
-            <dt>Sync Token</dt>
-            <dd>@Model.SyncToken</dd>
-            <dt>Employee Number</dt>
-            <dd>@Model.EmployeeNumber</dd>
-            <dt>Print On Check Name</dt>
-            <dd>@Model.PrintOnCheckName</dd>
-        </dl>
-    </section>
-
-    <section class="detail-section">
-        <h2>Name</h2>
-        <dl>
-            <dt>Title</dt>
-            <dd>@Model.Title</dd>
-            <dt>Given Name</dt>
-            <dd>@Model.GivenName</dd>
-            <dt>Middle Name</dt>
-            <dd>@Model.MiddleName</dd>
-            <dt>Family Name</dt>
-            <dd>@Model.FamilyName</dd>
-            <dt>Suffix</dt>
-            <dd>@Model.Suffix</dd>
-        </dl>
-    </section>
-
-    <section class="detail-section">
-        <h2>Contact</h2>
-        <dl>
-            <dt>Email</dt>
-            <dd>@Model.PrimaryEmailAddress</dd>
-            <dt>Primary Phone</dt>
-            <dd>@Model.PrimaryPhone</dd>
-            <dt>Mobile</dt>
-            <dd>@Model.MobilePhone</dd>
-        </dl>
-    </section>
-
-    <section class="detail-section">
-        <h2>Status</h2>
-        <dl>
-            <dt>Active</dt>
-            <dd>@Model.Active</dd>
-            <dt>Billable Time</dt>
-            <dd>@Model.BillableTime</dd>
-            <dt>Organization</dt>
-            <dd>@Model.Organization</dd>
-            <dt>Gender</dt>
-            <dd>@Model.Gender</dd>
-        </dl>
-    </section>
-
-    <section class="detail-section">
-        <h2>Rates</h2>
-        <dl>
-            <dt>Bill Rate</dt>
-            <dd>@FormatCurrency(Model.BillRate)</dd>
-            <dt>Hourly Cost Rate</dt>
-            <dd>@FormatCurrency(Model.HourlyCostRate)</dd>
-        </dl>
-    </section>
-
-    <section class="detail-section">
-        <h2>Dates</h2>
-        <dl>
-            <dt>Hired Date</dt>
-            <dd>@FormatDate(Model.HiredDate)</dd>
-            <dt>Released Date</dt>
-            <dd>@FormatDate(Model.ReleasedDate)</dd>
-            <dt>Birth Date</dt>
-            <dd>@FormatDate(Model.BirthDate)</dd>
-            <dt>QuickBooks Created</dt>
-            <dd>@FormatDate(Model.QuickBooksCreateTime)</dd>
-            <dt>QuickBooks Updated</dt>
-            <dd>@FormatDate(Model.QuickBooksLastUpdatedTime)</dd>
-            <dt>Created Date</dt>
-            <dd>@FormatDate(Model.CreatedDate)</dd>
-            <dt>Last Sync Date</dt>
-            <dd>@FormatDate(Model.LastSyncDate)</dd>
-            <dt>Last Edit Date</dt>
-            <dd>@FormatDate(Model.LastEditDate)</dd>
-        </dl>
-    </section>
-
-    <section class="detail-section">
-        <h2>Primary Address</h2>
-        @RenderAddress(Model.PrimaryAddress)
-    </section>
-</div>
-
-@functions {
-    private static string FormatCurrency(decimal value)
+    @if (TempData["EmployeesStatus"] is string statusMessage && !string.IsNullOrWhiteSpace(statusMessage))
     {
-        return $"${value:N2}";
+        var alertClass = statusMessage.Contains("failed", StringComparison.OrdinalIgnoreCase)
+            || statusMessage.Contains("not connected", StringComparison.OrdinalIgnoreCase)
+            || statusMessage.Contains("requires", StringComparison.OrdinalIgnoreCase)
+            ? "alert-warning"
+            : "alert-success";
+        <div class="alert @alertClass" role="status">@statusMessage</div>
     }
 
+    <div asp-validation-summary="ModelOnly" class="text-danger mb-3"></div>
+
+    <div class="detail-grid">
+        <section class="detail-section">
+            <h2>Identity</h2>
+            <dl>
+                <dt>QuickBooks ID</dt>
+                <dd>@Model.QuickBooksEmployeeId</dd>
+                <dt>Sync Token</dt>
+                <dd>@Model.SyncToken</dd>
+                <dt>Employee Number</dt>
+                <dd>@Model.EmployeeNumber</dd>
+                <dt>Display Name</dt>
+                <dd>
+                    <input asp-for="DisplayName" class="form-control" />
+                    <span asp-validation-for="DisplayName" class="text-danger"></span>
+                </dd>
+                <dt>Print On Check Name</dt>
+                <dd>
+                    <input asp-for="PrintOnCheckName" class="form-control" />
+                    <span asp-validation-for="PrintOnCheckName" class="text-danger"></span>
+                </dd>
+            </dl>
+        </section>
+
+        <section class="detail-section">
+            <h2>Name</h2>
+            <dl>
+                <dt>Title</dt>
+                <dd>
+                    <input asp-for="Title" class="form-control" />
+                    <span asp-validation-for="Title" class="text-danger"></span>
+                </dd>
+                <dt>Given Name</dt>
+                <dd>
+                    <input asp-for="GivenName" class="form-control" />
+                    <span asp-validation-for="GivenName" class="text-danger"></span>
+                </dd>
+                <dt>Middle Name</dt>
+                <dd>
+                    <input asp-for="MiddleName" class="form-control" />
+                    <span asp-validation-for="MiddleName" class="text-danger"></span>
+                </dd>
+                <dt>Family Name</dt>
+                <dd>
+                    <input asp-for="FamilyName" class="form-control" />
+                    <span asp-validation-for="FamilyName" class="text-danger"></span>
+                </dd>
+                <dt>Suffix</dt>
+                <dd>
+                    <input asp-for="Suffix" class="form-control" />
+                    <span asp-validation-for="Suffix" class="text-danger"></span>
+                </dd>
+            </dl>
+        </section>
+
+        <section class="detail-section">
+            <h2>Contact</h2>
+            <dl>
+                <dt>Email</dt>
+                <dd>
+                    <input asp-for="PrimaryEmailAddress" class="form-control" />
+                    <span asp-validation-for="PrimaryEmailAddress" class="text-danger"></span>
+                </dd>
+                <dt>Primary Phone</dt>
+                <dd>
+                    <input asp-for="PrimaryPhone" class="form-control" />
+                    <span asp-validation-for="PrimaryPhone" class="text-danger"></span>
+                </dd>
+                <dt>Mobile</dt>
+                <dd>
+                    <input asp-for="MobilePhone" class="form-control" />
+                    <span asp-validation-for="MobilePhone" class="text-danger"></span>
+                </dd>
+            </dl>
+        </section>
+
+        <section class="detail-section">
+            <h2>Status</h2>
+            <dl>
+                <dt>Active</dt>
+                <dd>@Model.Active</dd>
+                <dt>Billable Time</dt>
+                <dd>@Model.BillableTime</dd>
+                <dt>Organization</dt>
+                <dd>@Model.Organization</dd>
+                <dt>Gender</dt>
+                <dd>@Model.Gender</dd>
+            </dl>
+        </section>
+
+        <section class="detail-section">
+            <h2>Rates</h2>
+            <dl>
+                <dt>Bill Rate</dt>
+                <dd>
+                    <input asp-for="BillRate" class="form-control" type="number" step="0.01" />
+                    <span asp-validation-for="BillRate" class="text-danger"></span>
+                </dd>
+                <dt>Hourly Cost Rate</dt>
+                <dd>
+                    <input asp-for="HourlyCostRate" class="form-control" type="number" step="0.01" />
+                    <span asp-validation-for="HourlyCostRate" class="text-danger"></span>
+                </dd>
+            </dl>
+        </section>
+
+        <section class="detail-section">
+            <h2>Dates</h2>
+            <dl>
+                <dt>Hired Date</dt>
+                <dd>@FormatDate(Model.HiredDate)</dd>
+                <dt>Released Date</dt>
+                <dd>@FormatDate(Model.ReleasedDate)</dd>
+                <dt>Birth Date</dt>
+                <dd>@FormatDate(Model.BirthDate)</dd>
+                <dt>QuickBooks Created</dt>
+                <dd>@FormatDate(Model.QuickBooksCreateTime)</dd>
+                <dt>QuickBooks Updated</dt>
+                <dd>@FormatDate(Model.QuickBooksLastUpdatedTime)</dd>
+                <dt>Created Date</dt>
+                <dd>@FormatDate(Model.CreatedDate)</dd>
+                <dt>Last Sync Date</dt>
+                <dd>@FormatDate(Model.LastSyncDate)</dd>
+                <dt>Last Edit Date</dt>
+                <dd>@FormatDate(Model.LastEditDate)</dd>
+            </dl>
+        </section>
+
+        <section class="detail-section">
+            <h2>Primary Address</h2>
+            <dl>
+                <dt>Street 1</dt>
+                <dd><input asp-for="PrimaryAddress.Street1" class="form-control" /></dd>
+                <dt>Street 2</dt>
+                <dd><input asp-for="PrimaryAddress.Street2" class="form-control" /></dd>
+                <dt>Street 3</dt>
+                <dd><input asp-for="PrimaryAddress.Street3" class="form-control" /></dd>
+                <dt>City</dt>
+                <dd><input asp-for="PrimaryAddress.City" class="form-control" /></dd>
+                <dt>State</dt>
+                <dd><input asp-for="PrimaryAddress.State" class="form-control" /></dd>
+                <dt>Country Subdivision</dt>
+                <dd><input asp-for="PrimaryAddress.CountrySubDivisionCode" class="form-control" /></dd>
+                <dt>Postal Code</dt>
+                <dd><input asp-for="PrimaryAddress.PostalCode" class="form-control" /></dd>
+                <dt>Country</dt>
+                <dd><input asp-for="PrimaryAddress.Country" class="form-control" /></dd>
+            </dl>
+        </section>
+    </div>
+</form>
+
+@section Scripts {
+    <partial name="_ValidationScriptsPartial" />
+}
+
+@functions {
     private static string FormatDate(DateTime? value)
     {
         return value is null ? string.Empty : value.Value.ToLocalTime().ToString("g");
-    }
-
-    private static Microsoft.AspNetCore.Html.IHtmlContent RenderAddress(RenovatorApp.Web.ViewModels.EmployeeAddressViewModel? address)
-    {
-        if (address is null)
-        {
-            return new Microsoft.AspNetCore.Html.HtmlString("<p class=\"text-muted\">No address.</p>");
-        }
-
-        var lines = new[]
-        {
-            address.Street1,
-            address.Street2,
-            address.Street3,
-            string.Join(", ", new[] { address.City, address.State }.Where(value => !string.IsNullOrWhiteSpace(value))),
-            address.PostalCode,
-            address.CountrySubDivisionCode,
-            address.Country
-        }.Where(value => !string.IsNullOrWhiteSpace(value));
-
-        return new Microsoft.AspNetCore.Html.HtmlString($"<p>{System.Net.WebUtility.HtmlEncode(string.Join("<br>", lines))}</p>".Replace("&lt;br&gt;", "<br>"));
     }
 }

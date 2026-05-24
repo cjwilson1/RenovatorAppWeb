@@ -4,28 +4,81 @@
     ViewData["Title"] = "Customer";
 }
 
-<div class="page-header-row">
-    <div>
-        <h1>@Model.DisplayName</h1>
-        <p class="text-muted">@Model.CompanyName</p>
-    </div>
-    <a class="btn btn-secondary" asp-controller="Customers" asp-action="Index">Close</a>
-</div>
+<form asp-action="Details" asp-route-id="@Model.CustomerId" method="post">
+    <input asp-for="CustomerId" type="hidden" />
 
-<div class="detail-grid">
+    <div class="page-header-row">
+        <div>
+            <h1>@Model.DisplayName</h1>
+            <p class="text-muted">@Model.CompanyName</p>
+        </div>
+        <div class="customer-sync-actions">
+            <button class="btn btn-danger" type="button" data-bs-toggle="modal" data-bs-target="#deleteCustomerModal">
+                Delete
+            </button>
+            <button class="btn btn-primary" type="submit">Save</button>
+            <button class="btn btn-warning" type="submit" formaction="@Url.Action("SyncCustomer", "QuickBooks", new { id = Model.CustomerId })">
+                QB Sync
+            </button>
+            <a class="btn btn-secondary" asp-controller="Customers" asp-action="Index">Close</a>
+        </div>
+    </div>
+
+    @if (TempData["CustomersStatus"] is string statusMessage && !string.IsNullOrWhiteSpace(statusMessage))
+    {
+        var alertClass = statusMessage.Contains("failed", StringComparison.OrdinalIgnoreCase)
+            || statusMessage.Contains("not connected", StringComparison.OrdinalIgnoreCase)
+            ? "alert-warning"
+            : "alert-success";
+        <div class="alert @alertClass" role="status">@statusMessage</div>
+    }
+
+    <div asp-validation-summary="ModelOnly" class="text-danger mb-3"></div>
+
+    <div class="detail-grid">
     <section class="detail-section">
         <h2>Name</h2>
         <dl>
+            <dt>Display Name</dt>
+            <dd>
+                <input asp-for="DisplayName" class="form-control" />
+                <span asp-validation-for="DisplayName" class="text-danger"></span>
+            </dd>
+            <dt>Company Name</dt>
+            <dd>
+                <input asp-for="CompanyName" class="form-control" />
+                <span asp-validation-for="CompanyName" class="text-danger"></span>
+            </dd>
             <dt>Title</dt>
-            <dd>@Model.Title</dd>
+            <dd>
+                <input asp-for="Title" class="form-control" />
+                <span asp-validation-for="Title" class="text-danger"></span>
+            </dd>
             <dt>Given Name</dt>
-            <dd>@Model.GivenName</dd>
+            <dd>
+                <input asp-for="GivenName" class="form-control" />
+                <span asp-validation-for="GivenName" class="text-danger"></span>
+            </dd>
             <dt>Middle Name</dt>
-            <dd>@Model.MiddleName</dd>
+            <dd>
+                <input asp-for="MiddleName" class="form-control" />
+                <span asp-validation-for="MiddleName" class="text-danger"></span>
+            </dd>
             <dt>Family Name</dt>
-            <dd>@Model.FamilyName</dd>
+            <dd>
+                <input asp-for="FamilyName" class="form-control" />
+                <span asp-validation-for="FamilyName" class="text-danger"></span>
+            </dd>
             <dt>Suffix</dt>
-            <dd>@Model.Suffix</dd>
+            <dd>
+                <input asp-for="Suffix" class="form-control" />
+                <span asp-validation-for="Suffix" class="text-danger"></span>
+            </dd>
+            <dt>Print On Check Name</dt>
+            <dd>
+                <input asp-for="PrintOnCheckName" class="form-control" />
+                <span asp-validation-for="PrintOnCheckName" class="text-danger"></span>
+            </dd>
         </dl>
     </section>
 
@@ -33,23 +86,63 @@
         <h2>Contact</h2>
         <dl>
             <dt>Email</dt>
-            <dd>@Model.PrimaryEmailAddress</dd>
+            <dd>
+                <input asp-for="PrimaryEmailAddress" class="form-control" />
+                <span asp-validation-for="PrimaryEmailAddress" class="text-danger"></span>
+            </dd>
             <dt>Primary Phone</dt>
-            <dd>@Model.PrimaryPhone</dd>
+            <dd>
+                <input asp-for="PrimaryPhone" class="form-control" />
+                <span asp-validation-for="PrimaryPhone" class="text-danger"></span>
+            </dd>
             <dt>Alternate Phone</dt>
-            <dd>@Model.AlternatePhone</dd>
+            <dd>
+                <input asp-for="AlternatePhone" class="form-control" />
+                <span asp-validation-for="AlternatePhone" class="text-danger"></span>
+            </dd>
             <dt>Mobile</dt>
-            <dd>@Model.MobilePhone</dd>
+            <dd>
+                <input asp-for="MobilePhone" class="form-control" />
+                <span asp-validation-for="MobilePhone" class="text-danger"></span>
+            </dd>
             <dt>Fax</dt>
-            <dd>@Model.Fax</dd>
+            <dd>
+                <input asp-for="Fax" class="form-control" />
+                <span asp-validation-for="Fax" class="text-danger"></span>
+            </dd>
             <dt>Website</dt>
-            <dd>@Model.Website</dd>
+            <dd>
+                <input asp-for="Website" class="form-control" />
+                <span asp-validation-for="Website" class="text-danger"></span>
+            </dd>
+            <dt>Notes</dt>
+            <dd>
+                <textarea asp-for="Notes" class="form-control" rows="3"></textarea>
+                <span asp-validation-for="Notes" class="text-danger"></span>
+            </dd>
         </dl>
     </section>
 
     <section class="detail-section">
         <h2>Bill Address</h2>
-        @RenderAddress(Model.BillAddress)
+        <dl>
+            <dt>Street 1</dt>
+            <dd><input asp-for="BillAddress.Street1" class="form-control" /></dd>
+            <dt>Street 2</dt>
+            <dd><input asp-for="BillAddress.Street2" class="form-control" /></dd>
+            <dt>Street 3</dt>
+            <dd><input asp-for="BillAddress.Street3" class="form-control" /></dd>
+            <dt>City</dt>
+            <dd><input asp-for="BillAddress.City" class="form-control" /></dd>
+            <dt>State</dt>
+            <dd><input asp-for="BillAddress.State" class="form-control" /></dd>
+            <dt>Country Subdivision</dt>
+            <dd><input asp-for="BillAddress.CountrySubDivisionCode" class="form-control" /></dd>
+            <dt>Postal Code</dt>
+            <dd><input asp-for="BillAddress.PostalCode" class="form-control" /></dd>
+            <dt>Country</dt>
+            <dd><input asp-for="BillAddress.Country" class="form-control" /></dd>
+        </dl>
     </section>
 
     <section class="detail-section detail-section-full">
@@ -64,8 +157,8 @@
                 <table class="table table-sm align-middle mb-0">
                     <thead>
                         <tr>
-                            <th scope="col">Name</th>
-                            <th scope="col">Type</th>
+                            <th scope="col">Document Name</th>
+                            <th scope="col">Document Type</th>
                             <th scope="col">Create Date</th>
                         </tr>
                     </thead>
@@ -115,7 +208,24 @@
 
     <section class="detail-section">
         <h2>Ship Address</h2>
-        @RenderAddress(Model.ShipAddress)
+        <dl>
+            <dt>Street 1</dt>
+            <dd><input asp-for="ShipAddress.Street1" class="form-control" /></dd>
+            <dt>Street 2</dt>
+            <dd><input asp-for="ShipAddress.Street2" class="form-control" /></dd>
+            <dt>Street 3</dt>
+            <dd><input asp-for="ShipAddress.Street3" class="form-control" /></dd>
+            <dt>City</dt>
+            <dd><input asp-for="ShipAddress.City" class="form-control" /></dd>
+            <dt>State</dt>
+            <dd><input asp-for="ShipAddress.State" class="form-control" /></dd>
+            <dt>Country Subdivision</dt>
+            <dd><input asp-for="ShipAddress.CountrySubDivisionCode" class="form-control" /></dd>
+            <dt>Postal Code</dt>
+            <dd><input asp-for="ShipAddress.PostalCode" class="form-control" /></dd>
+            <dt>Country</dt>
+            <dd><input asp-for="ShipAddress.Country" class="form-control" /></dd>
+        </dl>
     </section>
 
     <section class="detail-section">
@@ -151,17 +261,43 @@
     <section class="detail-section">
         <h2>Identity</h2>
         <dl>
+            <dt>Customer ID</dt>
+            <dd>@Model.CustomerId</dd>
             <dt>QuickBooks ID</dt>
             <dd>@Model.QuickBooksCustomerId</dd>
             <dt>Sync Token</dt>
             <dd>@Model.SyncToken</dd>
             <dt>Fully Qualified Name</dt>
             <dd>@Model.FullyQualifiedName</dd>
-            <dt>Print On Check Name</dt>
-            <dd>@Model.PrintOnCheckName</dd>
         </dl>
     </section>
+    </div>
+</form>
+
+<div class="modal fade" id="deleteCustomerModal" tabindex="-1" aria-labelledby="deleteCustomerModalLabel" aria-hidden="true">
+    <div class="modal-dialog">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h2 class="modal-title fs-5" id="deleteCustomerModalLabel">Delete Customer</h2>
+                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+            </div>
+            <div class="modal-body">
+                <p class="mb-0">If you delete this customer all their inspection data will be removed. Are you sure?</p>
+            </div>
+            <div class="modal-footer">
+                <button class="btn btn-secondary" type="button" data-bs-dismiss="modal">No</button>
+                <form asp-controller="Customers" asp-action="Delete" asp-route-id="@Model.CustomerId" method="post">
+                    @Html.AntiForgeryToken()
+                    <button class="btn btn-danger" type="submit">Yes</button>
+                </form>
+            </div>
+        </div>
+    </div>
 </div>
+
+@section Scripts {
+    <partial name="_ValidationScriptsPartial" />
+}
 
 @functions {
     private static string FormatCurrency(decimal value)
@@ -172,26 +308,5 @@
     private static string FormatDate(DateTime? value)
     {
         return value is null ? string.Empty : value.Value.ToLocalTime().ToString("g");
-    }
-
-    private static Microsoft.AspNetCore.Html.IHtmlContent RenderAddress(RenovatorApp.Web.ViewModels.CustomerAddressViewModel? address)
-    {
-        if (address is null)
-        {
-            return new Microsoft.AspNetCore.Html.HtmlString("<p class=\"text-muted\">No address.</p>");
-        }
-
-        var lines = new[]
-        {
-            address.Street1,
-            address.Street2,
-            address.Street3,
-            string.Join(", ", new[] { address.City, address.State }.Where(value => !string.IsNullOrWhiteSpace(value))),
-            address.PostalCode,
-            address.CountrySubDivisionCode,
-            address.Country
-        }.Where(value => !string.IsNullOrWhiteSpace(value));
-
-        return new Microsoft.AspNetCore.Html.HtmlString($"<p>{System.Net.WebUtility.HtmlEncode(string.Join("<br>", lines))}</p>".Replace("&lt;br&gt;", "<br>"));
     }
 }

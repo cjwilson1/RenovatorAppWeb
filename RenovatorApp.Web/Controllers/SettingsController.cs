@@ -97,6 +97,11 @@ public sealed class SettingsController : Controller
         });
     }
 
+    public IActionResult Downloads()
+    {
+        return View();
+    }
+
     public async Task<IActionResult> FindPart(CancellationToken cancellationToken)
     {
         var parts = await _inspectionDataService.GetPartsAsync(cancellationToken);

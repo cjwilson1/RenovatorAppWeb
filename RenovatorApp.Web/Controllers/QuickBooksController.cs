@@ -181,6 +181,60 @@ public sealed class QuickBooksController : Controller
 
     [HttpPost]
     [ValidateAntiForgeryToken]
+    public async Task<IActionResult> SyncCustomer(Guid id, CustomerDetailUpdateViewModel update, CancellationToken cancellationToken)
+    {
+        if (id != update.CustomerId)
+        {
+            return BadRequest();
+        }
+
+        var customer = await _dbContext.Customers
+            .Include(item => item.BillAddress)
+            .Include(item => item.ShipAddress)
+            .FirstOrDefaultAsync(item => item.CustomerId == id, cancellationToken);
+
+        if (customer is null)
+        {
+            return NotFound();
+        }
+
+        ApplyCustomerUpdate(customer, update);
+        TrackCustomerAddresses(customer);
+        customer.LastEditDate = DateTime.UtcNow;
+        await _dbContext.SaveChangesAsync(cancellationToken);
+
+        if (string.IsNullOrWhiteSpace(customer.DisplayName))
+        {
+            TempData["CustomersStatus"] = "QuickBooks customer sync requires Display Name.";
+            return RedirectToAction("Details", "Customers", new { id });
+        }
+
+        var connection = await LoadConnectionAsync(cancellationToken);
+        if (!connection.IsConnected)
+        {
+            TempData["CustomersStatus"] = "QuickBooks is not connected yet.";
+            return RedirectToAction("Details", "Customers", new { id });
+        }
+
+        try
+        {
+            var accessToken = await GetValidAccessTokenAsync(connection, cancellationToken);
+            var quickBooksCustomer = await PushCustomerToQuickBooksAsync(connection.RealmId, accessToken, customer, cancellationToken);
+            ApplyQuickBooksCustomerSync(customer, quickBooksCustomer, DateTime.UtcNow);
+
+            await _dbContext.SaveChangesAsync(cancellationToken);
+            TempData["CustomersStatus"] = "Customer synced to QuickBooks.";
+        }
+        catch (Exception exception) when (exception is InvalidOperationException or HttpRequestException or JsonException or DbUpdateException)
+        {
+            TempData["CustomersStatus"] = $"QuickBooks customer sync failed: {exception.Message}";
+        }
+
+        return RedirectToAction("Details", "Customers", new { id });
+    }
+
+    [HttpPost]
+    [ValidateAntiForgeryToken]
     public async Task<IActionResult> SyncEmployees(CancellationToken cancellationToken)
     {
         var connection = await LoadConnectionAsync(cancellationToken);
@@ -212,6 +266,59 @@ public sealed class QuickBooksController : Controller
         }
 
         return RedirectToAction("Index", "Employees");
+    }
+
+    [HttpPost]
+    [ValidateAntiForgeryToken]
+    public async Task<IActionResult> SyncEmployee(Guid id, EmployeeDetailUpdateViewModel update, CancellationToken cancellationToken)
+    {
+        if (id != update.EmployeeId)
+        {
+            return BadRequest();
+        }
+
+        var employee = await _dbContext.Employees
+            .Include(item => item.PrimaryAddress)
+            .FirstOrDefaultAsync(item => item.EmployeeId == id, cancellationToken);
+
+        if (employee is null)
+        {
+            return NotFound();
+        }
+
+        if (!ModelState.IsValid)
+        {
+            TempData["EmployeesStatus"] = "QuickBooks sync requires Display Name, Given Name, Family Name, and Primary Phone.";
+            return RedirectToAction("Details", "Employees", new { id });
+        }
+
+        ApplyEmployeeUpdate(employee, update);
+        TrackEmployeePrimaryAddress(employee);
+        employee.LastEditDate = DateTime.UtcNow;
+        await _dbContext.SaveChangesAsync(cancellationToken);
+
+        var connection = await LoadConnectionAsync(cancellationToken);
+        if (!connection.IsConnected)
+        {
+            TempData["EmployeesStatus"] = "QuickBooks is not connected yet.";
+            return RedirectToAction("Details", "Employees", new { id });
+        }
+
+        try
+        {
+            var accessToken = await GetValidAccessTokenAsync(connection, cancellationToken);
+            var quickBooksEmployee = await PushEmployeeToQuickBooksAsync(connection.RealmId, accessToken, employee, cancellationToken);
+            ApplyQuickBooksEmployeeSync(employee, quickBooksEmployee, DateTime.UtcNow);
+
+            await _dbContext.SaveChangesAsync(cancellationToken);
+            TempData["EmployeesStatus"] = "Employee synced to QuickBooks.";
+        }
+        catch (Exception exception) when (exception is InvalidOperationException or HttpRequestException or JsonException or DbUpdateException)
+        {
+            TempData["EmployeesStatus"] = $"QuickBooks employee sync failed: {exception.Message}";
+        }
+
+        return RedirectToAction("Details", "Employees", new { id });
     }
 
     private async Task<QuickBooksTokenResponse> ExchangeAuthorizationCodeAsync(string code, CancellationToken cancellationToken)
@@ -418,6 +525,203 @@ public sealed class QuickBooksController : Controller
         return results;
     }
 
+    private async Task<JsonElement> PushCustomerToQuickBooksAsync(string realmId, string accessToken, Customer customer, CancellationToken cancellationToken)
+    {
+        var client = _httpClientFactory.CreateClient();
+        var baseUrl = string.Equals(GetEnvironment(), "production", StringComparison.OrdinalIgnoreCase)
+            ? "https://quickbooks.api.intuit.com"
+            : "https://sandbox-quickbooks.api.intuit.com";
+        var isUpdate = !string.IsNullOrWhiteSpace(customer.QuickBooksCustomerId);
+        var payload = BuildQuickBooksCustomerPayload(customer, isUpdate);
+
+        using var request = new HttpRequestMessage(
+            HttpMethod.Post,
+            $"{baseUrl}/v3/company/{realmId}/customer?minorversion=75");
+        request.Headers.Authorization = new AuthenticationHeaderValue("Bearer", accessToken);
+        request.Headers.Accept.Add(new MediaTypeWithQualityHeaderValue("application/json"));
+        request.Content = new StringContent(JsonSerializer.Serialize(payload), Encoding.UTF8, "application/json");
+
+        using var response = await client.SendAsync(request, cancellationToken);
+        var body = await response.Content.ReadAsStringAsync(cancellationToken);
+        if (!response.IsSuccessStatusCode)
+        {
+            throw new InvalidOperationException($"QuickBooks Customer sync failed with status {(int)response.StatusCode}: {body}");
+        }
+
+        using var document = JsonDocument.Parse(body);
+        if (!document.RootElement.TryGetProperty("Customer", out var quickBooksCustomer))
+        {
+            throw new InvalidOperationException("QuickBooks Customer sync response did not include a Customer.");
+        }
+
+        return quickBooksCustomer.Clone();
+    }
+
+    private static Dictionary<string, object?> BuildQuickBooksCustomerPayload(Customer customer, bool isUpdate)
+    {
+        var payload = new Dictionary<string, object?>
+        {
+            ["DisplayName"] = customer.DisplayName,
+            ["CompanyName"] = customer.CompanyName,
+            ["Title"] = customer.Title,
+            ["GivenName"] = customer.GivenName,
+            ["MiddleName"] = customer.MiddleName,
+            ["FamilyName"] = customer.FamilyName,
+            ["Suffix"] = customer.Suffix,
+            ["PrintOnCheckName"] = customer.PrintOnCheckName,
+            ["PrimaryEmailAddr"] = new Dictionary<string, object?> { ["Address"] = customer.PrimaryEmailAddress },
+            ["PrimaryPhone"] = new Dictionary<string, object?> { ["FreeFormNumber"] = customer.PrimaryPhone },
+            ["AlternatePhone"] = new Dictionary<string, object?> { ["FreeFormNumber"] = customer.AlternatePhone },
+            ["Mobile"] = new Dictionary<string, object?> { ["FreeFormNumber"] = customer.MobilePhone },
+            ["Fax"] = new Dictionary<string, object?> { ["FreeFormNumber"] = customer.Fax },
+            ["WebAddr"] = new Dictionary<string, object?> { ["URI"] = customer.Website },
+            ["Notes"] = customer.Notes
+        };
+
+        if (customer.BillAddress is not null)
+        {
+            payload["BillAddr"] = BuildQuickBooksAddressPayload(customer.BillAddress);
+        }
+
+        if (customer.ShipAddress is not null)
+        {
+            payload["ShipAddr"] = BuildQuickBooksAddressPayload(customer.ShipAddress);
+        }
+
+        if (isUpdate)
+        {
+            if (string.IsNullOrWhiteSpace(customer.SyncToken))
+            {
+                throw new InvalidOperationException("This customer has a QuickBooks ID but no SyncToken. Sync customers from QuickBooks first.");
+            }
+
+            payload["sparse"] = true;
+            payload["Id"] = customer.QuickBooksCustomerId;
+            payload["SyncToken"] = customer.SyncToken;
+        }
+
+        return payload;
+    }
+
+    private static Dictionary<string, object?> BuildQuickBooksAddressPayload(Address address)
+    {
+        return new Dictionary<string, object?>
+        {
+            ["Line1"] = address.Street1,
+            ["Line2"] = address.Street2,
+            ["Line3"] = address.Street3,
+            ["City"] = address.City,
+            ["CountrySubDivisionCode"] = string.IsNullOrWhiteSpace(address.CountrySubDivisionCode)
+                ? address.State
+                : address.CountrySubDivisionCode,
+            ["PostalCode"] = address.PostalCode,
+            ["Country"] = address.Country
+        };
+    }
+
+    private static void ApplyQuickBooksCustomerSync(Customer customer, JsonElement quickBooksCustomer, DateTime syncDateUtc)
+    {
+        customer.QuickBooksCustomerId = GetJsonString(quickBooksCustomer, "Id");
+        customer.SyncToken = GetJsonString(quickBooksCustomer, "SyncToken");
+        customer.DisplayName = GetJsonString(quickBooksCustomer, "DisplayName");
+        customer.FullyQualifiedName = GetJsonString(quickBooksCustomer, "FullyQualifiedName");
+        customer.QuickBooksCreateTime = GetNestedJsonDateTime(quickBooksCustomer, "MetaData", "CreateTime");
+        customer.QuickBooksLastUpdatedTime = GetNestedJsonDateTime(quickBooksCustomer, "MetaData", "LastUpdatedTime");
+        customer.LastSyncDate = syncDateUtc;
+    }
+
+    private async Task<JsonElement> PushEmployeeToQuickBooksAsync(string realmId, string accessToken, Employee employee, CancellationToken cancellationToken)
+    {
+        var client = _httpClientFactory.CreateClient();
+        var baseUrl = string.Equals(GetEnvironment(), "production", StringComparison.OrdinalIgnoreCase)
+            ? "https://quickbooks.api.intuit.com"
+            : "https://sandbox-quickbooks.api.intuit.com";
+        var isUpdate = !string.IsNullOrWhiteSpace(employee.QuickBooksEmployeeId);
+        var payload = BuildQuickBooksEmployeePayload(employee, isUpdate);
+
+        using var request = new HttpRequestMessage(
+            HttpMethod.Post,
+            $"{baseUrl}/v3/company/{realmId}/employee?minorversion=75");
+        request.Headers.Authorization = new AuthenticationHeaderValue("Bearer", accessToken);
+        request.Headers.Accept.Add(new MediaTypeWithQualityHeaderValue("application/json"));
+        request.Content = new StringContent(JsonSerializer.Serialize(payload), Encoding.UTF8, "application/json");
+
+        using var response = await client.SendAsync(request, cancellationToken);
+        var body = await response.Content.ReadAsStringAsync(cancellationToken);
+        if (!response.IsSuccessStatusCode)
+        {
+            throw new InvalidOperationException($"QuickBooks Employee sync failed with status {(int)response.StatusCode}: {body}");
+        }
+
+        using var document = JsonDocument.Parse(body);
+        if (!document.RootElement.TryGetProperty("Employee", out var quickBooksEmployee))
+        {
+            throw new InvalidOperationException("QuickBooks Employee sync response did not include an Employee.");
+        }
+
+        return quickBooksEmployee.Clone();
+    }
+
+    private static Dictionary<string, object?> BuildQuickBooksEmployeePayload(Employee employee, bool isUpdate)
+    {
+        var payload = new Dictionary<string, object?>
+        {
+            ["DisplayName"] = employee.DisplayName,
+            ["PrintOnCheckName"] = employee.PrintOnCheckName,
+            ["Title"] = employee.Title,
+            ["GivenName"] = employee.GivenName,
+            ["MiddleName"] = employee.MiddleName,
+            ["FamilyName"] = employee.FamilyName,
+            ["Suffix"] = employee.Suffix,
+            ["PrimaryEmailAddr"] = new Dictionary<string, object?> { ["Address"] = employee.PrimaryEmailAddress },
+            ["PrimaryPhone"] = new Dictionary<string, object?> { ["FreeFormNumber"] = employee.PrimaryPhone },
+            ["Mobile"] = new Dictionary<string, object?> { ["FreeFormNumber"] = employee.MobilePhone },
+            ["BillRate"] = employee.BillRate,
+            ["HourlyCostRate"] = employee.HourlyCostRate
+        };
+
+        if (employee.PrimaryAddress is not null)
+        {
+            payload["PrimaryAddr"] = new Dictionary<string, object?>
+            {
+                ["Line1"] = employee.PrimaryAddress.Street1,
+                ["Line2"] = employee.PrimaryAddress.Street2,
+                ["Line3"] = employee.PrimaryAddress.Street3,
+                ["City"] = employee.PrimaryAddress.City,
+                ["CountrySubDivisionCode"] = string.IsNullOrWhiteSpace(employee.PrimaryAddress.CountrySubDivisionCode)
+                    ? employee.PrimaryAddress.State
+                    : employee.PrimaryAddress.CountrySubDivisionCode,
+                ["PostalCode"] = employee.PrimaryAddress.PostalCode,
+                ["Country"] = employee.PrimaryAddress.Country
+            };
+        }
+
+        if (isUpdate)
+        {
+            if (string.IsNullOrWhiteSpace(employee.SyncToken))
+            {
+                throw new InvalidOperationException("This employee has a QuickBooks ID but no SyncToken. Sync employees from QuickBooks first.");
+            }
+
+            payload["sparse"] = true;
+            payload["Id"] = employee.QuickBooksEmployeeId;
+            payload["SyncToken"] = employee.SyncToken;
+        }
+
+        return payload;
+    }
+
+    private static void ApplyQuickBooksEmployeeSync(Employee employee, JsonElement quickBooksEmployee, DateTime syncDateUtc)
+    {
+        employee.QuickBooksEmployeeId = GetJsonString(quickBooksEmployee, "Id");
+        employee.SyncToken = GetJsonString(quickBooksEmployee, "SyncToken");
+        employee.DisplayName = GetJsonString(quickBooksEmployee, "DisplayName");
+        employee.PrintOnCheckName = GetJsonString(quickBooksEmployee, "PrintOnCheckName");
+        employee.QuickBooksCreateTime = GetNestedJsonDateTime(quickBooksEmployee, "MetaData", "CreateTime");
+        employee.QuickBooksLastUpdatedTime = GetNestedJsonDateTime(quickBooksEmployee, "MetaData", "LastUpdatedTime");
+        employee.LastSyncDate = syncDateUtc;
+    }
+
     private async Task<QuickBooksConnection> LoadConnectionAsync(CancellationToken cancellationToken)
     {
         var settings = await _dbContext.AppSettings
@@ -561,6 +865,154 @@ public sealed class QuickBooksController : Controller
         {
             employee.PrimaryAddressId = null;
         }
+    }
+
+    private void TrackCustomerAddresses(Customer customer)
+    {
+        TrackAddress(customer.BillAddress);
+        if (customer.BillAddress is not null)
+        {
+            customer.BillAddressId = customer.BillAddress.Id;
+        }
+
+        TrackAddress(customer.ShipAddress);
+        if (customer.ShipAddress is not null)
+        {
+            customer.ShipAddressId = customer.ShipAddress.Id;
+        }
+    }
+
+    private void TrackAddress(Address? address)
+    {
+        if (address is not null && _dbContext.Entry(address).State == EntityState.Detached)
+        {
+            _dbContext.Addresses.Add(address);
+        }
+    }
+
+    private static void ApplyCustomerUpdate(Customer customer, CustomerDetailUpdateViewModel update)
+    {
+        update.BillAddress ??= new CustomerAddressUpdateViewModel();
+        update.ShipAddress ??= new CustomerAddressUpdateViewModel();
+
+        customer.DisplayName = Clean(update.DisplayName);
+        customer.FullyQualifiedName = Clean(update.DisplayName);
+        customer.CompanyName = Clean(update.CompanyName);
+        customer.Title = Clean(update.Title);
+        customer.GivenName = Clean(update.GivenName);
+        customer.MiddleName = Clean(update.MiddleName);
+        customer.FamilyName = Clean(update.FamilyName);
+        customer.Suffix = Clean(update.Suffix);
+        customer.PrintOnCheckName = Clean(update.PrintOnCheckName);
+        customer.PrimaryEmailAddress = Clean(update.PrimaryEmailAddress);
+        customer.PrimaryPhone = Clean(update.PrimaryPhone);
+        customer.AlternatePhone = Clean(update.AlternatePhone);
+        customer.MobilePhone = Clean(update.MobilePhone);
+        customer.Fax = Clean(update.Fax);
+        customer.Website = Clean(update.Website);
+        customer.Notes = Clean(update.Notes);
+        customer.BillAddress = ApplyCustomerAddress(customer.BillAddress, update.BillAddress);
+        customer.BillAddressId = customer.BillAddress?.Id;
+        customer.ShipAddress = ApplyCustomerAddress(customer.ShipAddress, update.ShipAddress);
+        customer.ShipAddressId = customer.ShipAddress?.Id;
+    }
+
+    private static Address? ApplyCustomerAddress(Address? address, CustomerAddressUpdateViewModel update)
+    {
+        if (IsCustomerAddressEmpty(update))
+        {
+            return null;
+        }
+
+        address ??= new Address();
+        address.Street1 = Clean(update.Street1);
+        address.Street2 = Clean(update.Street2);
+        address.Street3 = Clean(update.Street3);
+        address.City = Clean(update.City);
+        address.State = Clean(update.State);
+        address.CountrySubDivisionCode = Clean(update.CountrySubDivisionCode);
+        address.PostalCode = Clean(update.PostalCode);
+        address.Country = Clean(update.Country);
+        return address;
+    }
+
+    private static bool IsCustomerAddressEmpty(CustomerAddressUpdateViewModel address)
+    {
+        return string.IsNullOrWhiteSpace(address.Street1)
+            && string.IsNullOrWhiteSpace(address.Street2)
+            && string.IsNullOrWhiteSpace(address.Street3)
+            && string.IsNullOrWhiteSpace(address.City)
+            && string.IsNullOrWhiteSpace(address.State)
+            && string.IsNullOrWhiteSpace(address.CountrySubDivisionCode)
+            && string.IsNullOrWhiteSpace(address.PostalCode)
+            && string.IsNullOrWhiteSpace(address.Country);
+    }
+
+    private static void ApplyEmployeeUpdate(Employee employee, EmployeeDetailUpdateViewModel update)
+    {
+        update.PrimaryAddress ??= new EmployeeAddressUpdateViewModel();
+
+        employee.DisplayName = Clean(update.DisplayName);
+        employee.PrintOnCheckName = Clean(update.PrintOnCheckName);
+        employee.Title = Clean(update.Title);
+        employee.GivenName = Clean(update.GivenName);
+        employee.MiddleName = Clean(update.MiddleName);
+        employee.FamilyName = Clean(update.FamilyName);
+        employee.Suffix = Clean(update.Suffix);
+        employee.PrimaryEmailAddress = Clean(update.PrimaryEmailAddress);
+        employee.PrimaryPhone = Clean(update.PrimaryPhone);
+        employee.MobilePhone = Clean(update.MobilePhone);
+        employee.BillRate = update.BillRate;
+        employee.HourlyCostRate = update.HourlyCostRate;
+
+        if (IsEmployeeAddressEmpty(update.PrimaryAddress))
+        {
+            employee.PrimaryAddress = null;
+            employee.PrimaryAddressId = null;
+            return;
+        }
+
+        employee.PrimaryAddress ??= new Address();
+        employee.PrimaryAddress.Street1 = Clean(update.PrimaryAddress.Street1);
+        employee.PrimaryAddress.Street2 = Clean(update.PrimaryAddress.Street2);
+        employee.PrimaryAddress.Street3 = Clean(update.PrimaryAddress.Street3);
+        employee.PrimaryAddress.City = Clean(update.PrimaryAddress.City);
+        employee.PrimaryAddress.State = Clean(update.PrimaryAddress.State);
+        employee.PrimaryAddress.CountrySubDivisionCode = Clean(update.PrimaryAddress.CountrySubDivisionCode);
+        employee.PrimaryAddress.PostalCode = Clean(update.PrimaryAddress.PostalCode);
+        employee.PrimaryAddress.Country = Clean(update.PrimaryAddress.Country);
+    }
+
+    private static bool IsEmployeeAddressEmpty(EmployeeAddressUpdateViewModel address)
+    {
+        return string.IsNullOrWhiteSpace(address.Street1)
+            && string.IsNullOrWhiteSpace(address.Street2)
+            && string.IsNullOrWhiteSpace(address.Street3)
+            && string.IsNullOrWhiteSpace(address.City)
+            && string.IsNullOrWhiteSpace(address.State)
+            && string.IsNullOrWhiteSpace(address.CountrySubDivisionCode)
+            && string.IsNullOrWhiteSpace(address.PostalCode)
+            && string.IsNullOrWhiteSpace(address.Country);
+    }
+
+    private static string Clean(string? value)
+    {
+        return value?.Trim() ?? string.Empty;
+    }
+
+    private void TrackEmployeePrimaryAddress(Employee employee)
+    {
+        if (employee.PrimaryAddress is null)
+        {
+            return;
+        }
+
+        if (_dbContext.Entry(employee.PrimaryAddress).State == EntityState.Detached)
+        {
+            _dbContext.Addresses.Add(employee.PrimaryAddress);
+        }
+
+        employee.PrimaryAddressId = employee.PrimaryAddress.Id;
     }
 
     private Address? UpsertAddress(Address? address, JsonElement source, string propertyName)

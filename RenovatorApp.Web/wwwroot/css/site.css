@@ -215,6 +215,16 @@ body {
   margin-bottom: 1rem;
 }
 
+.customer-search-row-narrow {
+  grid-template-columns: minmax(12rem, 50%) auto auto;
+  justify-content: start;
+}
+
+.customer-show-inactive {
+  margin-bottom: 0;
+  white-space: nowrap;
+}
+
 .customer-sync-actions {
   align-items: center;
   display: flex;

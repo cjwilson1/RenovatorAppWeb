@@ -1,0 +1,163 @@
+@model RenovatorApp.Web.ViewModels.DocumentsIndexViewModel
+@{
+    ViewData["Title"] = "Documents";
+    var previousPage = Math.Max(1, Model.Page - 1);
+    var nextPage = Math.Min(Model.TotalPages, Model.Page + 1);
+}
+
+<div class="page-header-row">
+    <div>
+        <h1>Documents</h1>
+        <p class="text-muted">@Model.TotalDocuments document@(Model.TotalDocuments == 1 ? string.Empty : "s")</p>
+    </div>
+</div>
+
+<form class="customer-search-row" id="documentSearchForm" method="get">
+    <input class="form-control"
+           id="documentSearch"
+           name="search"
+           placeholder="Search Documents"
+           type="search"
+           value="@Model.Search" />
+    <button class="btn btn-outline-secondary" id="clearDocumentSearch" type="button">Clear</button>
+    <input id="documentPage" name="page" type="hidden" value="@Model.Page" />
+</form>
+
+<div class="table-responsive">
+    <table class="table table-striped align-middle">
+        <thead>
+            <tr>
+                <th scope="col">Document Name</th>
+                <th scope="col">Customer First/Last Name</th>
+                <th scope="col">Document Type</th>
+                <th scope="col">Filename</th>
+                <th scope="col">Create Date</th>
+                <th scope="col" class="text-end">Actions</th>
+            </tr>
+        </thead>
+        <tbody>
+            @if (Model.Documents.Count == 0)
+            {
+                <tr>
+                    <td class="text-muted" colspan="6">No documents found.</td>
+                </tr>
+            }
+            else
+            {
+                @foreach (var document in Model.Documents)
+                {
+                    <tr>
+                        <td>
+                            <a asp-controller="Documents"
+                               asp-action="Open"
+                               asp-route-id="@document.DocumentId"
+                               target="_blank"
+                               rel="noopener noreferrer">
+                                <strong>@document.DocumentName</strong>
+                            </a>
+                        </td>
+                        <td>@document.CustomerName</td>
+                        <td>@document.DocumentType</td>
+                        <td>@document.Filename</td>
+                        <td>@FormatDate(document.CreateDate)</td>
+                        <td class="text-end">
+                            <button class="btn btn-danger btn-sm"
+                                    type="button"
+                                    data-bs-toggle="modal"
+                                    data-bs-target="#deleteDocumentModal"
+                                    data-document-id="@document.DocumentId"
+                                    data-document-name="@document.DocumentName">
+                                Delete
+                            </button>
+                        </td>
+                    </tr>
+                }
+            }
+        </tbody>
+    </table>
+</div>
+
+<div class="modal fade" id="deleteDocumentModal" tabindex="-1" aria-labelledby="deleteDocumentModalLabel" aria-hidden="true">
+    <div class="modal-dialog">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h2 class="modal-title fs-5" id="deleteDocumentModalLabel">Delete Document</h2>
+                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+            </div>
+            <div class="modal-body">
+                <p class="mb-0">Are you sure?</p>
+            </div>
+            <div class="modal-footer">
+                <button class="btn btn-secondary" type="button" data-bs-dismiss="modal">No</button>
+                <form asp-controller="Documents" asp-action="Delete" method="post">
+                    @Html.AntiForgeryToken()
+                    <input id="deleteDocumentId" name="id" type="hidden" />
+                    <input name="search" type="hidden" value="@Model.Search" />
+                    <input name="page" type="hidden" value="@Model.Page" />
+                    <button class="btn btn-danger" type="submit">Yes</button>
+                </form>
+            </div>
+        </div>
+    </div>
+</div>
+
+<div class="d-flex align-items-center justify-content-between gap-3">
+    <div class="btn-group" role="group" aria-label="Document pages">
+        <a class="btn btn-outline-secondary @(Model.Page == 1 ? "disabled" : string.Empty)"
+           asp-controller="Documents"
+           asp-action="Index"
+           asp-route-search="@Model.Search"
+           asp-route-page="@previousPage">
+            Previous
+        </a>
+        <a class="btn btn-outline-secondary @(Model.Page == Model.TotalPages ? "disabled" : string.Empty)"
+           asp-controller="Documents"
+           asp-action="Index"
+           asp-route-search="@Model.Search"
+           asp-route-page="@nextPage">
+            Next
+        </a>
+    </div>
+    <span class="text-muted">Page @Model.Page of @Model.TotalPages</span>
+</div>
+
+@section Scripts {
+    <script>
+        const searchForm = document.getElementById('documentSearchForm');
+        const searchInput = document.getElementById('documentSearch');
+        const pageInput = document.getElementById('documentPage');
+        const clearSearchButton = document.getElementById('clearDocumentSearch');
+        const deleteDocumentModal = document.getElementById('deleteDocumentModal');
+        const deleteDocumentIdInput = document.getElementById('deleteDocumentId');
+        let searchTimer;
+
+        searchInput?.addEventListener('input', () => {
+            window.clearTimeout(searchTimer);
+            const value = (searchInput.value || '').trim();
+            searchTimer = window.setTimeout(() => {
+                if (value.length === 0 || value.length >= 2) {
+                    pageInput.value = '1';
+                    searchForm.submit();
+                }
+            }, 350);
+        });
+
+        clearSearchButton?.addEventListener('click', () => {
+            searchInput.value = '';
+            pageInput.value = '1';
+            searchForm.submit();
+        });
+
+        deleteDocumentModal?.addEventListener('show.bs.modal', (event) => {
+            const button = event.relatedTarget;
+            deleteDocumentIdInput.value = button?.getAttribute('data-document-id') || '';
+        });
+    </script>
+}
+
+@functions {
+    private static string FormatDate(DateTime value)
+    {
+        return value.ToLocalTime().ToString("g");
+    }
+}

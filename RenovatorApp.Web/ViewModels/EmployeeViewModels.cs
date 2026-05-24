@@ -1,3 +1,5 @@
+using System.ComponentModel.DataAnnotations;
+
 namespace RenovatorApp.Web.ViewModels;
 
 public sealed class EmployeesIndexViewModel
@@ -24,45 +26,99 @@ public sealed class EmployeeRowViewModel
 
 public sealed class EmployeeDetailViewModel
 {
-    public Guid EmployeeId { get; init; }
-    public string QuickBooksEmployeeId { get; init; } = string.Empty;
-    public string SyncToken { get; init; } = string.Empty;
-    public string DisplayName { get; init; } = string.Empty;
-    public string PrintOnCheckName { get; init; } = string.Empty;
-    public string Title { get; init; } = string.Empty;
-    public string GivenName { get; init; } = string.Empty;
-    public string MiddleName { get; init; } = string.Empty;
-    public string FamilyName { get; init; } = string.Empty;
-    public string Suffix { get; init; } = string.Empty;
-    public string PrimaryEmailAddress { get; init; } = string.Empty;
-    public string PrimaryPhone { get; init; } = string.Empty;
-    public string MobilePhone { get; init; } = string.Empty;
-    public string Active { get; init; } = string.Empty;
-    public string BillableTime { get; init; } = string.Empty;
-    public string EmployeeNumber { get; init; } = string.Empty;
-    public string Organization { get; init; } = string.Empty;
-    public string Gender { get; init; } = string.Empty;
-    public DateTime? HiredDate { get; init; }
-    public DateTime? ReleasedDate { get; init; }
-    public DateTime? BirthDate { get; init; }
-    public decimal BillRate { get; init; }
-    public decimal HourlyCostRate { get; init; }
-    public DateTime? QuickBooksCreateTime { get; init; }
-    public DateTime? QuickBooksLastUpdatedTime { get; init; }
-    public DateTime CreatedDate { get; init; }
-    public DateTime? LastSyncDate { get; init; }
-    public DateTime? LastEditDate { get; init; }
-    public EmployeeAddressViewModel? PrimaryAddress { get; init; }
+    public Guid EmployeeId { get; set; }
+    public string QuickBooksEmployeeId { get; set; } = string.Empty;
+    public string SyncToken { get; set; } = string.Empty;
+
+    [Required]
+    public string DisplayName { get; set; } = string.Empty;
+
+    public string? PrintOnCheckName { get; set; }
+    public string? Title { get; set; }
+
+    [Required]
+    public string GivenName { get; set; } = string.Empty;
+
+    public string? MiddleName { get; set; }
+
+    [Required]
+    public string FamilyName { get; set; } = string.Empty;
+
+    public string? Suffix { get; set; }
+    public string? PrimaryEmailAddress { get; set; }
+
+    [Required]
+    public string PrimaryPhone { get; set; } = string.Empty;
+
+    public string? MobilePhone { get; set; }
+    public string Active { get; set; } = string.Empty;
+    public string BillableTime { get; set; } = string.Empty;
+    public string EmployeeNumber { get; set; } = string.Empty;
+    public string Organization { get; set; } = string.Empty;
+    public string Gender { get; set; } = string.Empty;
+    public DateTime? HiredDate { get; set; }
+    public DateTime? ReleasedDate { get; set; }
+    public DateTime? BirthDate { get; set; }
+    public decimal BillRate { get; set; }
+    public decimal HourlyCostRate { get; set; }
+    public DateTime? QuickBooksCreateTime { get; set; }
+    public DateTime? QuickBooksLastUpdatedTime { get; set; }
+    public DateTime CreatedDate { get; set; }
+    public DateTime? LastSyncDate { get; set; }
+    public DateTime? LastEditDate { get; set; }
+    public EmployeeAddressViewModel? PrimaryAddress { get; set; }
+}
+
+public sealed class EmployeeDetailUpdateViewModel
+{
+    public Guid EmployeeId { get; set; }
+
+    [Required]
+    public string DisplayName { get; set; } = string.Empty;
+
+    public string? PrintOnCheckName { get; set; }
+    public string? Title { get; set; }
+
+    [Required]
+    public string GivenName { get; set; } = string.Empty;
+
+    public string? MiddleName { get; set; }
+
+    [Required]
+    public string FamilyName { get; set; } = string.Empty;
+
+    public string? Suffix { get; set; }
+    public string? PrimaryEmailAddress { get; set; }
+
+    [Required]
+    public string PrimaryPhone { get; set; } = string.Empty;
+
+    public string? MobilePhone { get; set; }
+    public decimal BillRate { get; set; }
+    public decimal HourlyCostRate { get; set; }
+    public EmployeeAddressUpdateViewModel PrimaryAddress { get; set; } = new();
 }
 
 public sealed class EmployeeAddressViewModel
 {
-    public string Street1 { get; init; } = string.Empty;
-    public string Street2 { get; init; } = string.Empty;
-    public string Street3 { get; init; } = string.Empty;
-    public string City { get; init; } = string.Empty;
-    public string State { get; init; } = string.Empty;
-    public string CountrySubDivisionCode { get; init; } = string.Empty;
-    public string PostalCode { get; init; } = string.Empty;
-    public string Country { get; init; } = string.Empty;
+    public string? Street1 { get; init; }
+    public string? Street2 { get; init; }
+    public string? Street3 { get; init; }
+    public string? City { get; init; }
+    public string? State { get; init; }
+    public string? CountrySubDivisionCode { get; init; }
+    public string? PostalCode { get; init; }
+    public string? Country { get; init; }
+}
+
+public sealed class EmployeeAddressUpdateViewModel
+{
+    public string? Street1 { get; set; }
+    public string? Street2 { get; set; }
+    public string? Street3 { get; set; }
+    public string? City { get; set; }
+    public string? State { get; set; }
+    public string? CountrySubDivisionCode { get; set; }
+    public string? PostalCode { get; set; }
+    public string? Country { get; set; }
 }

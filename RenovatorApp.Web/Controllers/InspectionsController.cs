@@ -103,6 +103,11 @@ public sealed class InspectionsController : Controller
             return NotFound();
         }
 
+        if (inspection.CustomerId is null)
+        {
+            return BadRequest("Inspection reports must have a customer before they can be saved as customer documents.");
+        }
+
         var propertyAddress = GetPropertyAddress(inspection.Property);
         var customerName = GetCustomerName(inspection.Customer);
         var logoPath = Path.Combine(_webHostEnvironment.WebRootPath, "images", "MikeHandymanLogo.png");
@@ -170,7 +175,7 @@ public sealed class InspectionsController : Controller
 
         await _inspectionDataService.AddDocumentAsync(new RenovatorApp.Infrastructure.Models.Document
         {
-            DocumentName = Path.GetFileNameWithoutExtension(fileName),
+            DocumentName = documentName,
             CustomerId = inspection.CustomerId,
             CreateDate = DateTime.UtcNow,
             DocumentType = "inspection",
