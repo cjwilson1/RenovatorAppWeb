@@ -1,0 +1,88 @@
+@model RenovatorApp.Web.ViewModels.MileageTrackingIndexViewModel
+@{
+    ViewData["Title"] = "Mileage Tracking";
+}
+
+<div class="page-header-row">
+    <div>
+        <h1>Mileage Tracking</h1>
+        <p class="text-muted">@Model.Trips.Count trip@(Model.Trips.Count == 1 ? string.Empty : "s")</p>
+    </div>
+    <a class="btn btn-secondary" asp-controller="Home" asp-action="Index">Back</a>
+</div>
+
+<div class="table-responsive">
+    <table class="table table-striped align-middle">
+        <thead>
+            <tr>
+                <th scope="col">Start Time</th>
+                <th scope="col">Elapsed Time</th>
+                <th scope="col" class="text-end">Total Mileage</th>
+                <th scope="col">End Time</th>
+            </tr>
+        </thead>
+        <tbody>
+            @if (Model.Trips.Count == 0)
+            {
+                <tr>
+                    <td class="text-muted" colspan="4">No mileage tracking rows found.</td>
+                </tr>
+            }
+            else
+            {
+                @foreach (var trip in Model.Trips)
+                {
+                    <tr class="clickable-table-row"
+                        data-href="@Url.Action("Trip", "MileageTracking", new { id = trip.UniqueId })"
+                        tabindex="0"
+                        aria-label="Open trip from @FormatDateTime(trip.StartTimeUtc)">
+                        <td>@FormatDateTime(trip.StartTimeUtc)</td>
+                        <td>@FormatElapsedTime(trip.ElapsedTime)</td>
+                        <td class="text-end">@FormatMileage(trip.TotalMileage)</td>
+                        <td>@FormatDateTime(trip.EndTimeUtc)</td>
+                    </tr>
+                }
+            }
+        </tbody>
+    </table>
+</div>
+
+@section Scripts {
+    <script>
+        document.querySelectorAll('.clickable-table-row').forEach((row) => {
+            const navigate = () => {
+                const href = row.getAttribute('data-href');
+                if (href) {
+                    window.location.href = href;
+                }
+            };
+
+            row.addEventListener('click', navigate);
+            row.addEventListener('keydown', (event) => {
+                if (event.key === 'Enter' || event.key === ' ') {
+                    event.preventDefault();
+                    navigate();
+                }
+            });
+        });
+    </script>
+}
+
+@functions {
+    private static string FormatDateTime(DateTime value)
+    {
+        return value.ToLocalTime().ToString("g");
+    }
+
+    private static string FormatElapsedTime(TimeSpan value)
+    {
+        return value.TotalHours >= 1
+            ? $"{(int)value.TotalHours}:{value.Minutes:00}:{value.Seconds:00}"
+            : $"{value.Minutes:00}:{value.Seconds:00}";
+    }
+
+    private static string FormatMileage(double value)
+    {
+        return $"{value:N2}";
+    }
+}

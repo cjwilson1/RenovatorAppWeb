@@ -1,0 +1,95 @@
+@model RenovatorApp.Web.ViewModels.MileageTrackingTripViewModel
+@{
+    ViewData["Title"] = "Trip";
+}
+
+<div class="page-header-row">
+    <div>
+        <h1>Trip</h1>
+        <p class="text-muted">@FormatDateTime(Model.Trip.StartTimeUtc)</p>
+    </div>
+    <a class="btn btn-secondary" asp-controller="MileageTracking" asp-action="Index">Back</a>
+</div>
+
+<section class="detail-section mb-4">
+    <h2>Trip Details</h2>
+    <div class="table-responsive">
+        <table class="table table-striped align-middle mb-0">
+            <thead>
+                <tr>
+                    <th scope="col">Start Time</th>
+                    <th scope="col">Elapsed Time</th>
+                    <th scope="col" class="text-end">Total Mileage</th>
+                    <th scope="col">End Time</th>
+                </tr>
+            </thead>
+            <tbody>
+                <tr>
+                    <td>@FormatDateTime(Model.Trip.StartTimeUtc)</td>
+                    <td>@FormatElapsedTime(Model.Trip.ElapsedTime)</td>
+                    <td class="text-end">@FormatMileage(Model.Trip.TotalMileage)</td>
+                    <td>@FormatDateTime(Model.Trip.EndTimeUtc)</td>
+                </tr>
+            </tbody>
+        </table>
+    </div>
+</section>
+
+<section class="detail-section">
+    <h2>Waypoints</h2>
+    <div class="table-responsive">
+        <table class="table table-striped align-middle mb-0">
+            <thead>
+                <tr>
+                    <th scope="col">Waypoint Time</th>
+                    <th scope="col">GPS Coordinates</th>
+                </tr>
+            </thead>
+            <tbody>
+                @if (Model.Waypoints.Count == 0)
+                {
+                    <tr>
+                        <td class="text-muted" colspan="2">No waypoints found.</td>
+                    </tr>
+                }
+                else
+                {
+                    @for (var index = 0; index < Model.Waypoints.Count; index++)
+                    {
+                        var waypoint = Model.Waypoints[index];
+                        <tr>
+                            <td>@FormatDateTime(waypoint.WaypointTimeUtc)</td>
+                            <td>@FormatWaypointCoordinates(waypoint.GpsCoordinates, index)</td>
+                        </tr>
+                    }
+                }
+            </tbody>
+        </table>
+    </div>
+</section>
+
+@functions {
+    private static string FormatDateTime(DateTime value)
+    {
+        return value.ToLocalTime().ToString("g");
+    }
+
+    private static string FormatElapsedTime(TimeSpan value)
+    {
+        return value.TotalHours >= 1
+            ? $"{(int)value.TotalHours}:{value.Minutes:00}:{value.Seconds:00}"
+            : $"{value.Minutes:00}:{value.Seconds:00}";
+    }
+
+    private static string FormatMileage(double value)
+    {
+        return $"{value:N2}";
+    }
+
+    private static string FormatWaypointCoordinates(string value, int index)
+    {
+        return index == 0 && string.IsNullOrWhiteSpace(value)
+            ? "Trip start"
+            : value;
+    }
+}
