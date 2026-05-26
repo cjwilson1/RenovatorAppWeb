@@ -24,6 +24,7 @@ public sealed class MileageTrackingRowViewModel
 public sealed class MileageTrackingWaypointViewModel
 {
     public DateTime WaypointTimeUtc { get; init; }
+    public double CumulativeMiles { get; init; }
     public string GpsCoordinates { get; init; } = string.Empty;
     public string Location { get; init; } = string.Empty;
 }

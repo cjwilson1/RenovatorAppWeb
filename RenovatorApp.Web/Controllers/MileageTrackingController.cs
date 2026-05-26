@@ -61,6 +61,7 @@ public sealed class MileageTrackingController : Controller
                 .Select(waypoint => new MileageTrackingWaypointViewModel
                 {
                     WaypointTimeUtc = waypoint.WaypointTime,
+                    CumulativeMiles = waypoint.CumulativeMiles,
                     GpsCoordinates = waypoint.GpsCoordinates,
                     Location = waypoint.Location ?? string.Empty
                 })

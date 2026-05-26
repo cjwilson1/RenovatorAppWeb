@@ -178,4 +178,5 @@ public sealed record SyncMileageTrackingWaypointDto(
     Guid UniqueId,
     Guid MileageTrackingId,
     DateTime WaypointTime,
+    double CumulativeMiles,
     string GpsCoordinates);

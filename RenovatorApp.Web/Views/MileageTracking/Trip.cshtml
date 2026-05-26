@@ -61,6 +61,7 @@
                 <tr>
                     <th scope="col">#</th>
                     <th scope="col">Waypoint Time</th>
+                    <th scope="col" class="text-end">Cumulative Miles</th>
                     <th scope="col">GPS Coordinates</th>
                     <th scope="col">Location</th>
                 </tr>
@@ -69,7 +70,7 @@
                 @if (Model.Waypoints.Count == 0)
                 {
                     <tr>
-                        <td class="text-muted" colspan="4">No waypoints found.</td>
+                        <td class="text-muted" colspan="5">No waypoints found.</td>
                     </tr>
                 }
                 else
@@ -80,6 +81,7 @@
                         <tr>
                             <td>@(index + 1)</td>
                             <td>@FormatDateTime(waypoint.WaypointTimeUtc)</td>
+                            <td class="text-end">@FormatMileage(waypoint.CumulativeMiles)</td>
                             <td>@FormatWaypointCoordinates(waypoint.GpsCoordinates, index)</td>
                             <td>@FormatLocation(waypoint.Location)</td>
                         </tr>

@@ -801,6 +801,9 @@ namespace RenovatorApp.Infrastructure.Data.Migrations
                         .ValueGeneratedOnAdd()
                         .HasColumnType("uuid");
 
+                    b.Property<double>("CumulativeMiles")
+                        .HasColumnType("double precision");
+
                     b.Property<string>("GpsCoordinates")
                         .IsRequired()
                         .HasColumnType("text");

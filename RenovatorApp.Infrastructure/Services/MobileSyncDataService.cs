@@ -517,6 +517,7 @@ public sealed class MobileSyncDataService
                     UniqueId = item.UniqueId,
                     MileageTrackingId = item.MileageTrackingId,
                     WaypointTime = NormalizeUtc(item.WaypointTime),
+                    CumulativeMiles = item.CumulativeMiles,
                     GpsCoordinates = item.GpsCoordinates
                 });
                 results.Add(MobileSyncResult.Created(nameof(MileageTrackingWaypoint), item.UniqueId));
@@ -525,6 +526,7 @@ public sealed class MobileSyncDataService
 
             entity.MileageTrackingId = item.MileageTrackingId;
             entity.WaypointTime = NormalizeUtc(item.WaypointTime);
+            entity.CumulativeMiles = item.CumulativeMiles;
             entity.GpsCoordinates = item.GpsCoordinates;
             results.Add(MobileSyncResult.Updated(nameof(MileageTrackingWaypoint), item.UniqueId));
         }
@@ -650,4 +652,4 @@ public sealed record MobileSyncInspectionAreaNote(Guid Id, Guid PropertyId, Guid
 public sealed record MobileSyncInspectionAreaNoteEstimateItem(Guid Id, Guid PropertyId, Guid? BuildingId, Guid AreaId, Guid AreaNoteId, DateTime CreatedAtUtc, DateTime UpdatedAtUtc, string Name, decimal Cost, decimal Hours);
 public sealed record MobileSyncInspectionAreaNotePhoto(Guid Id, Guid PropertyId, Guid? BuildingId, Guid AreaId, Guid AreaNoteId, DateTime CreatedAtUtc, string FileName, string ContentType, string DataBase64);
 public sealed record MobileSyncMileageTracking(Guid UniqueId, DateTime TrackingStartedAtUtc, double TotalMileage, TimeSpan TotalTime, string StartingLocation, string StartingPosition, string EndingLocation, string EndingPosition);
-public sealed record MobileSyncMileageTrackingWaypoint(Guid UniqueId, Guid MileageTrackingId, DateTime WaypointTime, string GpsCoordinates);
+public sealed record MobileSyncMileageTrackingWaypoint(Guid UniqueId, Guid MileageTrackingId, DateTime WaypointTime, double CumulativeMiles, string GpsCoordinates);

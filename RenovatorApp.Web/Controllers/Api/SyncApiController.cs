@@ -215,6 +215,7 @@ public sealed class SyncApiController : ControllerBase
                 item.UniqueId,
                 item.MileageTrackingId,
                 item.WaypointTime,
+                item.CumulativeMiles,
                 item.GpsCoordinates)).ToList());
     }
 }
