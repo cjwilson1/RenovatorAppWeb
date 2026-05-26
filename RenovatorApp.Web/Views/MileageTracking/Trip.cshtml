@@ -35,21 +35,41 @@
     </div>
 </section>
 
+<section class="detail-section mb-4">
+    <h2>Map</h2>
+    @if (string.IsNullOrWhiteSpace(Model.MapImageUrl))
+    {
+        <p class="text-muted">No map is available for this trip.</p>
+    }
+    else
+    {
+        <img class="trip-map-image"
+             src="@Model.MapImageUrl"
+             alt="Static map of trip waypoints" />
+        <p class="text-muted mt-2">
+            Powered by <a href="https://www.geoapify.com/" target="_blank" rel="noopener">Geoapify</a>
+            and <a href="https://www.openstreetmap.org/copyright" target="_blank" rel="noopener">OpenStreetMap contributors</a>
+        </p>
+    }
+</section>
+
 <section class="detail-section">
     <h2>Waypoints</h2>
     <div class="table-responsive">
         <table class="table table-striped align-middle mb-0">
             <thead>
                 <tr>
+                    <th scope="col">#</th>
                     <th scope="col">Waypoint Time</th>
                     <th scope="col">GPS Coordinates</th>
+                    <th scope="col">Location</th>
                 </tr>
             </thead>
             <tbody>
                 @if (Model.Waypoints.Count == 0)
                 {
                     <tr>
-                        <td class="text-muted" colspan="2">No waypoints found.</td>
+                        <td class="text-muted" colspan="4">No waypoints found.</td>
                     </tr>
                 }
                 else
@@ -58,8 +78,10 @@
                     {
                         var waypoint = Model.Waypoints[index];
                         <tr>
+                            <td>@(index + 1)</td>
                             <td>@FormatDateTime(waypoint.WaypointTimeUtc)</td>
                             <td>@FormatWaypointCoordinates(waypoint.GpsCoordinates, index)</td>
+                            <td>@FormatLocation(waypoint.Location)</td>
                         </tr>
                     }
                 }
@@ -90,6 +112,13 @@
     {
         return index == 0 && string.IsNullOrWhiteSpace(value)
             ? "Trip start"
+            : value;
+    }
+
+    private static string FormatLocation(string value)
+    {
+        return string.IsNullOrWhiteSpace(value)
+            ? "-"
             : value;
     }
 }

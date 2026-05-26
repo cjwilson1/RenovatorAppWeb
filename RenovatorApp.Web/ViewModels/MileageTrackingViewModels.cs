@@ -8,6 +8,7 @@ public sealed class MileageTrackingIndexViewModel
 public sealed class MileageTrackingTripViewModel
 {
     public MileageTrackingRowViewModel Trip { get; init; } = new();
+    public string MapImageUrl { get; init; } = string.Empty;
     public IReadOnlyList<MileageTrackingWaypointViewModel> Waypoints { get; init; } = [];
 }
 
@@ -24,4 +25,5 @@ public sealed class MileageTrackingWaypointViewModel
 {
     public DateTime WaypointTimeUtc { get; init; }
     public string GpsCoordinates { get; init; } = string.Empty;
+    public string Location { get; init; } = string.Empty;
 }

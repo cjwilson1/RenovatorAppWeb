@@ -805,6 +805,9 @@ namespace RenovatorApp.Infrastructure.Data.Migrations
                         .IsRequired()
                         .HasColumnType("text");
 
+                    b.Property<string>("Location")
+                        .HasColumnType("text");
+
                     b.Property<Guid>("MileageTrackingId")
                         .HasColumnType("uuid");
 

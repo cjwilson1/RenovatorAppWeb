@@ -6,5 +6,6 @@ public sealed class MileageTrackingWaypoint
     public Guid MileageTrackingId { get; set; }
     public DateTime WaypointTime { get; set; }
     public string GpsCoordinates { get; set; } = string.Empty;
+    public string? Location { get; set; }
     public MileageTracking? MileageTracking { get; set; }
 }
