@@ -92,11 +92,19 @@ public sealed class MileageTrackingController : Controller
 
         var mapWaypoints = waypoints
             .OrderBy(waypoint => waypoint.WaypointTime)
-            .Select(waypoint => new MapWaypoint(
-                TryParseGpsCoordinates(waypoint.GpsCoordinates),
-                waypoint.WaypointTime.ToLocalTime().ToString("h:mm", CultureInfo.CurrentCulture)))
-            .Where(waypoint => waypoint.Coordinate.HasValue)
-            .Select(waypoint => waypoint with { Coordinate = waypoint.Coordinate!.Value })
+            .Select((waypoint, index) => new
+            {
+                Waypoint = waypoint,
+                Number = index + 1
+            })
+            .Where(item => item.Number != 1 || item.Waypoint.CumulativeMiles > 0)
+            .Select(item => new
+            {
+                Coordinate = TryParseGpsCoordinates(item.Waypoint.GpsCoordinates),
+                item.Number
+            })
+            .Where(item => item.Coordinate.HasValue)
+            .Select(item => new MapWaypoint(item.Coordinate!.Value, item.Number))
             .ToList();
 
         if (mapWaypoints.Count == 0)
@@ -114,18 +122,22 @@ public sealed class MileageTrackingController : Controller
         };
 
         var markers = mapWaypoints
-            .Select((waypoint, index) =>
+            .GroupBy(waypoint => waypoint.Coordinate)
+            .Select((group, index) =>
             {
-                var coordinate = waypoint.Coordinate!.Value;
+                var coordinate = group.Key;
                 var pinColor = index == 0 ? "%23198754" : "%23d92d20";
+                var label = string.Join(",", group.Select(waypoint => waypoint.Number));
+                var contentsize = label.Length > 3 ? 10 : 14;
 
                 return string.Format(
                     CultureInfo.InvariantCulture,
-                    "lonlat:{0:0.##############},{1:0.##############};type:material;color:{2};size:24;text:{3};contentsize:14;contentcolor:%23ffffff;whitecircle:no",
+                    "lonlat:{0:0.##############},{1:0.##############};type:material;color:{2};size:24;text:{3};contentsize:{4};contentcolor:%23ffffff;whitecircle:no",
                     coordinate.Longitude,
                     coordinate.Latitude,
                     pinColor,
-                    index + 1);
+                    Uri.EscapeDataString(label),
+                    contentsize);
             });
 
         query.Add($"marker={string.Join('|', markers)}");
@@ -136,7 +148,7 @@ public sealed class MileageTrackingController : Controller
                 ',',
                 mapWaypoints.Select(waypoint =>
                 {
-                    var coordinate = waypoint.Coordinate!.Value;
+                    var coordinate = waypoint.Coordinate;
 
                     return string.Format(
                         CultureInfo.InvariantCulture,
@@ -271,5 +283,5 @@ public sealed class MileageTrackingController : Controller
 
     private readonly record struct MapCoordinate(double Latitude, double Longitude);
 
-    private readonly record struct MapWaypoint(MapCoordinate? Coordinate, string Label);
+    private readonly record struct MapWaypoint(MapCoordinate Coordinate, int Number);
 }
