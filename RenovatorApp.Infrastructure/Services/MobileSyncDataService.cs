@@ -475,6 +475,60 @@ public sealed class MobileSyncDataService
             results.Add(MobileSyncResult.Updated(nameof(InspectionAreaNotePhoto), item.Id));
         }
 
+        foreach (var item in batch.MileageTracking)
+        {
+            var entity = await _dbContext.MileageTracking.FindAsync([item.UniqueId], cancellationToken);
+
+            if (entity is null)
+            {
+                _dbContext.MileageTracking.Add(new MileageTracking
+                {
+                    UniqueId = item.UniqueId,
+                    TrackingStartedAtUtc = NormalizeUtc(item.TrackingStartedAtUtc),
+                    TotalMileage = item.TotalMileage,
+                    TotalTime = item.TotalTime,
+                    StartingLocation = item.StartingLocation,
+                    StartingPosition = item.StartingPosition,
+                    EndingLocation = item.EndingLocation,
+                    EndingPosition = item.EndingPosition
+                });
+                results.Add(MobileSyncResult.Created(nameof(MileageTracking), item.UniqueId));
+                continue;
+            }
+
+            entity.TrackingStartedAtUtc = NormalizeUtc(item.TrackingStartedAtUtc);
+            entity.TotalMileage = item.TotalMileage;
+            entity.TotalTime = item.TotalTime;
+            entity.StartingLocation = item.StartingLocation;
+            entity.StartingPosition = item.StartingPosition;
+            entity.EndingLocation = item.EndingLocation;
+            entity.EndingPosition = item.EndingPosition;
+            results.Add(MobileSyncResult.Updated(nameof(MileageTracking), item.UniqueId));
+        }
+
+        foreach (var item in batch.MileageTrackingWaypoints)
+        {
+            var entity = await _dbContext.MileageTrackingWaypoints.FindAsync([item.UniqueId], cancellationToken);
+
+            if (entity is null)
+            {
+                _dbContext.MileageTrackingWaypoints.Add(new MileageTrackingWaypoint
+                {
+                    UniqueId = item.UniqueId,
+                    MileageTrackingId = item.MileageTrackingId,
+                    WaypointTime = NormalizeUtc(item.WaypointTime),
+                    GpsCoordinates = item.GpsCoordinates
+                });
+                results.Add(MobileSyncResult.Created(nameof(MileageTrackingWaypoint), item.UniqueId));
+                continue;
+            }
+
+            entity.MileageTrackingId = item.MileageTrackingId;
+            entity.WaypointTime = NormalizeUtc(item.WaypointTime);
+            entity.GpsCoordinates = item.GpsCoordinates;
+            results.Add(MobileSyncResult.Updated(nameof(MileageTrackingWaypoint), item.UniqueId));
+        }
+
         await _dbContext.SaveChangesAsync(cancellationToken);
         await transaction.CommitAsync(cancellationToken);
 
@@ -566,7 +620,9 @@ public sealed record MobileSyncBatch(
     IReadOnlyList<MobileSyncInspectionArea> InspectionAreas,
     IReadOnlyList<MobileSyncInspectionAreaNote> InspectionAreaNotes,
     IReadOnlyList<MobileSyncInspectionAreaNoteEstimateItem> InspectionAreaNoteEstimateItems,
-    IReadOnlyList<MobileSyncInspectionAreaNotePhoto> InspectionAreaNotePhotos);
+    IReadOnlyList<MobileSyncInspectionAreaNotePhoto> InspectionAreaNotePhotos,
+    IReadOnlyList<MobileSyncMileageTracking> MileageTracking,
+    IReadOnlyList<MobileSyncMileageTrackingWaypoint> MileageTrackingWaypoints);
 
 public sealed record MobileSyncResult(string EntityName, Guid Id, string Status, string? Message)
 {
@@ -593,3 +649,5 @@ public sealed record MobileSyncInspectionArea(Guid Id, Guid PropertyId, Guid? Bu
 public sealed record MobileSyncInspectionAreaNote(Guid Id, Guid PropertyId, Guid? BuildingId, Guid AreaId, DateTime CreatedAtUtc, DateTime UpdatedAtUtc, string Text);
 public sealed record MobileSyncInspectionAreaNoteEstimateItem(Guid Id, Guid PropertyId, Guid? BuildingId, Guid AreaId, Guid AreaNoteId, DateTime CreatedAtUtc, DateTime UpdatedAtUtc, string Name, decimal Cost, decimal Hours);
 public sealed record MobileSyncInspectionAreaNotePhoto(Guid Id, Guid PropertyId, Guid? BuildingId, Guid AreaId, Guid AreaNoteId, DateTime CreatedAtUtc, string FileName, string ContentType, string DataBase64);
+public sealed record MobileSyncMileageTracking(Guid UniqueId, DateTime TrackingStartedAtUtc, double TotalMileage, TimeSpan TotalTime, string StartingLocation, string StartingPosition, string EndingLocation, string EndingPosition);
+public sealed record MobileSyncMileageTrackingWaypoint(Guid UniqueId, Guid MileageTrackingId, DateTime WaypointTime, string GpsCoordinates);

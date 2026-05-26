@@ -24,6 +24,8 @@ public sealed class RenovatorAppDbContext : DbContext
     public DbSet<InspectionAreaNotePhoto> InspectionAreaNotePhotos => Set<InspectionAreaNotePhoto>();
     public DbSet<InspectionAreaType> InspectionAreaTypes => Set<InspectionAreaType>();
     public DbSet<Inspector> Inspectors => Set<Inspector>();
+    public DbSet<MileageTracking> MileageTracking => Set<MileageTracking>();
+    public DbSet<MileageTrackingWaypoint> MileageTrackingWaypoints => Set<MileageTrackingWaypoint>();
     public DbSet<Part> Parts => Set<Part>();
     public DbSet<PartSource> PartSources => Set<PartSource>();
     public DbSet<Property> Properties => Set<Property>();
@@ -54,6 +56,8 @@ public sealed class RenovatorAppDbContext : DbContext
         modelBuilder.Entity<InspectionAreaNotePhoto>().ToTable("InspectionAreaNotePhoto");
         modelBuilder.Entity<InspectionAreaType>().ToTable("InspectionAreaType");
         modelBuilder.Entity<Inspector>().ToTable("Inspectors");
+        modelBuilder.Entity<MileageTracking>().ToTable("MileageTracking");
+        modelBuilder.Entity<MileageTrackingWaypoint>().ToTable("MileageTrackingWaypoint");
         modelBuilder.Entity<Part>().ToTable("Part");
         modelBuilder.Entity<PartSource>().ToTable("PartSource");
         modelBuilder.Entity<Property>().ToTable("Property");
@@ -76,6 +80,8 @@ public sealed class RenovatorAppDbContext : DbContext
         modelBuilder.Entity<InspectionAreaNotePhoto>().HasKey(photo => photo.Id);
         modelBuilder.Entity<InspectionAreaType>().HasKey(areaType => areaType.AreaTypeId);
         modelBuilder.Entity<Inspector>().HasKey(inspector => inspector.Id);
+        modelBuilder.Entity<MileageTracking>().HasKey(session => session.UniqueId);
+        modelBuilder.Entity<MileageTrackingWaypoint>().HasKey(waypoint => waypoint.UniqueId);
         modelBuilder.Entity<Part>().HasKey(part => part.PartId);
         modelBuilder.Entity<PartSource>().HasKey(source => source.PartSourceId);
         modelBuilder.Entity<Property>().HasKey(property => property.Id);
@@ -184,6 +190,12 @@ public sealed class RenovatorAppDbContext : DbContext
             .WithMany(source => source.Parts)
             .HasForeignKey(part => part.PartSourceId)
             .OnDelete(DeleteBehavior.Restrict);
+
+        modelBuilder.Entity<MileageTrackingWaypoint>()
+            .HasOne(waypoint => waypoint.MileageTracking)
+            .WithMany(session => session.Waypoints)
+            .HasForeignKey(waypoint => waypoint.MileageTrackingId)
+            .OnDelete(DeleteBehavior.Cascade);
     }
 
     private static void ConfigureIndexes(ModelBuilder modelBuilder)
@@ -205,6 +217,9 @@ public sealed class RenovatorAppDbContext : DbContext
         modelBuilder.Entity<Inspection>().HasIndex(inspection => inspection.InspectionDate);
         modelBuilder.Entity<InspectionAreaCategory>().HasIndex(category => category.Name).IsUnique();
         modelBuilder.Entity<InspectionAreaType>().HasIndex(areaType => areaType.Name).IsUnique();
+        modelBuilder.Entity<MileageTracking>().HasIndex(session => session.TrackingStartedAtUtc);
+        modelBuilder.Entity<MileageTrackingWaypoint>().HasIndex(waypoint => waypoint.MileageTrackingId);
+        modelBuilder.Entity<MileageTrackingWaypoint>().HasIndex(waypoint => waypoint.WaypointTime);
         modelBuilder.Entity<Part>().HasIndex(part => part.Name);
         modelBuilder.Entity<PartSource>().HasIndex(source => source.Name).IsUnique();
     }

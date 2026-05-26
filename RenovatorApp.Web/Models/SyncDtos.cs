@@ -18,7 +18,9 @@ public sealed record SyncRequest(
     IReadOnlyList<SyncInspectionAreaDto>? InspectionAreas,
     IReadOnlyList<SyncInspectionAreaNoteDto>? InspectionAreaNotes,
     IReadOnlyList<SyncInspectionAreaNoteEstimateItemDto>? InspectionAreaNoteEstimateItems,
-    IReadOnlyList<SyncInspectionAreaNotePhotoDto>? InspectionAreaNotePhotos);
+    IReadOnlyList<SyncInspectionAreaNotePhotoDto>? InspectionAreaNotePhotos,
+    IReadOnlyList<SyncMileageTrackingDto>? MileageTracking,
+    IReadOnlyList<SyncMileageTrackingWaypointDto>? MileageTrackingWaypoints);
 
 public sealed record SyncResponse(
     DateTime SyncedAtUtc,
@@ -161,3 +163,19 @@ public sealed record SyncInspectionAreaNotePhotoDto(
     string FileName,
     string ContentType,
     string DataBase64);
+
+public sealed record SyncMileageTrackingDto(
+    Guid UniqueId,
+    DateTime TrackingStartedAtUtc,
+    double TotalMileage,
+    TimeSpan TotalTime,
+    string StartingLocation,
+    string StartingPosition,
+    string EndingLocation,
+    string EndingPosition);
+
+public sealed record SyncMileageTrackingWaypointDto(
+    Guid UniqueId,
+    Guid MileageTrackingId,
+    DateTime WaypointTime,
+    string GpsCoordinates);

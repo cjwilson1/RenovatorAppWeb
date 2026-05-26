@@ -201,6 +201,20 @@ public sealed class SyncApiController : ControllerBase
                 item.CreatedAtUtc,
                 item.FileName,
                 item.ContentType,
-                item.DataBase64)).ToList());
+                item.DataBase64)).ToList(),
+            (request.MileageTracking ?? []).Select(item => new MobileSyncMileageTracking(
+                item.UniqueId,
+                item.TrackingStartedAtUtc,
+                item.TotalMileage,
+                item.TotalTime,
+                item.StartingLocation,
+                item.StartingPosition,
+                item.EndingLocation,
+                item.EndingPosition)).ToList(),
+            (request.MileageTrackingWaypoints ?? []).Select(item => new MobileSyncMileageTrackingWaypoint(
+                item.UniqueId,
+                item.MileageTrackingId,
+                item.WaypointTime,
+                item.GpsCoordinates)).ToList());
     }
 }
