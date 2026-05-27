@@ -9,13 +9,22 @@
         <h1 class="mb-1">Database</h1>
         <p class="text-muted mb-0">View table rows from the RenovatorApp database.</p>
     </div>
-    <form method="post"
-          asp-controller="Database"
-          asp-action="Clear"
-          onsubmit="return confirm('This will delete all data in the database.  Are you sure?');">
-        @Html.AntiForgeryToken()
-        <button type="submit" class="btn btn-danger">Clear Database</button>
-    </form>
+    <div class="d-flex flex-wrap justify-content-end gap-2">
+        <form method="post"
+              asp-controller="Database"
+              asp-action="ClearMileageTracking"
+              onsubmit="return confirm('This will delete all MileageTracking and MileageTrackingWaypoint rows. Are you sure?');">
+            @Html.AntiForgeryToken()
+            <button type="submit" class="btn btn-warning">Clear all Mileage tracking</button>
+        </form>
+        <form method="post"
+              asp-controller="Database"
+              asp-action="Clear"
+              onsubmit="return confirm('This will delete all data in the database.  Are you sure?');">
+            @Html.AntiForgeryToken()
+            <button type="submit" class="btn btn-danger">Clear Database</button>
+        </form>
+    </div>
 </div>
 
 @if (TempData["DatabaseMessage"] is string databaseMessage)

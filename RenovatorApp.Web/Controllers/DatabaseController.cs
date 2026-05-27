@@ -48,4 +48,14 @@ public sealed class DatabaseController : Controller
 
         return RedirectToAction(nameof(Index));
     }
+
+    [HttpPost]
+    [ValidateAntiForgeryToken]
+    public async Task<IActionResult> ClearMileageTracking(CancellationToken cancellationToken)
+    {
+        var result = await _databaseViewerService.ClearMileageTrackingAsync(cancellationToken);
+        TempData["DatabaseMessage"] = $"Mileage tracking was cleared. Deleted {result.SessionsDeleted:N0} session row(s) and {result.WaypointsDeleted:N0} waypoint row(s).";
+
+        return RedirectToAction(nameof(Index));
+    }
 }

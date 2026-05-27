@@ -92,6 +92,18 @@ public sealed class DatabaseViewerService
         await transaction.CommitAsync(cancellationToken);
     }
 
+    public async Task<(int WaypointsDeleted, int SessionsDeleted)> ClearMileageTrackingAsync(CancellationToken cancellationToken = default)
+    {
+        await using var transaction = await _dbContext.Database.BeginTransactionAsync(cancellationToken);
+
+        var waypointsDeleted = await _dbContext.MileageTrackingWaypoints.ExecuteDeleteAsync(cancellationToken);
+        var sessionsDeleted = await _dbContext.MileageTracking.ExecuteDeleteAsync(cancellationToken);
+
+        await transaction.CommitAsync(cancellationToken);
+
+        return (waypointsDeleted, sessionsDeleted);
+    }
+
     private async Task<int> GetTotalRowsAsync(string quotedTableName, CancellationToken cancellationToken)
     {
         var connection = _dbContext.Database.GetDbConnection();
