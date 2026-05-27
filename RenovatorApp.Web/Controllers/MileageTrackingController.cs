@@ -90,7 +90,7 @@ public sealed class MileageTrackingController : Controller
             return string.Empty;
         }
 
-        var mapWaypoints = waypoints
+        var orderedMapWaypoints = waypoints
             .OrderBy(waypoint => waypoint.WaypointTime)
             .Select((waypoint, index) => new
             {
@@ -106,8 +106,11 @@ public sealed class MileageTrackingController : Controller
             .Where(item => item.Coordinate.HasValue)
             .Select(item => new MapWaypoint(item.Coordinate!.Value, item.Number))
             .ToList();
+        var markerWaypoints = orderedMapWaypoints
+            .Where(waypoint => waypoint.Number != 1)
+            .ToList();
 
-        if (mapWaypoints.Count == 0)
+        if (markerWaypoints.Count == 0)
         {
             return string.Empty;
         }
@@ -121,7 +124,7 @@ public sealed class MileageTrackingController : Controller
             "format=png"
         };
 
-        var markers = mapWaypoints
+        var markers = markerWaypoints
             .GroupBy(waypoint => waypoint.Coordinate)
             .Select((group, index) =>
             {
@@ -142,11 +145,11 @@ public sealed class MileageTrackingController : Controller
 
         query.Add($"marker={string.Join('|', markers)}");
 
-        if (mapWaypoints.Count > 1)
+        if (orderedMapWaypoints.Count > 1)
         {
             var lineCoordinates = string.Join(
                 ',',
-                mapWaypoints.Select(waypoint =>
+                orderedMapWaypoints.Select(waypoint =>
                 {
                     var coordinate = waypoint.Coordinate;
 
