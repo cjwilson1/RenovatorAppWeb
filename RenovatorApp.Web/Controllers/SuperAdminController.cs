@@ -1,3 +1,6 @@
+using System.Security.Claims;
+using Microsoft.AspNetCore.Authentication;
+using Microsoft.AspNetCore.Authentication.Cookies;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
@@ -17,15 +20,18 @@ public sealed class SuperAdminController : Controller
     private readonly DatabaseViewerService _databaseViewerService;
     private readonly RenovatorAppDbContext _dbContext;
     private readonly PasswordService _passwordService;
+    private readonly CurrentUserSession _currentUserSession;
 
     public SuperAdminController(
         DatabaseViewerService databaseViewerService,
         RenovatorAppDbContext dbContext,
-        PasswordService passwordService)
+        PasswordService passwordService,
+        CurrentUserSession currentUserSession)
     {
         _databaseViewerService = databaseViewerService;
         _dbContext = dbContext;
         _passwordService = passwordService;
+        _currentUserSession = currentUserSession;
     }
 
     public IActionResult Index()
@@ -82,6 +88,60 @@ public sealed class SuperAdminController : Controller
     public async Task<IActionResult> AddUser(CancellationToken cancellationToken)
     {
         return View("EditUser", await BuildGlobalUserEditViewModelAsync(null, cancellationToken));
+    }
+
+    [HttpPost("SuperAdmin/Users/{id:guid}/Login")]
+    [ValidateAntiForgeryToken]
+    public async Task<IActionResult> LoginAsUser(Guid id, CancellationToken cancellationToken)
+    {
+        var user = await _dbContext.RenoUsers
+            .Include(item => item.RenoCompany)
+            .Include(item => item.UserRoles)
+                .ThenInclude(item => item.Role)
+            .FirstOrDefaultAsync(item => item.UserID == id, cancellationToken);
+
+        if (user is null)
+        {
+            return NotFound();
+        }
+
+        if (!user.Active || user.RenoCompany is null || !user.RenoCompany.Active || user.RenoCompanyID is null)
+        {
+            TempData["SuperAdminUsersMessage"] = "That user cannot be logged in because the user or company is inactive or unassigned.";
+            return RedirectToAction(nameof(Users));
+        }
+
+        var roleIDs = user.UserRoles.Select(item => item.RoleID).ToList();
+        var roleNames = user.UserRoles
+            .Select(item => item.Role?.Name)
+            .Where(item => !string.IsNullOrWhiteSpace(item))
+            .Cast<string>()
+            .ToList();
+
+        var claims = new List<Claim>
+        {
+            new(ClaimTypes.NameIdentifier, user.UserID.ToString()),
+            new(ClaimTypes.Name, user.Login),
+            new("RenoCompanyID", user.RenoCompanyID.Value.ToString()),
+            new("RoleIDs", string.Join(',', roleIDs))
+        };
+
+        claims.AddRange(roleNames.Select(roleName => new Claim(ClaimTypes.Role, roleName)));
+
+        await HttpContext.SignInAsync(
+            CookieAuthenticationDefaults.AuthenticationScheme,
+            new ClaimsPrincipal(new ClaimsIdentity(claims, CookieAuthenticationDefaults.AuthenticationScheme)),
+            new AuthenticationProperties
+            {
+                IsPersistent = false,
+                IssuedUtc = DateTimeOffset.UtcNow
+            });
+
+        user.DateLastLogin = DateTime.UtcNow;
+        await _dbContext.SaveChangesAsync(cancellationToken);
+        _currentUserSession.Set(user.UserID, user.RenoCompanyID.Value, roleIDs);
+
+        return RedirectToAction("Index", "Home");
     }
 
     [HttpPost("SuperAdmin/Users/Add")]

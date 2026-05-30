@@ -177,6 +177,10 @@ body > header,
   margin-bottom: 1.5rem;
 }
 
+.superadmin-navbar {
+  background-color: #dff1ff;
+}
+
 .empty-state,
 .detail-section {
   border: 1px solid #d7d7d7;
@@ -274,6 +278,26 @@ body > header,
 .detail-section h2 {
   font-size: 1.15rem;
   margin-bottom: 0.75rem;
+}
+
+.detail-section-title-row {
+  align-items: baseline;
+  display: flex;
+  gap: 1rem;
+  justify-content: space-between;
+  margin-bottom: 0.75rem;
+}
+
+.detail-section-title-row h2 {
+  margin-bottom: 0;
+}
+
+.readonly-id {
+  color: #6c757d;
+  font-family: Consolas, "Courier New", monospace;
+  font-size: 0.85rem;
+  overflow-wrap: anywhere;
+  text-align: right;
 }
 
 .superadmin-panel-link {

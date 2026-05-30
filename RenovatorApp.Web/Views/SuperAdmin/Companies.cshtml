@@ -11,7 +11,10 @@
         <h1>Companies</h1>
         <p class="text-muted">@Model.TotalCompanies compan@(Model.TotalCompanies == 1 ? "y" : "ies")</p>
     </div>
-    <a class="btn btn-primary" asp-controller="SuperAdmin" asp-action="AddCompany">Add Company</a>
+    <div class="d-flex flex-wrap justify-content-end gap-2">
+        <a class="btn btn-outline-secondary" asp-controller="SuperAdmin" asp-action="Index">Back</a>
+        <a class="btn btn-primary" asp-controller="SuperAdmin" asp-action="AddCompany">Add Company</a>
+    </div>
 </div>
 
 <form class="customer-search-row customer-search-row-narrow" id="companySearchForm" method="get">

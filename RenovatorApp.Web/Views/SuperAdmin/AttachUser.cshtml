@@ -9,6 +9,7 @@
         <h1>Attach Existing User</h1>
         <p class="text-muted">Move an existing user to this company.</p>
     </div>
+    <a class="btn btn-outline-secondary" asp-controller="SuperAdmin" asp-action="Index">Back</a>
 </div>
 
 <form asp-controller="SuperAdmin" asp-action="AttachCompanyUser" asp-route-companyId="@Model.RenoCompanyID" method="post">

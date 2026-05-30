@@ -9,6 +9,7 @@
         <h1>@(Model.IsEditMode ? "Edit User" : "Add User")</h1>
         <p class="text-muted">@(Model.IsEditMode ? "Update user access and roles." : "Create a new user for this company.")</p>
     </div>
+    <a class="btn btn-outline-secondary" asp-controller="SuperAdmin" asp-action="Index">Back</a>
 </div>
 
 <form asp-controller="SuperAdmin"
