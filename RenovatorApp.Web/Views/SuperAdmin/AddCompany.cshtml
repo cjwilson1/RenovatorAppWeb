@@ -1,0 +1,188 @@
+@model RenovatorApp.Web.ViewModels.SuperAdminCompanyEditViewModel
+
+@{
+    ViewData["Title"] = Model.IsEditMode ? "Edit Company" : "Add Company";
+}
+
+<div class="page-header-row">
+    <div>
+        <h1>@(Model.IsEditMode ? "Edit Company" : "Add Company")</h1>
+        <p class="text-muted">@(Model.IsEditMode ? "Update an existing RenovatorWeb company." : "Create a new RenovatorWeb company.")</p>
+    </div>
+</div>
+
+<form asp-controller="SuperAdmin"
+      asp-action="@(Model.IsEditMode ? "EditCompany" : "AddCompany")"
+      asp-route-id="@Model.RenoCompanyID"
+      method="post">
+    <input asp-for="RenoCompanyID" type="hidden" />
+
+    @if (!ViewData.ModelState.IsValid)
+    {
+        <div class="alert alert-warning" role="alert">
+            Enter a company name before saving.
+        </div>
+    }
+
+    <div class="detail-grid">
+        <section class="detail-section detail-section-full">
+            <h2>Company</h2>
+            <div class="row g-3">
+                <div class="col-12 col-lg-6">
+                    <label class="form-label" asp-for="Name"></label>
+                    <input class="form-control" asp-for="Name" />
+                    <span class="text-danger" asp-validation-for="Name"></span>
+                </div>
+                <div class="col-12 col-lg-6">
+                    <label class="form-label" asp-for="URL"></label>
+                    <input class="form-control" asp-for="URL" />
+                </div>
+                <div class="col-12 col-lg-6">
+                    <label class="form-label" asp-for="Email"></label>
+                    <input class="form-control" asp-for="Email" />
+                </div>
+                <div class="col-12 col-md-6 col-lg-3">
+                    <label class="form-label" asp-for="Phone"></label>
+                    <input class="form-control" asp-for="Phone" />
+                </div>
+                <div class="col-12 col-md-6 col-lg-3">
+                    <label class="form-label" asp-for="Fax"></label>
+                    <input class="form-control" asp-for="Fax" />
+                </div>
+                <div class="col-12">
+                    <div class="form-check">
+                        <input class="form-check-input" asp-for="Active" />
+                        <label class="form-check-label" asp-for="Active"></label>
+                    </div>
+                </div>
+            </div>
+        </section>
+
+        <section class="detail-section detail-section-full">
+            <h2>Address</h2>
+            <div class="row g-3">
+                <div class="col-12 col-lg-6">
+                    <label class="form-label" asp-for="StreetAddress"></label>
+                    <input class="form-control" asp-for="StreetAddress" />
+                </div>
+                <div class="col-12 col-lg-6">
+                    <label class="form-label" asp-for="StreetAddress2"></label>
+                    <input class="form-control" asp-for="StreetAddress2" />
+                </div>
+                <div class="col-12 col-md-5">
+                    <label class="form-label" asp-for="City"></label>
+                    <input class="form-control" asp-for="City" />
+                </div>
+                <div class="col-12 col-md-3">
+                    <label class="form-label" asp-for="State"></label>
+                    <input class="form-control" asp-for="State" />
+                </div>
+                <div class="col-12 col-md-4">
+                    <label class="form-label" asp-for="Zip"></label>
+                    <input class="form-control" asp-for="Zip" />
+                </div>
+            </div>
+        </section>
+    </div>
+
+    <div class="d-flex gap-2 mt-3">
+        <button class="btn btn-primary" type="submit">Save</button>
+        <a class="btn btn-outline-secondary" asp-controller="SuperAdmin" asp-action="Companies">Cancel</a>
+    </div>
+</form>
+
+@if (Model.IsEditMode && Model.RenoCompanyID is Guid companyId)
+{
+    <section class="detail-section detail-section-full mt-4">
+        <div class="d-flex align-items-center justify-content-between gap-3 mb-3">
+            <div>
+                <h2>Users</h2>
+                <p class="text-muted mb-0">Users currently assigned to this company.</p>
+            </div>
+            <div class="d-flex gap-2">
+                <a class="btn btn-primary" asp-controller="SuperAdmin" asp-action="AddCompanyUser" asp-route-companyId="@companyId">Add New User</a>
+                <a class="btn btn-outline-primary" asp-controller="SuperAdmin" asp-action="AttachCompanyUser" asp-route-companyId="@companyId">Attach Existing User</a>
+            </div>
+        </div>
+
+        <div class="table-responsive">
+            <table class="table table-striped align-middle">
+                <thead>
+                <tr>
+                    <th scope="col">Login</th>
+                    <th scope="col">Name</th>
+                    <th scope="col">Email</th>
+                    <th scope="col">Primary Phone</th>
+                    <th scope="col">Roles</th>
+                    <th scope="col">Active</th>
+                    <th scope="col"></th>
+                </tr>
+                </thead>
+                <tbody>
+                @if (Model.Users.Count == 0)
+                {
+                    <tr>
+                        <td class="text-muted" colspan="7">No users assigned to this company.</td>
+                    </tr>
+                }
+                else
+                {
+                    @foreach (var user in Model.Users)
+                    {
+                        <tr class="clickable-table-row"
+                            data-href="@Url.Action("EditCompanyUser", "SuperAdmin", new { companyId, userId = user.UserID })"
+                            tabindex="0"
+                            aria-label="Edit @user.Login">
+                            <td><strong>@user.Login</strong></td>
+                            <td>@($"{user.FirstName} {user.LastName}".Trim())</td>
+                            <td>@user.Email</td>
+                            <td>@user.PhonePrimary</td>
+                            <td>@user.Roles</td>
+                            <td>@(user.Active ? "Yes" : "No")</td>
+                            <td>
+                                <form asp-controller="SuperAdmin"
+                                      asp-action="RemoveCompanyUser"
+                                      asp-route-companyId="@companyId"
+                                      asp-route-userId="@user.UserID"
+                                      method="post"
+                                      onsubmit="return confirm('Remove this user from the company? They will not be able to log in until assigned to a company.');">
+                                    <button class="btn btn-outline-danger btn-sm" type="submit">Remove</button>
+                                </form>
+                            </td>
+                        </tr>
+                    }
+                }
+                </tbody>
+            </table>
+        </div>
+    </section>
+}
+
+@section Scripts {
+    <partial name="_ValidationScriptsPartial" />
+    <script>
+        document.querySelectorAll('.clickable-table-row').forEach((row) => {
+            const navigate = (event) => {
+                if (event.target.closest('form, button, a')) {
+                    return;
+                }
+
+                const href = row.getAttribute('data-href');
+                if (href) {
+                    window.location.href = href;
+                }
+            };
+
+            row.addEventListener('click', navigate);
+            row.addEventListener('keydown', (event) => {
+                if (event.key === 'Enter' || event.key === ' ') {
+                    event.preventDefault();
+                    const href = row.getAttribute('data-href');
+                    if (href) {
+                        window.location.href = href;
+                    }
+                }
+            });
+        });
+    </script>
+}

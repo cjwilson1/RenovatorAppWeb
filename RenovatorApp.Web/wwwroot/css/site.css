@@ -17,12 +17,106 @@ html {
 }
 
 html {
-  min-height: 100%;
-  position: relative;
+  height: 100%;
 }
 
 body {
-  margin-bottom: 60px;
+  display: flex;
+  flex-direction: column;
+  height: 100vh;
+  margin-bottom: 0;
+  overflow: hidden;
+}
+
+body > .container {
+  flex: 1 1 auto;
+  min-height: 0;
+  overflow-y: auto;
+}
+
+body > .container-fluid {
+  flex: 1 1 auto;
+  min-height: 0;
+  overflow-y: auto;
+}
+
+.app-content-container {
+  padding-left: 1rem;
+  padding-right: 1rem;
+}
+
+body > header,
+.footer {
+  flex-shrink: 0;
+}
+
+.footer {
+  padding-bottom: 0.75rem;
+  padding-top: 0.75rem;
+  text-align: left;
+}
+
+.footer .container {
+  text-align: left;
+}
+
+.footer-content {
+  align-items: center;
+  display: flex;
+  gap: 1rem;
+  justify-content: space-between;
+}
+
+.auth-shell {
+  align-items: flex-start;
+  display: flex;
+  justify-content: center;
+  padding: 2.5rem 0;
+}
+
+.auth-panel {
+  background: #ffffff;
+  border: 1px solid #d7d7d7;
+  border-radius: 8px;
+  box-shadow: 0 10px 30px rgb(15 23 42 / 8%);
+  max-width: 26rem;
+  padding: 1.5rem;
+  width: 100%;
+}
+
+.auth-panel-wide {
+  max-width: 34rem;
+}
+
+.auth-brand {
+  align-items: center;
+  display: flex;
+  gap: 0.85rem;
+  margin-bottom: 1.25rem;
+}
+
+.auth-brand img {
+  height: 3rem;
+  width: 3rem;
+}
+
+.auth-brand h1 {
+  font-size: 1.35rem;
+  font-weight: 700;
+  margin: 0;
+}
+
+.auth-brand p {
+  color: #6c757d;
+  margin: 0.1rem 0 0;
+}
+
+.user-menu {
+  margin-left: 1rem;
+}
+
+.user-menu .dropdown-item {
+  font-size: 0.95rem;
 }
 
 .app-hero {
@@ -38,6 +132,16 @@ body {
 .home-link-grid {
   display: grid;
   gap: 1rem;
+  margin-left: auto;
+  margin-right: auto;
+  width: 100%;
+}
+
+@media (min-width: 992px) {
+  .home-link-grid {
+    max-width: 50vw;
+    min-width: 42rem;
+  }
 }
 
 .app-hero-link {
@@ -170,6 +274,20 @@ body {
 .detail-section h2 {
   font-size: 1.15rem;
   margin-bottom: 0.75rem;
+}
+
+.superadmin-panel-link {
+  color: inherit;
+  display: block;
+  text-decoration: none;
+}
+
+.superadmin-panel-link:focus,
+.superadmin-panel-link:hover {
+  background: #f7f7f7;
+  color: inherit;
+  outline: 2px solid #0d6efd;
+  outline-offset: -2px;
 }
 
 .detail-section dl,

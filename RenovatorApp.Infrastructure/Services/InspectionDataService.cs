@@ -13,10 +13,11 @@ public sealed class InspectionDataService
         _dbContext = dbContext;
     }
 
-    public async Task<IReadOnlyList<Inspection>> GetInspectionsAsync(CancellationToken cancellationToken = default)
+    public async Task<IReadOnlyList<Inspection>> GetInspectionsAsync(Guid renoCompanyID, CancellationToken cancellationToken = default)
     {
         return await _dbContext.Inspections
             .AsNoTracking()
+            .ForCompany(renoCompanyID)
             .Include(inspection => inspection.Property)
                 .ThenInclude(property => property.Address)
             .Include(inspection => inspection.Customer)
@@ -25,10 +26,11 @@ public sealed class InspectionDataService
             .ToListAsync(cancellationToken);
     }
 
-    public async Task<Inspection?> GetInspectionDetailAsync(Guid inspectionId, CancellationToken cancellationToken = default)
+    public async Task<Inspection?> GetInspectionDetailAsync(Guid renoCompanyID, Guid inspectionId, CancellationToken cancellationToken = default)
     {
         return await _dbContext.Inspections
             .AsNoTracking()
+            .ForCompany(renoCompanyID)
             .Include(inspection => inspection.Customer)
                 .ThenInclude(customer => customer!.BillAddress)
             .Include(inspection => inspection.Property)
@@ -56,26 +58,29 @@ public sealed class InspectionDataService
             .FirstOrDefaultAsync(inspection => inspection.Id == inspectionId, cancellationToken);
     }
 
-    public async Task<IReadOnlyList<Inspector>> GetInspectorsAsync(CancellationToken cancellationToken = default)
+    public async Task<IReadOnlyList<Inspector>> GetInspectorsAsync(Guid renoCompanyID, CancellationToken cancellationToken = default)
     {
         return await _dbContext.Inspectors
             .AsNoTracking()
+            .ForCompany(renoCompanyID)
             .OrderBy(inspector => inspector.LastName)
             .ThenBy(inspector => inspector.FirstName)
             .ToListAsync(cancellationToken);
     }
 
-    public async Task<IReadOnlyList<Part>> GetPartsAsync(CancellationToken cancellationToken = default)
+    public async Task<IReadOnlyList<Part>> GetPartsAsync(Guid renoCompanyID, CancellationToken cancellationToken = default)
     {
         return await _dbContext.Parts
             .AsNoTracking()
+            .ForCompany(renoCompanyID)
             .Include(part => part.PartSource)
             .OrderBy(part => part.Name)
             .ToListAsync(cancellationToken);
     }
 
-    public async Task AddDocumentAsync(Document document, CancellationToken cancellationToken = default)
+    public async Task AddDocumentAsync(Guid renoCompanyID, Document document, CancellationToken cancellationToken = default)
     {
+        document.RenoCompanyID = renoCompanyID;
         _dbContext.Documents.Add(document);
         await _dbContext.SaveChangesAsync(cancellationToken);
     }

@@ -1,0 +1,135 @@
+@model RenovatorApp.Web.ViewModels.SuperAdminCompaniesViewModel
+
+@{
+    ViewData["Title"] = "Companies";
+    var previousPage = Math.Max(1, Model.Page - 1);
+    var nextPage = Math.Min(Model.TotalPages, Model.Page + 1);
+}
+
+<div class="page-header-row">
+    <div>
+        <h1>Companies</h1>
+        <p class="text-muted">@Model.TotalCompanies compan@(Model.TotalCompanies == 1 ? "y" : "ies")</p>
+    </div>
+    <a class="btn btn-primary" asp-controller="SuperAdmin" asp-action="AddCompany">Add Company</a>
+</div>
+
+<form class="customer-search-row customer-search-row-narrow" id="companySearchForm" method="get">
+    <input class="form-control"
+           id="companySearch"
+           name="search"
+           placeholder="search companies"
+           type="search"
+           value="@Model.Search" />
+    <button class="btn btn-outline-secondary" id="clearCompanySearch" type="button">Clear</button>
+    <input id="companyPage" name="page" type="hidden" value="@Model.Page" />
+</form>
+
+<div class="table-responsive">
+    <table class="table table-striped align-middle">
+        <thead>
+        <tr>
+            <th scope="col">Name</th>
+            <th scope="col">City</th>
+            <th scope="col">State</th>
+            <th scope="col">Phone</th>
+            <th scope="col">Email</th>
+            <th scope="col">URL</th>
+            <th scope="col">Active</th>
+            <th scope="col">Created</th>
+        </tr>
+        </thead>
+        <tbody>
+        @if (Model.Companies.Count == 0)
+        {
+            <tr>
+                <td class="text-muted" colspan="8">No companies found.</td>
+            </tr>
+        }
+        else
+        {
+            @foreach (var company in Model.Companies)
+            {
+                <tr class="clickable-table-row"
+                    data-href="@Url.Action("EditCompany", "SuperAdmin", new { id = company.RenoCompanyID })"
+                    tabindex="0"
+                    aria-label="Edit @company.Name"
+                    title="RenoCompanyID: @company.RenoCompanyID">
+                    <td><strong>@company.Name</strong></td>
+                    <td>@company.City</td>
+                    <td>@company.State</td>
+                    <td>@company.Phone</td>
+                    <td>@company.Email</td>
+                    <td>@company.URL</td>
+                    <td>@(company.Active ? "Yes" : "No")</td>
+                    <td>@company.DateCreated.ToLocalTime().ToString("g")</td>
+                </tr>
+            }
+        }
+        </tbody>
+    </table>
+</div>
+
+<div class="d-flex align-items-center justify-content-between gap-3">
+    <div class="btn-group" role="group" aria-label="Company pages">
+        <a class="btn btn-outline-secondary @(Model.Page == 1 ? "disabled" : string.Empty)"
+           asp-controller="SuperAdmin"
+           asp-action="Companies"
+           asp-route-search="@Model.Search"
+           asp-route-page="@previousPage">
+            Previous
+        </a>
+        <a class="btn btn-outline-secondary @(Model.Page == Model.TotalPages ? "disabled" : string.Empty)"
+           asp-controller="SuperAdmin"
+           asp-action="Companies"
+           asp-route-search="@Model.Search"
+           asp-route-page="@nextPage">
+            Next
+        </a>
+    </div>
+    <span class="text-muted">Page @Model.Page of @Model.TotalPages</span>
+</div>
+
+@section Scripts {
+    <script>
+        const searchForm = document.getElementById('companySearchForm');
+        const searchInput = document.getElementById('companySearch');
+        const pageInput = document.getElementById('companyPage');
+        const clearSearchButton = document.getElementById('clearCompanySearch');
+        let searchTimer;
+
+        searchInput?.addEventListener('input', () => {
+            window.clearTimeout(searchTimer);
+            const value = (searchInput.value || '').trim();
+            searchTimer = window.setTimeout(() => {
+                if (value.length === 0 || value.length >= 2) {
+                    pageInput.value = '1';
+                    searchForm.submit();
+                }
+            }, 350);
+        });
+
+        clearSearchButton?.addEventListener('click', () => {
+            searchInput.value = '';
+            pageInput.value = '1';
+            searchForm.submit();
+        });
+
+        document.querySelectorAll('.clickable-table-row').forEach((row) => {
+            const navigate = () => {
+                const href = row.getAttribute('data-href');
+                if (href) {
+                    window.location.href = href;
+                }
+            };
+
+            row.addEventListener('click', navigate);
+            row.addEventListener('keydown', (event) => {
+                if (event.key === 'Enter' || event.key === ' ') {
+                    event.preventDefault();
+                    navigate();
+                }
+            });
+        });
+    </script>
+}

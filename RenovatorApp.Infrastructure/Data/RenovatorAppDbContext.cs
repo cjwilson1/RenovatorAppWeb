@@ -29,6 +29,10 @@ public sealed class RenovatorAppDbContext : DbContext
     public DbSet<Part> Parts => Set<Part>();
     public DbSet<PartSource> PartSources => Set<PartSource>();
     public DbSet<Property> Properties => Set<Property>();
+    public DbSet<RenoCompany> RenoCompanies => Set<RenoCompany>();
+    public DbSet<RenoUser> RenoUsers => Set<RenoUser>();
+    public DbSet<Role> Roles => Set<Role>();
+    public DbSet<UserRole> UserRoles => Set<UserRole>();
 
     protected override void OnModelCreating(ModelBuilder modelBuilder)
     {
@@ -61,6 +65,10 @@ public sealed class RenovatorAppDbContext : DbContext
         modelBuilder.Entity<Part>().ToTable("Part");
         modelBuilder.Entity<PartSource>().ToTable("PartSource");
         modelBuilder.Entity<Property>().ToTable("Property");
+        modelBuilder.Entity<RenoCompany>().ToTable("RenoCompany");
+        modelBuilder.Entity<RenoUser>().ToTable("RenoUser");
+        modelBuilder.Entity<Role>().ToTable("Role");
+        modelBuilder.Entity<UserRole>().ToTable("UserRole");
     }
 
     private static void ConfigureKeys(ModelBuilder modelBuilder)
@@ -85,6 +93,10 @@ public sealed class RenovatorAppDbContext : DbContext
         modelBuilder.Entity<Part>().HasKey(part => part.PartId);
         modelBuilder.Entity<PartSource>().HasKey(source => source.PartSourceId);
         modelBuilder.Entity<Property>().HasKey(property => property.Id);
+        modelBuilder.Entity<RenoCompany>().HasKey(company => company.RenoCompanyID);
+        modelBuilder.Entity<RenoUser>().HasKey(user => user.UserID);
+        modelBuilder.Entity<Role>().HasKey(role => role.RoleID);
+        modelBuilder.Entity<UserRole>().HasKey(userRole => new { userRole.UserID, userRole.RoleID });
     }
 
     private static void ConfigureRelationships(ModelBuilder modelBuilder)
@@ -196,32 +208,60 @@ public sealed class RenovatorAppDbContext : DbContext
             .WithMany(session => session.Waypoints)
             .HasForeignKey(waypoint => waypoint.MileageTrackingId)
             .OnDelete(DeleteBehavior.Cascade);
+
+        modelBuilder.Entity<RenoUser>()
+            .HasOne(user => user.RenoCompany)
+            .WithMany(company => company.Users)
+            .HasForeignKey(user => user.RenoCompanyID)
+            .OnDelete(DeleteBehavior.Restrict);
+
+        modelBuilder.Entity<UserRole>()
+            .HasOne(userRole => userRole.User)
+            .WithMany(user => user.UserRoles)
+            .HasForeignKey(userRole => userRole.UserID)
+            .OnDelete(DeleteBehavior.Cascade);
+
+        modelBuilder.Entity<UserRole>()
+            .HasOne(userRole => userRole.Role)
+            .WithMany(role => role.UserRoles)
+            .HasForeignKey(userRole => userRole.RoleID)
+            .OnDelete(DeleteBehavior.Cascade);
     }
 
     private static void ConfigureIndexes(ModelBuilder modelBuilder)
     {
-        modelBuilder.Entity<AppSetting>().HasIndex(setting => setting.Name).IsUnique();
-        modelBuilder.Entity<BuildingType>().HasIndex(buildingType => buildingType.Name).IsUnique();
-        modelBuilder.Entity<Customer>().HasIndex(customer => customer.QuickBooksCustomerId).IsUnique().HasFilter("\"QuickBooksCustomerId\" <> ''");
+        modelBuilder.Entity<AppSetting>().HasIndex(setting => new { setting.RenoCompanyID, setting.Name }).IsUnique();
+        modelBuilder.Entity<BuildingType>().HasIndex(buildingType => new { buildingType.RenoCompanyID, buildingType.Name }).IsUnique();
+        modelBuilder.Entity<Customer>().HasIndex(customer => new { customer.RenoCompanyID, customer.QuickBooksCustomerId }).IsUnique().HasFilter("\"QuickBooksCustomerId\" <> ''");
         modelBuilder.Entity<Customer>().HasIndex(customer => customer.DisplayName);
         modelBuilder.Entity<Customer>().HasIndex(customer => customer.CompanyName);
         modelBuilder.Entity<Customer>().HasIndex(customer => customer.FamilyName);
+        modelBuilder.Entity<Customer>().HasIndex(customer => customer.RenoCompanyID);
         modelBuilder.Entity<Document>().HasIndex(document => document.CustomerId);
+        modelBuilder.Entity<Document>().HasIndex(document => document.RenoCompanyID);
         modelBuilder.Entity<Document>().HasIndex(document => document.CreateDate);
         modelBuilder.Entity<Document>().HasIndex(document => document.DocumentType);
-        modelBuilder.Entity<Employee>().HasIndex(employee => employee.QuickBooksEmployeeId).IsUnique();
+        modelBuilder.Entity<Employee>().HasIndex(employee => new { employee.RenoCompanyID, employee.QuickBooksEmployeeId }).IsUnique();
         modelBuilder.Entity<Employee>().HasIndex(employee => employee.DisplayName);
         modelBuilder.Entity<Employee>().HasIndex(employee => employee.FamilyName);
+        modelBuilder.Entity<Employee>().HasIndex(employee => employee.RenoCompanyID);
         modelBuilder.Entity<Inspection>().HasIndex(inspection => inspection.CreatedAtUtc);
         modelBuilder.Entity<Inspection>().HasIndex(inspection => inspection.UpdatedAtUtc);
         modelBuilder.Entity<Inspection>().HasIndex(inspection => inspection.InspectionDate);
-        modelBuilder.Entity<InspectionAreaCategory>().HasIndex(category => category.Name).IsUnique();
-        modelBuilder.Entity<InspectionAreaType>().HasIndex(areaType => areaType.Name).IsUnique();
+        modelBuilder.Entity<Inspection>().HasIndex(inspection => inspection.RenoCompanyID);
+        modelBuilder.Entity<InspectionAreaCategory>().HasIndex(category => new { category.RenoCompanyID, category.Name }).IsUnique();
+        modelBuilder.Entity<InspectionAreaType>().HasIndex(areaType => new { areaType.RenoCompanyID, areaType.Name }).IsUnique();
         modelBuilder.Entity<MileageTracking>().HasIndex(session => session.TrackingStartedAtUtc);
+        modelBuilder.Entity<MileageTracking>().HasIndex(session => session.RenoCompanyID);
         modelBuilder.Entity<MileageTrackingWaypoint>().HasIndex(waypoint => waypoint.MileageTrackingId);
         modelBuilder.Entity<MileageTrackingWaypoint>().HasIndex(waypoint => waypoint.WaypointTime);
         modelBuilder.Entity<Part>().HasIndex(part => part.Name);
-        modelBuilder.Entity<PartSource>().HasIndex(source => source.Name).IsUnique();
+        modelBuilder.Entity<Part>().HasIndex(part => part.RenoCompanyID);
+        modelBuilder.Entity<PartSource>().HasIndex(source => new { source.RenoCompanyID, source.Name }).IsUnique();
+        modelBuilder.Entity<RenoCompany>().HasIndex(company => company.Name);
+        modelBuilder.Entity<RenoUser>().HasIndex(user => user.Login).IsUnique();
+        modelBuilder.Entity<RenoUser>().HasIndex(user => user.RenoCompanyID);
+        modelBuilder.Entity<Role>().HasIndex(role => role.Name).IsUnique();
     }
 
     private static void ConfigurePrecision(ModelBuilder modelBuilder)

@@ -1,4 +1,6 @@
 using Microsoft.EntityFrameworkCore;
+using Microsoft.AspNetCore.Authentication.Cookies;
+using Microsoft.AspNetCore.Authorization;
 using QuestPDF.Infrastructure;
 using RenovatorApp.Infrastructure.Data;
 using RenovatorApp.Infrastructure.Services;
@@ -18,6 +20,23 @@ if (!string.IsNullOrWhiteSpace(port))
 }
 
 builder.Services.AddControllersWithViews();
+builder.Services.AddAuthentication(CookieAuthenticationDefaults.AuthenticationScheme)
+    .AddCookie(options =>
+    {
+        options.LoginPath = "/Account/Login";
+        options.LogoutPath = "/Account/Logout";
+        options.AccessDeniedPath = "/Account/Login";
+        options.Cookie.HttpOnly = true;
+        options.Cookie.IsEssential = true;
+        options.SlidingExpiration = true;
+        options.ExpireTimeSpan = TimeSpan.FromHours(8);
+    });
+builder.Services.AddAuthorization(options =>
+{
+    options.FallbackPolicy = new AuthorizationPolicyBuilder()
+        .RequireAuthenticatedUser()
+        .Build();
+});
 builder.Services.AddOpenApi();
 builder.Services.AddHttpClient("Browser").ConfigurePrimaryHttpMessageHandler(() => new HttpClientHandler
 {
@@ -44,6 +63,10 @@ catch (Exception exception)
 builder.Services.AddScoped<InspectionDataService>();
 builder.Services.AddScoped<MobileSyncDataService>();
 builder.Services.AddScoped<DatabaseViewerService>();
+builder.Services.AddHttpContextAccessor();
+builder.Services.AddScoped<CurrentUserSession>();
+builder.Services.AddSingleton<PasswordService>();
+builder.Services.AddSingleton<BuildInfoService>();
 
 var app = builder.Build();
 
@@ -62,6 +85,7 @@ if (databaseStartupException is null)
     try
     {
         await app.Services.InitializeDatabaseAsync();
+        await app.Services.SeedAuthenticationAsync();
     }
     catch (Exception exception)
     {
@@ -85,8 +109,10 @@ if (databaseStartupException is not null)
 }
 
 app.UseHttpsRedirection();
+app.UseStaticFiles();
 app.UseRouting();
 app.UseSession();
+app.UseAuthentication();
 app.UseAuthorization();
 
 app.MapStaticAssets();

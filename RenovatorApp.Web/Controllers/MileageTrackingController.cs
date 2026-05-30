@@ -2,6 +2,7 @@ using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
 using RenovatorApp.Infrastructure.Data;
 using RenovatorApp.Infrastructure.Models;
+using RenovatorApp.Web.Services;
 using RenovatorApp.Web.ViewModels;
 using System.Globalization;
 using System.Text.Json;
@@ -14,21 +15,25 @@ public sealed class MileageTrackingController : Controller
     private readonly RenovatorAppDbContext _dbContext;
     private readonly IConfiguration _configuration;
     private readonly IHttpClientFactory _httpClientFactory;
+    private readonly CurrentUserSession _currentUserSession;
 
     public MileageTrackingController(
         RenovatorAppDbContext dbContext,
         IConfiguration configuration,
-        IHttpClientFactory httpClientFactory)
+        IHttpClientFactory httpClientFactory,
+        CurrentUserSession currentUserSession)
     {
         _dbContext = dbContext;
         _configuration = configuration;
         _httpClientFactory = httpClientFactory;
+        _currentUserSession = currentUserSession;
     }
 
     public async Task<IActionResult> Index(CancellationToken cancellationToken)
     {
         var trips = await _dbContext.MileageTracking
             .AsNoTracking()
+            .ForCompany(_currentUserSession.RenoCompanyID)
             .OrderByDescending(trip => trip.TrackingStartedAtUtc)
             .Select(trip => ToRowViewModel(trip))
             .ToListAsync(cancellationToken);
@@ -43,7 +48,7 @@ public sealed class MileageTrackingController : Controller
     {
         var trip = await _dbContext.MileageTracking
             .Include(item => item.Waypoints)
-            .FirstOrDefaultAsync(item => item.UniqueId == id, cancellationToken);
+            .FirstOrDefaultAsync(item => item.UniqueId == id && item.RenoCompanyID == _currentUserSession.RenoCompanyID, cancellationToken);
 
         if (trip is null)
         {

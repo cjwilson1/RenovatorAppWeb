@@ -1,0 +1,47 @@
+@model RenovatorApp.Web.ViewModels.SuperAdminAttachUserViewModel
+
+@{
+    ViewData["Title"] = "Attach Existing User";
+}
+
+<div class="page-header-row">
+    <div>
+        <h1>Attach Existing User</h1>
+        <p class="text-muted">Move an existing user to this company.</p>
+    </div>
+</div>
+
+<form asp-controller="SuperAdmin" asp-action="AttachCompanyUser" asp-route-companyId="@Model.RenoCompanyID" method="post">
+    <input asp-for="RenoCompanyID" type="hidden" />
+
+    @if (!ViewData.ModelState.IsValid)
+    {
+        <div class="alert alert-warning" role="alert">
+            Select a user before saving.
+        </div>
+    }
+
+    <section class="detail-section">
+        <h2>User</h2>
+        <div class="mb-3">
+            <label class="form-label" asp-for="UserID">Existing User</label>
+            <select class="form-select" asp-for="UserID">
+                <option value="">Select a user</option>
+                @foreach (var user in Model.AvailableUsers)
+                {
+                    <option value="@user.UserID">@user.Login - @user.Name (@user.CompanyName)</option>
+                }
+            </select>
+            <span class="text-danger" asp-validation-for="UserID"></span>
+        </div>
+    </section>
+
+    <div class="d-flex gap-2 mt-3">
+        <button class="btn btn-primary" type="submit">Attach User</button>
+        <a class="btn btn-outline-secondary" asp-controller="SuperAdmin" asp-action="EditCompany" asp-route-id="@Model.RenoCompanyID">Cancel</a>
+    </div>
+</form>
+
+@section Scripts {
+    <partial name="_ValidationScriptsPartial" />
+}

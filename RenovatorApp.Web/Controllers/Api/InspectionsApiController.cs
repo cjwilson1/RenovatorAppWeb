@@ -1,6 +1,7 @@
 using Microsoft.AspNetCore.Mvc;
 using RenovatorApp.Infrastructure.Models;
 using RenovatorApp.Infrastructure.Services;
+using RenovatorApp.Web.Services;
 
 namespace RenovatorApp.Web.Controllers.Api;
 
@@ -9,16 +10,18 @@ namespace RenovatorApp.Web.Controllers.Api;
 public sealed class InspectionsApiController : ControllerBase
 {
     private readonly InspectionDataService _inspectionDataService;
+    private readonly CurrentUserSession _currentUserSession;
 
-    public InspectionsApiController(InspectionDataService inspectionDataService)
+    public InspectionsApiController(InspectionDataService inspectionDataService, CurrentUserSession currentUserSession)
     {
         _inspectionDataService = inspectionDataService;
+        _currentUserSession = currentUserSession;
     }
 
     [HttpGet]
     public async Task<ActionResult<IReadOnlyList<InspectionSummaryDto>>> GetInspections(CancellationToken cancellationToken)
     {
-        var inspections = await _inspectionDataService.GetInspectionsAsync(cancellationToken);
+        var inspections = await _inspectionDataService.GetInspectionsAsync(_currentUserSession.RenoCompanyID, cancellationToken);
 
         return inspections.Select(ToSummaryDto).ToList();
     }
@@ -26,7 +29,7 @@ public sealed class InspectionsApiController : ControllerBase
     [HttpGet("{id:guid}")]
     public async Task<ActionResult<InspectionDetailDto>> GetInspection(Guid id, CancellationToken cancellationToken)
     {
-        var inspection = await _inspectionDataService.GetInspectionDetailAsync(id, cancellationToken);
+        var inspection = await _inspectionDataService.GetInspectionDetailAsync(_currentUserSession.RenoCompanyID, id, cancellationToken);
 
         return inspection is null ? NotFound() : ToDetailDto(inspection);
     }

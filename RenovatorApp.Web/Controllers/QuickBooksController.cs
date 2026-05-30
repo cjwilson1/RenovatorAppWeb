@@ -2,6 +2,7 @@ using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
 using RenovatorApp.Infrastructure.Data;
 using RenovatorApp.Infrastructure.Models;
+using RenovatorApp.Web.Services;
 using RenovatorApp.Web.ViewModels;
 using System.Globalization;
 using System.Net.Http.Headers;
@@ -18,15 +19,18 @@ public sealed class QuickBooksController : Controller
     private readonly IConfiguration _configuration;
     private readonly RenovatorAppDbContext _dbContext;
     private readonly IHttpClientFactory _httpClientFactory;
+    private readonly CurrentUserSession _currentUserSession;
 
     public QuickBooksController(
         IConfiguration configuration,
         RenovatorAppDbContext dbContext,
-        IHttpClientFactory httpClientFactory)
+        IHttpClientFactory httpClientFactory,
+        CurrentUserSession currentUserSession)
     {
         _configuration = configuration;
         _dbContext = dbContext;
         _httpClientFactory = httpClientFactory;
+        _currentUserSession = currentUserSession;
     }
 
     public IActionResult Connect()
@@ -134,6 +138,7 @@ public sealed class QuickBooksController : Controller
     public async Task<IActionResult> Disconnect(CancellationToken cancellationToken)
     {
         var settings = await _dbContext.AppSettings
+            .ForCompany(_currentUserSession.RenoCompanyID)
             .Where(setting => setting.Name.StartsWith("QuickBooks:"))
             .ToListAsync(cancellationToken);
 
@@ -191,7 +196,7 @@ public sealed class QuickBooksController : Controller
         var customer = await _dbContext.Customers
             .Include(item => item.BillAddress)
             .Include(item => item.ShipAddress)
-            .FirstOrDefaultAsync(item => item.CustomerId == id, cancellationToken);
+            .FirstOrDefaultAsync(item => item.CustomerId == id && item.RenoCompanyID == _currentUserSession.RenoCompanyID, cancellationToken);
 
         if (customer is null)
         {
@@ -279,7 +284,7 @@ public sealed class QuickBooksController : Controller
 
         var employee = await _dbContext.Employees
             .Include(item => item.PrimaryAddress)
-            .FirstOrDefaultAsync(item => item.EmployeeId == id, cancellationToken);
+            .FirstOrDefaultAsync(item => item.EmployeeId == id && item.RenoCompanyID == _currentUserSession.RenoCompanyID, cancellationToken);
 
         if (employee is null)
         {
@@ -726,6 +731,7 @@ public sealed class QuickBooksController : Controller
     {
         var settings = await _dbContext.AppSettings
             .AsNoTracking()
+            .ForCompany(_currentUserSession.RenoCompanyID)
             .Where(setting => setting.Name.StartsWith("QuickBooks:"))
             .ToDictionaryAsync(setting => setting.Name, setting => setting.Value, cancellationToken);
 
@@ -750,6 +756,7 @@ public sealed class QuickBooksController : Controller
         }
 
         var customer = await _dbContext.Customers
+            .ForCompany(_currentUserSession.RenoCompanyID)
             .Include(item => item.BillAddress)
             .Include(item => item.ShipAddress)
             .FirstOrDefaultAsync(item => item.QuickBooksCustomerId == quickBooksCustomerId, cancellationToken);
@@ -758,6 +765,7 @@ public sealed class QuickBooksController : Controller
         {
             customer = new Customer
             {
+                RenoCompanyID = _currentUserSession.RenoCompanyID,
                 QuickBooksCustomerId = quickBooksCustomerId,
                 CreatedDate = syncDateUtc
             };
@@ -822,6 +830,7 @@ public sealed class QuickBooksController : Controller
         }
 
         var employee = await _dbContext.Employees
+            .ForCompany(_currentUserSession.RenoCompanyID)
             .Include(item => item.PrimaryAddress)
             .FirstOrDefaultAsync(item => item.QuickBooksEmployeeId == quickBooksEmployeeId, cancellationToken);
 
@@ -829,6 +838,7 @@ public sealed class QuickBooksController : Controller
         {
             employee = new Employee
             {
+                RenoCompanyID = _currentUserSession.RenoCompanyID,
                 QuickBooksEmployeeId = quickBooksEmployeeId,
                 CreatedDate = syncDateUtc
             };
@@ -886,6 +896,7 @@ public sealed class QuickBooksController : Controller
     {
         if (address is not null && _dbContext.Entry(address).State == EntityState.Detached)
         {
+            address.RenoCompanyID = _currentUserSession.RenoCompanyID;
             _dbContext.Addresses.Add(address);
         }
     }
@@ -1009,6 +1020,7 @@ public sealed class QuickBooksController : Controller
 
         if (_dbContext.Entry(employee.PrimaryAddress).State == EntityState.Detached)
         {
+            employee.PrimaryAddress.RenoCompanyID = _currentUserSession.RenoCompanyID;
             _dbContext.Addresses.Add(employee.PrimaryAddress);
         }
 
@@ -1024,7 +1036,7 @@ public sealed class QuickBooksController : Controller
 
         if (address is null)
         {
-            address = new Address();
+            address = new Address { RenoCompanyID = _currentUserSession.RenoCompanyID };
             _dbContext.Addresses.Add(address);
         }
 
@@ -1064,12 +1076,14 @@ public sealed class QuickBooksController : Controller
     private async Task UpsertSettingAsync(string name, string value, CancellationToken cancellationToken)
     {
         var setting = await _dbContext.AppSettings
+            .ForCompany(_currentUserSession.RenoCompanyID)
             .FirstOrDefaultAsync(item => item.Name == name, cancellationToken);
 
         if (setting is null)
         {
             _dbContext.AppSettings.Add(new AppSetting
             {
+                RenoCompanyID = _currentUserSession.RenoCompanyID,
                 Name = name,
                 Value = value
             });

@@ -1,8 +1,9 @@
 namespace RenovatorApp.Infrastructure.Models;
 
-public sealed class Employee
+public sealed class Employee : IRenoCompanyEntity
 {
     public Guid EmployeeId { get; set; } = Guid.NewGuid();
+    public Guid RenoCompanyID { get; set; }
     public string QuickBooksEmployeeId { get; set; } = string.Empty;
     public string SyncToken { get; set; } = string.Empty;
     public string DisplayName { get; set; } = string.Empty;

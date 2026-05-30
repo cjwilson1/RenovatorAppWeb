@@ -1,0 +1,40 @@
+@{
+    ViewData["Title"] = "Super Admin";
+}
+
+<div class="page-header-row">
+    <div>
+        <h1>Super Admin</h1>
+        <p>Manage system-wide administration for RenovatorWeb.</p>
+    </div>
+</div>
+
+<div class="home-link-grid">
+    <a class="app-hero app-hero-link" asp-controller="SuperAdmin" asp-action="Companies">
+        <div>
+            <h1>Companies</h1>
+            <p>Search, add, and manage RenovatorWeb companies.</p>
+        </div>
+    </a>
+
+    <section class="app-hero">
+        <div>
+            <h1>Access</h1>
+            <p>This page is restricted to users in the SuperAdmin role.</p>
+        </div>
+    </section>
+
+    <a class="app-hero app-hero-link" asp-controller="SuperAdmin" asp-action="Users">
+        <div>
+            <h1>Users</h1>
+            <p>Search, add, and manage RenovatorWeb users.</p>
+        </div>
+    </a>
+
+    <a class="app-hero app-hero-link" asp-controller="SuperAdmin" asp-action="Database">
+        <div>
+            <h1>Database</h1>
+            <p>Browse database tables and maintenance tools.</p>
+        </div>
+    </a>
+</div>

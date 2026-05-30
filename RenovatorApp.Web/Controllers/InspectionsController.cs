@@ -4,6 +4,7 @@ using QuestPDF.Helpers;
 using QuestPDF.Infrastructure;
 using RenovatorApp.Infrastructure.Models;
 using RenovatorApp.Infrastructure.Services;
+using RenovatorApp.Web.Services;
 using RenovatorApp.Web.ViewModels;
 
 namespace RenovatorApp.Web.Controllers;
@@ -12,16 +13,21 @@ public sealed class InspectionsController : Controller
 {
     private readonly InspectionDataService _inspectionDataService;
     private readonly IWebHostEnvironment _webHostEnvironment;
+    private readonly CurrentUserSession _currentUserSession;
 
-    public InspectionsController(InspectionDataService inspectionDataService, IWebHostEnvironment webHostEnvironment)
+    public InspectionsController(
+        InspectionDataService inspectionDataService,
+        IWebHostEnvironment webHostEnvironment,
+        CurrentUserSession currentUserSession)
     {
         _inspectionDataService = inspectionDataService;
         _webHostEnvironment = webHostEnvironment;
+        _currentUserSession = currentUserSession;
     }
 
     public async Task<IActionResult> Index(CancellationToken cancellationToken)
     {
-        var inspections = await _inspectionDataService.GetInspectionsAsync(cancellationToken);
+        var inspections = await _inspectionDataService.GetInspectionsAsync(_currentUserSession.RenoCompanyID, cancellationToken);
         var model = inspections.Select(ToListItem).ToList();
 
         return View(model);
@@ -29,7 +35,7 @@ public sealed class InspectionsController : Controller
 
     public async Task<IActionResult> Details(Guid id, CancellationToken cancellationToken)
     {
-        var inspection = await _inspectionDataService.GetInspectionDetailAsync(id, cancellationToken);
+        var inspection = await _inspectionDataService.GetInspectionDetailAsync(_currentUserSession.RenoCompanyID, id, cancellationToken);
 
         if (inspection is null)
         {
@@ -58,7 +64,7 @@ public sealed class InspectionsController : Controller
 
     public async Task<IActionResult> Edit(Guid id, CancellationToken cancellationToken)
     {
-        var inspection = await _inspectionDataService.GetInspectionDetailAsync(id, cancellationToken);
+        var inspection = await _inspectionDataService.GetInspectionDetailAsync(_currentUserSession.RenoCompanyID, id, cancellationToken);
 
         if (inspection is null)
         {
@@ -96,7 +102,7 @@ public sealed class InspectionsController : Controller
     [ValidateAntiForgeryToken]
     public async Task<IActionResult> ReportPdf(Guid id, string reportName, CancellationToken cancellationToken)
     {
-        var inspection = await _inspectionDataService.GetInspectionDetailAsync(id, cancellationToken);
+        var inspection = await _inspectionDataService.GetInspectionDetailAsync(_currentUserSession.RenoCompanyID, id, cancellationToken);
 
         if (inspection is null)
         {
@@ -173,7 +179,7 @@ public sealed class InspectionsController : Controller
         fileName = Path.GetFileName(documentPath);
         await System.IO.File.WriteAllBytesAsync(documentPath, pdfBytes, cancellationToken);
 
-        await _inspectionDataService.AddDocumentAsync(new RenovatorApp.Infrastructure.Models.Document
+        await _inspectionDataService.AddDocumentAsync(_currentUserSession.RenoCompanyID, new RenovatorApp.Infrastructure.Models.Document
         {
             DocumentName = documentName,
             CustomerId = inspection.CustomerId,
@@ -542,7 +548,7 @@ public sealed class InspectionsController : Controller
 
     private async Task<IReadOnlyList<InspectorPickerItemViewModel>> GetInspectorPickerItemsAsync(CancellationToken cancellationToken)
     {
-        var inspectors = await _inspectionDataService.GetInspectorsAsync(cancellationToken);
+        var inspectors = await _inspectionDataService.GetInspectorsAsync(_currentUserSession.RenoCompanyID, cancellationToken);
 
         return inspectors
             .Select(inspector => new InspectorPickerItemViewModel
@@ -565,7 +571,7 @@ public sealed class InspectionsController : Controller
 
     private async Task<IReadOnlyList<PartPickerItemViewModel>> GetPartPickerItemsAsync(CancellationToken cancellationToken)
     {
-        var parts = await _inspectionDataService.GetPartsAsync(cancellationToken);
+        var parts = await _inspectionDataService.GetPartsAsync(_currentUserSession.RenoCompanyID, cancellationToken);
 
         return parts
             .Select(part => new PartPickerItemViewModel

@@ -1,0 +1,65 @@
+@model RenovatorApp.Web.ViewModels.InitialAdminViewModel
+
+@{
+    ViewData["Title"] = "Initial Admin";
+    Layout = "_AuthLayout";
+}
+
+<div class="auth-shell">
+    <div class="auth-panel auth-panel-wide">
+        <div class="auth-brand">
+            <img src="~/images/AppIconWeb.png" alt="RenovatorWeb logo" />
+            <div>
+                <h1>Create Initial Admin</h1>
+                <p>Set up the first company administrator</p>
+            </div>
+        </div>
+
+        @if (!string.IsNullOrWhiteSpace(Model.ErrorMessage))
+        {
+            <div class="alert alert-danger" role="alert">@Model.ErrorMessage</div>
+        }
+
+        <form asp-action="InitialAdmin" method="post">
+            <div class="mb-3">
+                <label class="form-label" asp-for="CompanyName"></label>
+                <input class="form-control" asp-for="CompanyName" />
+                <span class="text-danger" asp-validation-for="CompanyName"></span>
+            </div>
+            <div class="mb-3">
+                <label class="form-label" asp-for="Login"></label>
+                <input class="form-control" asp-for="Login" autocomplete="username" />
+                <span class="text-danger" asp-validation-for="Login"></span>
+            </div>
+            <div class="row">
+                <div class="col-md-6 mb-3">
+                    <label class="form-label" asp-for="FirstName"></label>
+                    <input class="form-control" asp-for="FirstName" />
+                </div>
+                <div class="col-md-6 mb-3">
+                    <label class="form-label" asp-for="LastName"></label>
+                    <input class="form-control" asp-for="LastName" />
+                </div>
+            </div>
+            <div class="mb-3">
+                <label class="form-label" asp-for="Email"></label>
+                <input class="form-control" asp-for="Email" autocomplete="email" />
+            </div>
+            <div class="mb-3">
+                <label class="form-label" asp-for="Password"></label>
+                <input class="form-control" asp-for="Password" autocomplete="new-password" />
+                <span class="text-danger" asp-validation-for="Password"></span>
+            </div>
+            <div class="mb-3">
+                <label class="form-label" asp-for="ConfirmPassword"></label>
+                <input class="form-control" asp-for="ConfirmPassword" autocomplete="new-password" />
+                <span class="text-danger" asp-validation-for="ConfirmPassword"></span>
+            </div>
+            <button class="btn btn-primary w-100" type="submit">Create Admin</button>
+        </form>
+    </div>
+</div>
+
+@section Scripts {
+    <partial name="_ValidationScriptsPartial" />
+}

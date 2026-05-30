@@ -1,0 +1,42 @@
+@model RenovatorApp.Web.ViewModels.LoginViewModel
+
+@{
+    ViewData["Title"] = "Login";
+    Layout = "_AuthLayout";
+}
+
+<div class="auth-shell">
+    <div class="auth-panel">
+        <div class="auth-brand">
+            <img src="~/images/AppIconWeb.png" alt="RenovatorWeb logo" />
+            <div>
+                <h1>RenovatorWeb</h1>
+                <p>Sign in to continue</p>
+            </div>
+        </div>
+
+        @if (!string.IsNullOrWhiteSpace(Model.ErrorMessage))
+        {
+            <div class="alert alert-danger" role="alert">@Model.ErrorMessage</div>
+        }
+
+        <form asp-action="Login" method="post">
+            <input type="hidden" asp-for="ReturnUrl" />
+            <div class="mb-3">
+                <label class="form-label" asp-for="Login"></label>
+                <input class="form-control" asp-for="Login" autocomplete="username" autofocus />
+                <span class="text-danger" asp-validation-for="Login"></span>
+            </div>
+            <div class="mb-3">
+                <label class="form-label" asp-for="Password"></label>
+                <input class="form-control" asp-for="Password" autocomplete="current-password" />
+                <span class="text-danger" asp-validation-for="Password"></span>
+            </div>
+            <button class="btn btn-primary w-100" type="submit">Login</button>
+        </form>
+    </div>
+</div>
+
+@section Scripts {
+    <partial name="_ValidationScriptsPartial" />
+}

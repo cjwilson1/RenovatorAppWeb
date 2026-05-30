@@ -2,6 +2,7 @@
 using Microsoft.EntityFrameworkCore;
 using RenovatorApp.Infrastructure.Data;
 using RenovatorApp.Infrastructure.Models;
+using RenovatorApp.Web.Services;
 
 namespace RenovatorApp.Web.Controllers.Api;
 
@@ -12,11 +13,13 @@ public sealed class DatabaseSyncApiController : ControllerBase
     private const string ApiKeyHeaderName = "X-Api-Key";
     private readonly IConfiguration _configuration;
     private readonly RenovatorAppDbContext _dbContext;
+    private readonly CurrentUserSession _currentUserSession;
 
-    public DatabaseSyncApiController(IConfiguration configuration, RenovatorAppDbContext dbContext)
+    public DatabaseSyncApiController(IConfiguration configuration, RenovatorAppDbContext dbContext, CurrentUserSession currentUserSession)
     {
         _configuration = configuration;
         _dbContext = dbContext;
+        _currentUserSession = currentUserSession;
     }
 
     [HttpGet]
@@ -27,16 +30,17 @@ public sealed class DatabaseSyncApiController : ControllerBase
             return Unauthorized();
         }
 
-        var addresses = await _dbContext.Addresses.AsNoTracking().OrderBy(address => address.Id).Select(address => new DatabaseSyncAddressDto(address.Id, address.PropertyId, address.Street1, address.Street2, address.City, address.State, address.PostalCode)).ToListAsync(cancellationToken);
-        var buildings = await _dbContext.Buildings.AsNoTracking().OrderBy(building => building.PropertyId).ThenBy(building => building.SortOrder).ThenBy(building => building.Name).Select(building => new DatabaseSyncBuildingDto(building.Id, building.PropertyId, building.BuildingTypeId, building.Name, building.SortOrder)).ToListAsync(cancellationToken);
-        var buildingTypes = await _dbContext.BuildingTypes.AsNoTracking().OrderBy(buildingType => buildingType.Name).Select(buildingType => new DatabaseSyncBuildingTypeDto(buildingType.Id, buildingType.Name)).ToListAsync(cancellationToken);
-        var customers = await _dbContext.Customers.AsNoTracking().Include(customer => customer.BillAddress).OrderBy(customer => customer.DisplayName).Select(customer => ToCustomerDto(customer)).ToListAsync(cancellationToken);
-        var inspectors = await _dbContext.Inspectors.AsNoTracking().OrderBy(inspector => inspector.FirstName).ThenBy(inspector => inspector.LastName).Select(inspector => new DatabaseSyncInspectorDto(inspector.Id, inspector.FirstName, inspector.LastName, inspector.HourlyRate, inspector.Phone, inspector.Email, inspector.IsDefault)).ToListAsync(cancellationToken);
-        var properties = await _dbContext.Properties.AsNoTracking().OrderBy(property => property.Id).Select(property => new DatabaseSyncPropertyDto(property.Id)).ToListAsync(cancellationToken);
-        var parts = await _dbContext.Parts.AsNoTracking().OrderBy(part => part.Name).Select(part => new DatabaseSyncPartDto(part.PartId, part.PartSourceId, part.Name, part.Description, part.ModelNumber, part.Manufacturer, part.Sku, part.Url, part.ImageUrl, part.Cost, part.IsPackage, part.PackageUnits)).ToListAsync(cancellationToken);
-        var partSources = await _dbContext.PartSources.AsNoTracking().OrderBy(partSource => partSource.Name).Select(partSource => new DatabaseSyncPartSourceDto(partSource.PartSourceId, partSource.Name)).ToListAsync(cancellationToken);
-        var inspectionAreaCategories = await _dbContext.InspectionAreaCategories.AsNoTracking().OrderBy(category => category.SortOrder).ThenBy(category => category.Name).Select(category => new DatabaseSyncInspectionAreaCategoryDto(category.Id, category.Name, category.SortOrder)).ToListAsync(cancellationToken);
-        var inspectionAreaTypes = await _dbContext.InspectionAreaTypes.AsNoTracking().OrderBy(areaType => areaType.SortOrder).ThenBy(areaType => areaType.Name).Select(areaType => new DatabaseSyncInspectionAreaTypeDto(areaType.AreaTypeId, areaType.CategoryId, areaType.Name, areaType.SortOrder)).ToListAsync(cancellationToken);
+        var renoCompanyID = _currentUserSession.RenoCompanyID;
+        var addresses = await _dbContext.Addresses.AsNoTracking().ForCompany(renoCompanyID).OrderBy(address => address.Id).Select(address => new DatabaseSyncAddressDto(address.Id, address.PropertyId, address.Street1, address.Street2, address.City, address.State, address.PostalCode)).ToListAsync(cancellationToken);
+        var buildings = await _dbContext.Buildings.AsNoTracking().ForCompany(renoCompanyID).OrderBy(building => building.PropertyId).ThenBy(building => building.SortOrder).ThenBy(building => building.Name).Select(building => new DatabaseSyncBuildingDto(building.Id, building.PropertyId, building.BuildingTypeId, building.Name, building.SortOrder)).ToListAsync(cancellationToken);
+        var buildingTypes = await _dbContext.BuildingTypes.AsNoTracking().ForCompany(renoCompanyID).OrderBy(buildingType => buildingType.Name).Select(buildingType => new DatabaseSyncBuildingTypeDto(buildingType.Id, buildingType.Name)).ToListAsync(cancellationToken);
+        var customers = await _dbContext.Customers.AsNoTracking().ForCompany(renoCompanyID).Include(customer => customer.BillAddress).OrderBy(customer => customer.DisplayName).Select(customer => ToCustomerDto(customer)).ToListAsync(cancellationToken);
+        var inspectors = await _dbContext.Inspectors.AsNoTracking().ForCompany(renoCompanyID).OrderBy(inspector => inspector.FirstName).ThenBy(inspector => inspector.LastName).Select(inspector => new DatabaseSyncInspectorDto(inspector.Id, inspector.FirstName, inspector.LastName, inspector.HourlyRate, inspector.Phone, inspector.Email, inspector.IsDefault)).ToListAsync(cancellationToken);
+        var properties = await _dbContext.Properties.AsNoTracking().ForCompany(renoCompanyID).OrderBy(property => property.Id).Select(property => new DatabaseSyncPropertyDto(property.Id)).ToListAsync(cancellationToken);
+        var parts = await _dbContext.Parts.AsNoTracking().ForCompany(renoCompanyID).OrderBy(part => part.Name).Select(part => new DatabaseSyncPartDto(part.PartId, part.PartSourceId, part.Name, part.Description, part.ModelNumber, part.Manufacturer, part.Sku, part.Url, part.ImageUrl, part.Cost, part.IsPackage, part.PackageUnits)).ToListAsync(cancellationToken);
+        var partSources = await _dbContext.PartSources.AsNoTracking().ForCompany(renoCompanyID).OrderBy(partSource => partSource.Name).Select(partSource => new DatabaseSyncPartSourceDto(partSource.PartSourceId, partSource.Name)).ToListAsync(cancellationToken);
+        var inspectionAreaCategories = await _dbContext.InspectionAreaCategories.AsNoTracking().ForCompany(renoCompanyID).OrderBy(category => category.SortOrder).ThenBy(category => category.Name).Select(category => new DatabaseSyncInspectionAreaCategoryDto(category.Id, category.Name, category.SortOrder)).ToListAsync(cancellationToken);
+        var inspectionAreaTypes = await _dbContext.InspectionAreaTypes.AsNoTracking().ForCompany(renoCompanyID).OrderBy(areaType => areaType.SortOrder).ThenBy(areaType => areaType.Name).Select(areaType => new DatabaseSyncInspectionAreaTypeDto(areaType.AreaTypeId, areaType.CategoryId, areaType.Name, areaType.SortOrder)).ToListAsync(cancellationToken);
 
         return new DatabaseSyncResponse(DateTime.UtcNow, addresses, buildings, buildingTypes, customers, inspectors, properties, parts, partSources, inspectionAreaCategories, inspectionAreaTypes);
     }

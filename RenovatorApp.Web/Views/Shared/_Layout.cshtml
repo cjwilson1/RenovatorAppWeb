@@ -1,4 +1,5 @@
 <!DOCTYPE html>
+@inject RenovatorApp.Web.Services.BuildInfoService BuildInfo
 <html lang="en">
 <head>
     <meta charset="utf-8" />
@@ -38,26 +39,49 @@
                         <li class="nav-item">
                             <a class="nav-link text-dark" asp-area="" asp-controller="Employees" asp-action="Index">Employees</a>
                         </li>
-                        <li class="nav-item settings-nav-item">
-                            <a class="nav-link text-dark" asp-area="" asp-controller="Settings" asp-action="Index">Settings</a>
-                        </li>
-                        <li class="nav-item">
-                            <a class="nav-link text-dark" asp-area="" asp-controller="Database" asp-action="Index">Database</a>
-                        </li>
+                        @if (User.IsInRole("Admin") || User.IsInRole("SuperAdmin"))
+                        {
+                            <li class="nav-item settings-nav-item">
+                                <a class="nav-link text-dark" asp-area="" asp-controller="Settings" asp-action="Index">Settings</a>
+                            </li>
+                        }
                     </ul>
+                    @if (User.Identity?.IsAuthenticated == true)
+                    {
+                        <div class="dropdown user-menu">
+                            <button class="btn btn-outline-secondary btn-sm dropdown-toggle" type="button" data-bs-toggle="dropdown" aria-expanded="false">
+                                @User.Identity.Name
+                            </button>
+                            <ul class="dropdown-menu dropdown-menu-end">
+                                @if (User.IsInRole("SuperAdmin"))
+                                {
+                                    <li>
+                                        <a class="dropdown-item" asp-controller="SuperAdmin" asp-action="Index">Administration</a>
+                                    </li>
+                                    <li><hr class="dropdown-divider" /></li>
+                                }
+                                <li>
+                                    <form asp-controller="Account" asp-action="Logout" method="post">
+                                        <button class="dropdown-item" type="submit">Logout</button>
+                                    </form>
+                                </li>
+                            </ul>
+                        </div>
+                    }
                 </div>
             </div>
         </nav>
     </header>
-    <div class="container">
+    <div class="container-fluid app-content-container">
         <main role="main" class="pb-3">
             @RenderBody()
         </main>
     </div>
 
     <footer class="border-top footer text-muted">
-        <div class="container">
-            &copy; 2026 - RenovatorWeb
+        <div class="container-fluid app-content-container footer-content">
+            <span>&copy; 2026 - RenovatorWeb</span>
+            <span>@BuildInfo.DisplayVersion</span>
         </div>
     </footer>
     <script src="~/lib/jquery/dist/jquery.min.js"></script>

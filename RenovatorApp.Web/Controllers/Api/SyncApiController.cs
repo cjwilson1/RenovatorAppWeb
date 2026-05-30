@@ -3,6 +3,7 @@ using Microsoft.EntityFrameworkCore;
 using Npgsql;
 using RenovatorApp.Infrastructure.Services;
 using RenovatorApp.Web.Models;
+using RenovatorApp.Web.Services;
 
 namespace RenovatorApp.Web.Controllers.Api;
 
@@ -13,11 +14,13 @@ public sealed class SyncApiController : ControllerBase
     private const string ApiKeyHeaderName = "X-Api-Key";
     private readonly IConfiguration _configuration;
     private readonly MobileSyncDataService _mobileSyncDataService;
+    private readonly CurrentUserSession _currentUserSession;
 
-    public SyncApiController(IConfiguration configuration, MobileSyncDataService mobileSyncDataService)
+    public SyncApiController(IConfiguration configuration, MobileSyncDataService mobileSyncDataService, CurrentUserSession currentUserSession)
     {
         _configuration = configuration;
         _mobileSyncDataService = mobileSyncDataService;
+        _currentUserSession = currentUserSession;
     }
 
     [HttpGet]
@@ -50,7 +53,7 @@ public sealed class SyncApiController : ControllerBase
 
         try
         {
-            results = await _mobileSyncDataService.SyncAsync(ToBatch(request), cancellationToken);
+            results = await _mobileSyncDataService.SyncAsync(_currentUserSession.RenoCompanyID, ToBatch(request), cancellationToken);
         }
         catch (DbUpdateException exception) when (exception.InnerException is PostgresException postgresException)
         {

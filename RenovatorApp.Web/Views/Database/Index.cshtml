@@ -11,15 +11,15 @@
     </div>
     <div class="d-flex flex-wrap justify-content-end gap-2">
         <form method="post"
-              asp-controller="Database"
+              asp-controller="SuperAdmin"
               asp-action="ClearMileageTracking"
               onsubmit="return confirm('This will delete all MileageTracking and MileageTrackingWaypoint rows. Are you sure?');">
             @Html.AntiForgeryToken()
             <button type="submit" class="btn btn-warning">Clear all Mileage tracking</button>
         </form>
         <form method="post"
-              asp-controller="Database"
-              asp-action="Clear"
+              asp-controller="SuperAdmin"
+              asp-action="ClearDatabase"
               onsubmit="return confirm('This will delete all data in the database.  Are you sure?');">
             @Html.AntiForgeryToken()
             <button type="submit" class="btn btn-danger">Clear Database</button>
@@ -34,7 +34,7 @@
     </div>
 }
 
-<form method="get" asp-controller="Database" asp-action="Index" class="row gy-2 gx-3 align-items-end mb-4">
+<form method="get" asp-controller="SuperAdmin" asp-action="Database" class="row gy-2 gx-3 align-items-end mb-4">
     <div class="col-12 col-md-5 col-lg-4">
         <label for="tableName" class="form-label">Table</label>
         <select id="tableName" name="tableName" class="form-select" onchange="this.form.submit()">
@@ -100,8 +100,8 @@
         <ul class="pagination">
             <li class="page-item @(Model.HasPreviousPage ? string.Empty : "disabled")">
                 <a class="page-link"
-                   asp-controller="Database"
-                   asp-action="Index"
+                   asp-controller="SuperAdmin"
+                   asp-action="Database"
                    asp-route-tableName="@Model.SelectedTableName"
                    asp-route-page="@(Model.Page - 1)"
                    asp-route-pageSize="@Model.PageSize">Previous</a>
@@ -111,8 +111,8 @@
             </li>
             <li class="page-item @(Model.HasNextPage ? string.Empty : "disabled")">
                 <a class="page-link"
-                   asp-controller="Database"
-                   asp-action="Index"
+                   asp-controller="SuperAdmin"
+                   asp-action="Database"
                    asp-route-tableName="@Model.SelectedTableName"
                    asp-route-page="@(Model.Page + 1)"
                    asp-route-pageSize="@Model.PageSize">Next</a>

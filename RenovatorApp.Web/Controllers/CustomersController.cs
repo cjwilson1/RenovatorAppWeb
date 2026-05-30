@@ -3,6 +3,7 @@ using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
 using RenovatorApp.Infrastructure.Data;
 using RenovatorApp.Infrastructure.Models;
+using RenovatorApp.Web.Services;
 using RenovatorApp.Web.ViewModels;
 
 namespace RenovatorApp.Web.Controllers;
@@ -12,17 +13,19 @@ public sealed class CustomersController : Controller
     private const int PageSize = 10;
     private static readonly FileExtensionContentTypeProvider ContentTypeProvider = new();
     private readonly RenovatorAppDbContext _dbContext;
+    private readonly CurrentUserSession _currentUserSession;
 
-    public CustomersController(RenovatorAppDbContext dbContext)
+    public CustomersController(RenovatorAppDbContext dbContext, CurrentUserSession currentUserSession)
     {
         _dbContext = dbContext;
+        _currentUserSession = currentUserSession;
     }
 
     public async Task<IActionResult> Index(string? search, bool showInactive = false, int page = 1, CancellationToken cancellationToken = default)
     {
         var normalizedSearch = (search ?? string.Empty).Trim();
         var lastSyncDateUtc = await GetLastQuickBooksSyncDateUtcAsync(cancellationToken);
-        var query = _dbContext.Customers.AsNoTracking();
+        var query = _dbContext.Customers.AsNoTracking().ForCompany(_currentUserSession.RenoCompanyID);
 
         if (!showInactive)
         {
@@ -73,7 +76,7 @@ public sealed class CustomersController : Controller
             .Include(item => item.BillAddress)
             .Include(item => item.Documents)
             .Include(item => item.ShipAddress)
-            .FirstOrDefaultAsync(item => item.CustomerId == id, cancellationToken);
+            .FirstOrDefaultAsync(item => item.CustomerId == id && item.RenoCompanyID == _currentUserSession.RenoCompanyID, cancellationToken);
 
         if (customer is null)
         {
@@ -96,7 +99,7 @@ public sealed class CustomersController : Controller
             .Include(item => item.BillAddress)
             .Include(item => item.Documents)
             .Include(item => item.ShipAddress)
-            .FirstOrDefaultAsync(item => item.CustomerId == id, cancellationToken);
+            .FirstOrDefaultAsync(item => item.CustomerId == id && item.RenoCompanyID == _currentUserSession.RenoCompanyID, cancellationToken);
 
         if (customer is null)
         {
@@ -122,7 +125,7 @@ public sealed class CustomersController : Controller
     {
         var document = await _dbContext.Documents
             .AsNoTracking()
-            .FirstOrDefaultAsync(item => item.DocumentId == documentId && item.CustomerId == id, cancellationToken);
+            .FirstOrDefaultAsync(item => item.DocumentId == documentId && item.CustomerId == id && item.RenoCompanyID == _currentUserSession.RenoCompanyID, cancellationToken);
 
         if (document is null)
         {
@@ -149,7 +152,7 @@ public sealed class CustomersController : Controller
     public async Task<IActionResult> Delete(Guid id, CancellationToken cancellationToken)
     {
         var customer = await _dbContext.Customers
-            .FirstOrDefaultAsync(item => item.CustomerId == id, cancellationToken);
+            .FirstOrDefaultAsync(item => item.CustomerId == id && item.RenoCompanyID == _currentUserSession.RenoCompanyID, cancellationToken);
 
         if (customer is null)
         {
@@ -159,11 +162,11 @@ public sealed class CustomersController : Controller
         await using var transaction = await _dbContext.Database.BeginTransactionAsync(cancellationToken);
 
         await _dbContext.Documents
-            .Where(document => document.CustomerId == id)
+            .Where(document => document.CustomerId == id && document.RenoCompanyID == _currentUserSession.RenoCompanyID)
             .ExecuteDeleteAsync(cancellationToken);
 
         await _dbContext.Inspections
-            .Where(inspection => inspection.CustomerId == id)
+            .Where(inspection => inspection.CustomerId == id && inspection.RenoCompanyID == _currentUserSession.RenoCompanyID)
             .ExecuteDeleteAsync(cancellationToken);
 
         _dbContext.Customers.Remove(customer);
@@ -362,6 +365,7 @@ public sealed class CustomersController : Controller
     {
         if (address is not null && _dbContext.Entry(address).State == EntityState.Detached)
         {
+            address.RenoCompanyID = _currentUserSession.RenoCompanyID;
             _dbContext.Addresses.Add(address);
         }
     }
@@ -405,6 +409,7 @@ public sealed class CustomersController : Controller
     {
         var value = await _dbContext.AppSettings
             .AsNoTracking()
+            .ForCompany(_currentUserSession.RenoCompanyID)
             .Where(setting => setting.Name == "QuickBooks:CustomersLastSyncDateUtc")
             .Select(setting => setting.Value)
             .FirstOrDefaultAsync(cancellationToken);

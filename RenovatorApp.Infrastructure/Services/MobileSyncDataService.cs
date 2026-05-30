@@ -13,7 +13,7 @@ public sealed class MobileSyncDataService
         _dbContext = dbContext;
     }
 
-    public async Task<IReadOnlyList<MobileSyncResult>> SyncAsync(MobileSyncBatch batch, CancellationToken cancellationToken = default)
+    public async Task<IReadOnlyList<MobileSyncResult>> SyncAsync(Guid renoCompanyID, MobileSyncBatch batch, CancellationToken cancellationToken = default)
     {
         var results = new List<MobileSyncResult>();
         await using var transaction = await _dbContext.Database.BeginTransactionAsync(cancellationToken);
@@ -27,6 +27,7 @@ public sealed class MobileSyncDataService
             }
 
             var entity = await _dbContext.AppSettings
+                .ForCompany(renoCompanyID)
                 .FirstOrDefaultAsync(setting => setting.Name.ToLower() == "defaultstate", cancellationToken);
 
             if (entity is null)
@@ -34,6 +35,7 @@ public sealed class MobileSyncDataService
                 _dbContext.AppSettings.Add(new AppSetting
                 {
                     Id = item.Id,
+                    RenoCompanyID = renoCompanyID,
                     Name = item.Name,
                     Value = item.Value
                 });
@@ -48,13 +50,14 @@ public sealed class MobileSyncDataService
 
         foreach (var item in batch.PartSources)
         {
-            var entity = await _dbContext.PartSources.FindAsync([item.PartSourceId], cancellationToken);
+            var entity = await _dbContext.PartSources.ForCompany(renoCompanyID).FirstOrDefaultAsync(source => source.PartSourceId == item.PartSourceId, cancellationToken);
 
             if (entity is null)
             {
                 _dbContext.PartSources.Add(new PartSource
                 {
                     PartSourceId = item.PartSourceId,
+                    RenoCompanyID = renoCompanyID,
                     Name = item.Name
                 });
                 results.Add(MobileSyncResult.Created(nameof(PartSource), item.PartSourceId));
@@ -67,13 +70,14 @@ public sealed class MobileSyncDataService
 
         foreach (var item in batch.Parts)
         {
-            var entity = await _dbContext.Parts.FindAsync([item.PartId], cancellationToken);
+            var entity = await _dbContext.Parts.ForCompany(renoCompanyID).FirstOrDefaultAsync(part => part.PartId == item.PartId, cancellationToken);
 
             if (entity is null)
             {
                 _dbContext.Parts.Add(new Part
                 {
                     PartId = item.PartId,
+                    RenoCompanyID = renoCompanyID,
                     PartSourceId = item.PartSourceId,
                     Name = item.Name,
                     Description = item.Description,
@@ -106,13 +110,14 @@ public sealed class MobileSyncDataService
 
         foreach (var item in batch.InspectionAreaCategories)
         {
-            var entity = await _dbContext.InspectionAreaCategories.FindAsync([item.Id], cancellationToken);
+            var entity = await _dbContext.InspectionAreaCategories.ForCompany(renoCompanyID).FirstOrDefaultAsync(category => category.Id == item.Id, cancellationToken);
 
             if (entity is null)
             {
                 _dbContext.InspectionAreaCategories.Add(new InspectionAreaCategory
                 {
                     Id = item.Id,
+                    RenoCompanyID = renoCompanyID,
                     Name = item.Name,
                     SortOrder = item.SortOrder
                 });
@@ -127,13 +132,14 @@ public sealed class MobileSyncDataService
 
         foreach (var item in batch.InspectionAreaTypes)
         {
-            var entity = await _dbContext.InspectionAreaTypes.FindAsync([item.AreaTypeId], cancellationToken);
+            var entity = await _dbContext.InspectionAreaTypes.ForCompany(renoCompanyID).FirstOrDefaultAsync(areaType => areaType.AreaTypeId == item.AreaTypeId, cancellationToken);
 
             if (entity is null)
             {
                 _dbContext.InspectionAreaTypes.Add(new InspectionAreaType
                 {
                     AreaTypeId = item.AreaTypeId,
+                    RenoCompanyID = renoCompanyID,
                     CategoryId = item.CategoryId,
                     Name = item.Name,
                     SortOrder = item.SortOrder
@@ -150,13 +156,14 @@ public sealed class MobileSyncDataService
 
         foreach (var item in batch.BuildingTypes)
         {
-            var entity = await _dbContext.BuildingTypes.FindAsync([item.Id], cancellationToken);
+            var entity = await _dbContext.BuildingTypes.ForCompany(renoCompanyID).FirstOrDefaultAsync(buildingType => buildingType.Id == item.Id, cancellationToken);
 
             if (entity is null)
             {
                 _dbContext.BuildingTypes.Add(new BuildingType
                 {
                     Id = item.Id,
+                    RenoCompanyID = renoCompanyID,
                     Name = item.Name
                 });
                 results.Add(MobileSyncResult.Created(nameof(BuildingType), item.Id));
@@ -169,13 +176,14 @@ public sealed class MobileSyncDataService
 
         foreach (var item in batch.Inspectors)
         {
-            var entity = await _dbContext.Inspectors.FindAsync([item.Id], cancellationToken);
+            var entity = await _dbContext.Inspectors.ForCompany(renoCompanyID).FirstOrDefaultAsync(inspector => inspector.Id == item.Id, cancellationToken);
 
             if (entity is null)
             {
                 _dbContext.Inspectors.Add(new Inspector
                 {
                     Id = item.Id,
+                    RenoCompanyID = renoCompanyID,
                     FirstName = item.FirstName,
                     LastName = item.LastName,
                     HourlyRate = item.HourlyRate,
@@ -199,6 +207,7 @@ public sealed class MobileSyncDataService
         foreach (var item in batch.Customers)
         {
             var entity = await _dbContext.Customers
+                .ForCompany(renoCompanyID)
                 .Include(customer => customer.BillAddress)
                 .FirstOrDefaultAsync(customer => customer.CustomerId == item.CustomerId, cancellationToken);
 
@@ -207,6 +216,7 @@ public sealed class MobileSyncDataService
                 entity = new Customer
                 {
                     CustomerId = item.CustomerId,
+                    RenoCompanyID = renoCompanyID,
                     Active = true
                 };
                 ApplyCustomer(item, entity);
@@ -223,11 +233,11 @@ public sealed class MobileSyncDataService
 
         foreach (var item in batch.Properties)
         {
-            var entity = await _dbContext.Properties.FindAsync([item.Id], cancellationToken);
+            var entity = await _dbContext.Properties.ForCompany(renoCompanyID).FirstOrDefaultAsync(property => property.Id == item.Id, cancellationToken);
 
             if (entity is null)
             {
-                _dbContext.Properties.Add(new Property { Id = item.Id });
+                _dbContext.Properties.Add(new Property { Id = item.Id, RenoCompanyID = renoCompanyID });
                 results.Add(MobileSyncResult.Created(nameof(Property), item.Id));
                 continue;
             }
@@ -237,13 +247,14 @@ public sealed class MobileSyncDataService
 
         foreach (var item in batch.Addresses)
         {
-            var entity = await _dbContext.Addresses.FindAsync([item.Id], cancellationToken);
+            var entity = await _dbContext.Addresses.ForCompany(renoCompanyID).FirstOrDefaultAsync(address => address.Id == item.Id, cancellationToken);
 
             if (entity is null)
             {
                 _dbContext.Addresses.Add(new Address
                 {
                     Id = item.Id,
+                    RenoCompanyID = renoCompanyID,
                     PropertyId = item.PropertyId,
                     Street1 = item.Street1,
                     Street2 = item.Street2,
@@ -266,13 +277,14 @@ public sealed class MobileSyncDataService
 
         foreach (var item in batch.Buildings)
         {
-            var entity = await _dbContext.Buildings.FindAsync([item.Id], cancellationToken);
+            var entity = await _dbContext.Buildings.ForCompany(renoCompanyID).FirstOrDefaultAsync(building => building.Id == item.Id, cancellationToken);
 
             if (entity is null)
             {
                 _dbContext.Buildings.Add(new Building
                 {
                     Id = item.Id,
+                    RenoCompanyID = renoCompanyID,
                     PropertyId = item.PropertyId,
                     BuildingTypeId = item.BuildingTypeId,
                     Name = item.Name,
@@ -291,7 +303,7 @@ public sealed class MobileSyncDataService
 
         foreach (var item in batch.Inspections)
         {
-            var entity = await _dbContext.Inspections.FindAsync([item.Id], cancellationToken);
+            var entity = await _dbContext.Inspections.ForCompany(renoCompanyID).FirstOrDefaultAsync(inspection => inspection.Id == item.Id, cancellationToken);
             var incomingUpdatedAtUtc = NormalizeUtc(item.UpdatedAtUtc);
 
             if (entity is null)
@@ -299,6 +311,7 @@ public sealed class MobileSyncDataService
                 _dbContext.Inspections.Add(new Inspection
                 {
                     Id = item.Id,
+                    RenoCompanyID = renoCompanyID,
                     CreatedAtUtc = NormalizeUtc(item.CreatedAtUtc),
                     UpdatedAtUtc = incomingUpdatedAtUtc,
                     Title = item.Title,
@@ -331,13 +344,14 @@ public sealed class MobileSyncDataService
 
         foreach (var item in batch.InspectionAreas)
         {
-            var entity = await _dbContext.InspectionAreas.FindAsync([item.Id], cancellationToken);
+            var entity = await _dbContext.InspectionAreas.ForCompany(renoCompanyID).FirstOrDefaultAsync(area => area.Id == item.Id, cancellationToken);
 
             if (entity is null)
             {
                 _dbContext.InspectionAreas.Add(new InspectionArea
                 {
                     Id = item.Id,
+                    RenoCompanyID = renoCompanyID,
                     PropertyId = item.PropertyId,
                     BuildingId = item.BuildingId,
                     AreaTypeId = item.AreaTypeId,
@@ -360,7 +374,7 @@ public sealed class MobileSyncDataService
 
         foreach (var item in batch.InspectionAreaNotes)
         {
-            var entity = await _dbContext.InspectionAreaNotes.FindAsync([item.Id], cancellationToken);
+            var entity = await _dbContext.InspectionAreaNotes.ForCompany(renoCompanyID).FirstOrDefaultAsync(note => note.Id == item.Id, cancellationToken);
             var incomingUpdatedAtUtc = NormalizeUtc(item.UpdatedAtUtc);
 
             if (entity is null)
@@ -368,6 +382,7 @@ public sealed class MobileSyncDataService
                 _dbContext.InspectionAreaNotes.Add(new InspectionAreaNote
                 {
                     Id = item.Id,
+                    RenoCompanyID = renoCompanyID,
                     PropertyId = item.PropertyId,
                     BuildingId = item.BuildingId,
                     AreaId = item.AreaId,
@@ -396,7 +411,7 @@ public sealed class MobileSyncDataService
 
         foreach (var item in batch.InspectionAreaNoteEstimateItems)
         {
-            var entity = await _dbContext.InspectionAreaNoteEstimateItems.FindAsync([item.Id], cancellationToken);
+            var entity = await _dbContext.InspectionAreaNoteEstimateItems.ForCompany(renoCompanyID).FirstOrDefaultAsync(estimateItem => estimateItem.Id == item.Id, cancellationToken);
             var incomingUpdatedAtUtc = NormalizeUtc(item.UpdatedAtUtc);
 
             if (entity is null)
@@ -404,6 +419,7 @@ public sealed class MobileSyncDataService
                 _dbContext.InspectionAreaNoteEstimateItems.Add(new InspectionAreaNoteEstimateItem
                 {
                     Id = item.Id,
+                    RenoCompanyID = renoCompanyID,
                     PropertyId = item.PropertyId,
                     BuildingId = item.BuildingId,
                     AreaId = item.AreaId,
@@ -438,7 +454,7 @@ public sealed class MobileSyncDataService
 
         foreach (var item in batch.InspectionAreaNotePhotos)
         {
-            var entity = await _dbContext.InspectionAreaNotePhotos.FindAsync([item.Id], cancellationToken);
+            var entity = await _dbContext.InspectionAreaNotePhotos.ForCompany(renoCompanyID).FirstOrDefaultAsync(photo => photo.Id == item.Id, cancellationToken);
 
             if (!TryDecodeBase64(item.DataBase64, out var data))
             {
@@ -451,6 +467,7 @@ public sealed class MobileSyncDataService
                 _dbContext.InspectionAreaNotePhotos.Add(new InspectionAreaNotePhoto
                 {
                     Id = item.Id,
+                    RenoCompanyID = renoCompanyID,
                     PropertyId = item.PropertyId,
                     BuildingId = item.BuildingId,
                     AreaId = item.AreaId,
@@ -477,13 +494,14 @@ public sealed class MobileSyncDataService
 
         foreach (var item in batch.MileageTracking)
         {
-            var entity = await _dbContext.MileageTracking.FindAsync([item.UniqueId], cancellationToken);
+            var entity = await _dbContext.MileageTracking.ForCompany(renoCompanyID).FirstOrDefaultAsync(session => session.UniqueId == item.UniqueId, cancellationToken);
 
             if (entity is null)
             {
                 _dbContext.MileageTracking.Add(new MileageTracking
                 {
                     UniqueId = item.UniqueId,
+                    RenoCompanyID = renoCompanyID,
                     TrackingStartedAtUtc = NormalizeUtc(item.TrackingStartedAtUtc),
                     TotalMileage = item.TotalMileage,
                     TotalTime = item.TotalTime,
@@ -508,13 +526,14 @@ public sealed class MobileSyncDataService
 
         foreach (var item in batch.MileageTrackingWaypoints)
         {
-            var entity = await _dbContext.MileageTrackingWaypoints.FindAsync([item.UniqueId], cancellationToken);
+            var entity = await _dbContext.MileageTrackingWaypoints.ForCompany(renoCompanyID).FirstOrDefaultAsync(waypoint => waypoint.UniqueId == item.UniqueId, cancellationToken);
 
             if (entity is null)
             {
                 _dbContext.MileageTrackingWaypoints.Add(new MileageTrackingWaypoint
                 {
                     UniqueId = item.UniqueId,
+                    RenoCompanyID = renoCompanyID,
                     MileageTrackingId = item.MileageTrackingId,
                     WaypointTime = NormalizeUtc(item.WaypointTime),
                     CumulativeMiles = item.CumulativeMiles,
@@ -594,7 +613,7 @@ public sealed class MobileSyncDataService
         var address = entity.BillAddress;
         if (address is null)
         {
-            address = new Address();
+            address = new Address { RenoCompanyID = entity.RenoCompanyID };
             entity.BillAddress = address;
         }
 

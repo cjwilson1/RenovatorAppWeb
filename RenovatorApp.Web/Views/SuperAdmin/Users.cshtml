@@ -1,0 +1,134 @@
+@model RenovatorApp.Web.ViewModels.SuperAdminUsersViewModel
+
+@{
+    ViewData["Title"] = "Users";
+    var previousPage = Math.Max(1, Model.Page - 1);
+    var nextPage = Math.Min(Model.TotalPages, Model.Page + 1);
+}
+
+<div class="page-header-row">
+    <div>
+        <h1>Users</h1>
+        <p class="text-muted">@Model.TotalUsers user@(Model.TotalUsers == 1 ? string.Empty : "s")</p>
+    </div>
+    <a class="btn btn-primary" asp-controller="SuperAdmin" asp-action="AddUser">Add User</a>
+</div>
+
+<form class="customer-search-row customer-search-row-narrow" id="userSearchForm" method="get">
+    <input class="form-control"
+           id="userSearch"
+           name="search"
+           placeholder="search users"
+           type="search"
+           value="@Model.Search" />
+    <button class="btn btn-outline-secondary" id="clearUserSearch" type="button">Clear</button>
+    <input id="userPage" name="page" type="hidden" value="@Model.Page" />
+</form>
+
+<div class="table-responsive">
+    <table class="table table-striped align-middle">
+        <thead>
+        <tr>
+            <th scope="col">Login</th>
+            <th scope="col">First Name</th>
+            <th scope="col">Last Name</th>
+            <th scope="col">Email</th>
+            <th scope="col">Primary Phone</th>
+            <th scope="col">Company</th>
+            <th scope="col">Roles</th>
+            <th scope="col">Active</th>
+        </tr>
+        </thead>
+        <tbody>
+        @if (Model.Users.Count == 0)
+        {
+            <tr>
+                <td class="text-muted" colspan="8">No users found.</td>
+            </tr>
+        }
+        else
+        {
+            @foreach (var user in Model.Users)
+            {
+                <tr class="clickable-table-row"
+                    data-href="@Url.Action("EditUser", "SuperAdmin", new { id = user.UserID })"
+                    tabindex="0"
+                    aria-label="Edit @user.Login">
+                    <td><strong>@user.Login</strong></td>
+                    <td>@user.FirstName</td>
+                    <td>@user.LastName</td>
+                    <td>@user.Email</td>
+                    <td>@user.PhonePrimary</td>
+                    <td>@user.CompanyName</td>
+                    <td>@user.Roles</td>
+                    <td>@(user.Active ? "Yes" : "No")</td>
+                </tr>
+            }
+        }
+        </tbody>
+    </table>
+</div>
+
+<div class="d-flex align-items-center justify-content-between gap-3">
+    <div class="btn-group" role="group" aria-label="User pages">
+        <a class="btn btn-outline-secondary @(Model.Page == 1 ? "disabled" : string.Empty)"
+           asp-controller="SuperAdmin"
+           asp-action="Users"
+           asp-route-search="@Model.Search"
+           asp-route-page="@previousPage">
+            Previous
+        </a>
+        <a class="btn btn-outline-secondary @(Model.Page == Model.TotalPages ? "disabled" : string.Empty)"
+           asp-controller="SuperAdmin"
+           asp-action="Users"
+           asp-route-search="@Model.Search"
+           asp-route-page="@nextPage">
+            Next
+        </a>
+    </div>
+    <span class="text-muted">Page @Model.Page of @Model.TotalPages</span>
+</div>
+
+@section Scripts {
+    <script>
+        const searchForm = document.getElementById('userSearchForm');
+        const searchInput = document.getElementById('userSearch');
+        const pageInput = document.getElementById('userPage');
+        const clearSearchButton = document.getElementById('clearUserSearch');
+        let searchTimer;
+
+        searchInput?.addEventListener('input', () => {
+            window.clearTimeout(searchTimer);
+            const value = (searchInput.value || '').trim();
+            searchTimer = window.setTimeout(() => {
+                if (value.length === 0 || value.length >= 2) {
+                    pageInput.value = '1';
+                    searchForm.submit();
+                }
+            }, 350);
+        });
+
+        clearSearchButton?.addEventListener('click', () => {
+            searchInput.value = '';
+            pageInput.value = '1';
+            searchForm.submit();
+        });
+
+        document.querySelectorAll('.clickable-table-row').forEach((row) => {
+            const navigate = () => {
+                const href = row.getAttribute('data-href');
+                if (href) {
+                    window.location.href = href;
+                }
+            };
+
+            row.addEventListener('click', navigate);
+            row.addEventListener('keydown', (event) => {
+                if (event.key === 'Enter' || event.key === ' ') {
+                    event.preventDefault();
+                    navigate();
+                }
+            });
+        });
+    </script>
+}

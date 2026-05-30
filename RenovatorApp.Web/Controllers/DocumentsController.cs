@@ -3,6 +3,7 @@ using Microsoft.AspNetCore.StaticFiles;
 using Microsoft.EntityFrameworkCore;
 using RenovatorApp.Infrastructure.Data;
 using RenovatorApp.Infrastructure.Models;
+using RenovatorApp.Web.Services;
 using RenovatorApp.Web.ViewModels;
 
 namespace RenovatorApp.Web.Controllers;
@@ -12,10 +13,12 @@ public sealed class DocumentsController : Controller
     private const int PageSize = 10;
     private static readonly FileExtensionContentTypeProvider ContentTypeProvider = new();
     private readonly RenovatorAppDbContext _dbContext;
+    private readonly CurrentUserSession _currentUserSession;
 
-    public DocumentsController(RenovatorAppDbContext dbContext)
+    public DocumentsController(RenovatorAppDbContext dbContext, CurrentUserSession currentUserSession)
     {
         _dbContext = dbContext;
+        _currentUserSession = currentUserSession;
     }
 
     public async Task<IActionResult> Index(string? search, int page = 1, CancellationToken cancellationToken = default)
@@ -23,6 +26,7 @@ public sealed class DocumentsController : Controller
         var normalizedSearch = (search ?? string.Empty).Trim();
         var query = _dbContext.Documents
             .AsNoTracking()
+            .ForCompany(_currentUserSession.RenoCompanyID)
             .Include(document => document.Customer)
             .AsQueryable();
 
@@ -65,7 +69,7 @@ public sealed class DocumentsController : Controller
     {
         var document = await _dbContext.Documents
             .AsNoTracking()
-            .FirstOrDefaultAsync(item => item.DocumentId == id, cancellationToken);
+            .FirstOrDefaultAsync(item => item.DocumentId == id && item.RenoCompanyID == _currentUserSession.RenoCompanyID, cancellationToken);
 
         if (document is null)
         {
@@ -91,7 +95,7 @@ public sealed class DocumentsController : Controller
     public async Task<IActionResult> Delete(Guid id, string? search, int page = 1, CancellationToken cancellationToken = default)
     {
         var document = await _dbContext.Documents
-            .FirstOrDefaultAsync(item => item.DocumentId == id, cancellationToken);
+            .FirstOrDefaultAsync(item => item.DocumentId == id && item.RenoCompanyID == _currentUserSession.RenoCompanyID, cancellationToken);
 
         if (document is not null)
         {

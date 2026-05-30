@@ -1,9 +1,11 @@
+using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.Playwright;
 using Microsoft.EntityFrameworkCore;
 using RenovatorApp.Infrastructure.Data;
 using RenovatorApp.Infrastructure.Models;
 using RenovatorApp.Infrastructure.Services;
+using RenovatorApp.Web.Services;
 using RenovatorApp.Web.ViewModels;
 using System.Globalization;
 using System.Net;
@@ -13,6 +15,7 @@ using System.Text.RegularExpressions;
 
 namespace RenovatorApp.Web.Controllers;
 
+[Authorize(Roles = "Admin,SuperAdmin")]
 public sealed class SettingsController : Controller
 {
     private static readonly int[] PageSizeOptions = [10, 15, 25, 50, 100];
@@ -24,21 +27,25 @@ public sealed class SettingsController : Controller
     private readonly RenovatorAppDbContext _dbContext;
     private readonly InspectionDataService _inspectionDataService;
     private readonly IHttpClientFactory _httpClientFactory;
+    private readonly CurrentUserSession _currentUserSession;
 
     public SettingsController(
         RenovatorAppDbContext dbContext,
         InspectionDataService inspectionDataService,
-        IHttpClientFactory httpClientFactory)
+        IHttpClientFactory httpClientFactory,
+        CurrentUserSession currentUserSession)
     {
         _dbContext = dbContext;
         _inspectionDataService = inspectionDataService;
         _httpClientFactory = httpClientFactory;
+        _currentUserSession = currentUserSession;
     }
 
     public async Task<IActionResult> Index(CancellationToken cancellationToken)
     {
         var quickBooksSettings = await _dbContext.AppSettings
             .AsNoTracking()
+            .ForCompany(_currentUserSession.RenoCompanyID)
             .Where(setting => setting.Name.StartsWith("QuickBooks:"))
             .ToDictionaryAsync(setting => setting.Name, setting => setting.Value, cancellationToken);
 
@@ -76,7 +83,7 @@ public sealed class SettingsController : Controller
             pageSize = 10;
         }
 
-        var parts = await _inspectionDataService.GetPartsAsync(cancellationToken);
+        var parts = await _inspectionDataService.GetPartsAsync(_currentUserSession.RenoCompanyID, cancellationToken);
         var totalParts = parts.Count;
         var totalPages = Math.Max(1, (int)Math.Ceiling(totalParts / (double)pageSize));
         page = Math.Clamp(page, 1, totalPages);
@@ -104,14 +111,14 @@ public sealed class SettingsController : Controller
 
     public async Task<IActionResult> FindPart(CancellationToken cancellationToken)
     {
-        var parts = await _inspectionDataService.GetPartsAsync(cancellationToken);
+        var parts = await _inspectionDataService.GetPartsAsync(_currentUserSession.RenoCompanyID, cancellationToken);
 
         return View(parts.Select(ToPartViewModel).ToList());
     }
 
     public async Task<IActionResult> EditPart(Guid id, CancellationToken cancellationToken)
     {
-        var part = await _dbContext.Parts.FindAsync([id], cancellationToken);
+        var part = await _dbContext.Parts.ForCompany(_currentUserSession.RenoCompanyID).FirstOrDefaultAsync(item => item.PartId == id, cancellationToken);
         if (part is null)
         {
             return NotFound();
@@ -139,6 +146,7 @@ public sealed class SettingsController : Controller
     {
         var partSources = await _dbContext.PartSources
             .AsNoTracking()
+            .ForCompany(_currentUserSession.RenoCompanyID)
             .OrderBy(source => source.Name)
             .Select(source => new PartsTransferPartSource(
                 source.PartSourceId,
@@ -147,6 +155,7 @@ public sealed class SettingsController : Controller
 
         var parts = await _dbContext.Parts
             .AsNoTracking()
+            .ForCompany(_currentUserSession.RenoCompanyID)
             .OrderBy(part => part.Name)
             .Select(part => new PartsTransferPart(
                 part.PartId,
@@ -328,12 +337,14 @@ public sealed class SettingsController : Controller
 
         var sourceName = GetPartSourceName(model.Url);
         var source = await _dbContext.PartSources
+            .ForCompany(_currentUserSession.RenoCompanyID)
             .FirstOrDefaultAsync(partSource => partSource.Name == sourceName, cancellationToken);
 
         if (source is null)
         {
             source = new PartSource
             {
+                RenoCompanyID = _currentUserSession.RenoCompanyID,
                 Name = sourceName
             };
 
@@ -342,6 +353,7 @@ public sealed class SettingsController : Controller
 
         _dbContext.Parts.Add(new Part
         {
+            RenoCompanyID = _currentUserSession.RenoCompanyID,
             PartSourceId = source.PartSourceId,
             Name = model.Title,
             Description = model.Description,
@@ -357,7 +369,7 @@ public sealed class SettingsController : Controller
 
         await _dbContext.SaveChangesAsync(cancellationToken);
 
-        return Redirect("http://localhost:5138/Settings/PartsManager");
+        return RedirectToAction(nameof(PartsManager));
     }
 
     [HttpPost]
@@ -373,7 +385,7 @@ public sealed class SettingsController : Controller
             return View(model);
         }
 
-        var part = await _dbContext.Parts.FindAsync([model.PartId], cancellationToken);
+        var part = await _dbContext.Parts.ForCompany(_currentUserSession.RenoCompanyID).FirstOrDefaultAsync(item => item.PartId == model.PartId, cancellationToken);
         if (part is null)
         {
             return NotFound();
@@ -389,7 +401,7 @@ public sealed class SettingsController : Controller
 
         await _dbContext.SaveChangesAsync(cancellationToken);
 
-        return Redirect("http://localhost:5138/Settings/PartsManager");
+        return RedirectToAction(nameof(PartsManager));
     }
 
     private static void NormalizeAddPartModel(AddPartViewModel model)
@@ -420,7 +432,7 @@ public sealed class SettingsController : Controller
 
     private async Task<PartsImportResult> ImportPartsAsync(PartsTransferFile import, CancellationToken cancellationToken)
     {
-        var existingSources = await _dbContext.PartSources.ToListAsync(cancellationToken);
+        var existingSources = await _dbContext.PartSources.ForCompany(_currentUserSession.RenoCompanyID).ToListAsync(cancellationToken);
         var sourceIdMap = new Dictionary<Guid, Guid>();
         var result = new PartsImportResult();
 
@@ -440,6 +452,7 @@ public sealed class SettingsController : Controller
                 source = new PartSource
                 {
                     PartSourceId = importedSource.PartSourceId,
+                    RenoCompanyID = _currentUserSession.RenoCompanyID,
                     Name = importedName
                 };
 
@@ -460,7 +473,7 @@ public sealed class SettingsController : Controller
             sourceIdMap[importedSource.PartSourceId] = source.PartSourceId;
         }
 
-        var existingParts = await _dbContext.Parts.ToListAsync(cancellationToken);
+        var existingParts = await _dbContext.Parts.ForCompany(_currentUserSession.RenoCompanyID).ToListAsync(cancellationToken);
 
         foreach (var importedPart in import.Parts)
         {
@@ -482,6 +495,7 @@ public sealed class SettingsController : Controller
                 part = new Part
                 {
                     PartId = normalizedPart.PartId,
+                    RenoCompanyID = _currentUserSession.RenoCompanyID,
                     PartSourceId = mappedSourceId
                 };
 

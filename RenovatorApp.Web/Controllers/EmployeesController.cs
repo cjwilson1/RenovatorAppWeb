@@ -2,6 +2,7 @@ using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
 using RenovatorApp.Infrastructure.Data;
 using RenovatorApp.Infrastructure.Models;
+using RenovatorApp.Web.Services;
 using RenovatorApp.Web.ViewModels;
 
 namespace RenovatorApp.Web.Controllers;
@@ -10,17 +11,19 @@ public sealed class EmployeesController : Controller
 {
     private const int PageSize = 10;
     private readonly RenovatorAppDbContext _dbContext;
+    private readonly CurrentUserSession _currentUserSession;
 
-    public EmployeesController(RenovatorAppDbContext dbContext)
+    public EmployeesController(RenovatorAppDbContext dbContext, CurrentUserSession currentUserSession)
     {
         _dbContext = dbContext;
+        _currentUserSession = currentUserSession;
     }
 
     public async Task<IActionResult> Index(string? search, int page = 1, CancellationToken cancellationToken = default)
     {
         var normalizedSearch = (search ?? string.Empty).Trim();
         var lastSyncDateUtc = await GetLastQuickBooksSyncDateUtcAsync(cancellationToken);
-        var query = _dbContext.Employees.AsNoTracking();
+        var query = _dbContext.Employees.AsNoTracking().ForCompany(_currentUserSession.RenoCompanyID);
 
         if (normalizedSearch.Length >= 2)
         {
@@ -63,7 +66,7 @@ public sealed class EmployeesController : Controller
         var employee = await _dbContext.Employees
             .AsNoTracking()
             .Include(item => item.PrimaryAddress)
-            .FirstOrDefaultAsync(item => item.EmployeeId == id, cancellationToken);
+            .FirstOrDefaultAsync(item => item.EmployeeId == id && item.RenoCompanyID == _currentUserSession.RenoCompanyID, cancellationToken);
 
         if (employee is null)
         {
@@ -84,7 +87,7 @@ public sealed class EmployeesController : Controller
 
         var employee = await _dbContext.Employees
             .Include(item => item.PrimaryAddress)
-            .FirstOrDefaultAsync(item => item.EmployeeId == id, cancellationToken);
+            .FirstOrDefaultAsync(item => item.EmployeeId == id && item.RenoCompanyID == _currentUserSession.RenoCompanyID, cancellationToken);
 
         if (employee is null)
         {
@@ -247,6 +250,7 @@ public sealed class EmployeesController : Controller
 
         if (_dbContext.Entry(employee.PrimaryAddress).State == EntityState.Detached)
         {
+            employee.PrimaryAddress.RenoCompanyID = _currentUserSession.RenoCompanyID;
             _dbContext.Addresses.Add(employee.PrimaryAddress);
         }
 
@@ -277,6 +281,7 @@ public sealed class EmployeesController : Controller
     {
         var value = await _dbContext.AppSettings
             .AsNoTracking()
+            .ForCompany(_currentUserSession.RenoCompanyID)
             .Where(setting => setting.Name == "QuickBooks:EmployeesLastSyncDateUtc")
             .Select(setting => setting.Value)
             .FirstOrDefaultAsync(cancellationToken);

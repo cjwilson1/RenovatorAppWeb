@@ -1,0 +1,108 @@
+@model RenovatorApp.Web.ViewModels.SuperAdminUserEditViewModel
+
+@{
+    ViewData["Title"] = Model.IsEditMode ? "Edit User" : "Add User";
+}
+
+<div class="page-header-row">
+    <div>
+        <h1>@(Model.IsEditMode ? "Edit User" : "Add User")</h1>
+        <p class="text-muted">@(Model.IsEditMode ? "Update user access and roles." : "Create a new user for this company.")</p>
+    </div>
+</div>
+
+<form asp-controller="SuperAdmin"
+      asp-action="@(Model.IsEditMode ? "EditCompanyUser" : "AddCompanyUser")"
+      asp-route-companyId="@Model.RenoCompanyID"
+      asp-route-userId="@Model.UserID"
+      method="post">
+    <input asp-for="UserID" type="hidden" />
+    <input asp-for="RenoCompanyID" type="hidden" />
+
+    @if (!ViewData.ModelState.IsValid)
+    {
+        <div class="alert alert-warning" role="alert">
+            Fix the highlighted fields before saving.
+        </div>
+    }
+
+    <div class="detail-grid">
+        <section class="detail-section detail-section-full">
+            <h2>User</h2>
+            <div class="row g-3">
+                <div class="col-12 col-lg-4">
+                    <label class="form-label" asp-for="Login"></label>
+                    <input class="form-control" asp-for="Login" autocomplete="username" />
+                    <span class="text-danger" asp-validation-for="Login"></span>
+                </div>
+                <div class="col-12 col-md-6 col-lg-4">
+                    <label class="form-label" asp-for="FirstName"></label>
+                    <input class="form-control" asp-for="FirstName" />
+                </div>
+                <div class="col-12 col-md-6 col-lg-4">
+                    <label class="form-label" asp-for="LastName"></label>
+                    <input class="form-control" asp-for="LastName" />
+                </div>
+                <div class="col-12 col-lg-4">
+                    <label class="form-label" asp-for="Email"></label>
+                    <input class="form-control" asp-for="Email" autocomplete="email" />
+                </div>
+                <div class="col-12 col-md-6 col-lg-4">
+                    <label class="form-label" asp-for="PhonePrimary"></label>
+                    <input class="form-control" asp-for="PhonePrimary" />
+                </div>
+                <div class="col-12 col-md-6 col-lg-4">
+                    <label class="form-label" asp-for="PhoneSecondary"></label>
+                    <input class="form-control" asp-for="PhoneSecondary" />
+                </div>
+                <div class="col-12">
+                    <div class="form-check">
+                        <input class="form-check-input" asp-for="Active" />
+                        <label class="form-check-label" asp-for="Active"></label>
+                    </div>
+                </div>
+            </div>
+        </section>
+
+        <section class="detail-section">
+            <h2>Password</h2>
+            <p class="text-muted">@(Model.IsEditMode ? "Leave blank to keep the current password." : "Password is required for new users.")</p>
+            <div class="mb-3">
+                <label class="form-label" asp-for="Password"></label>
+                <input class="form-control" asp-for="Password" autocomplete="new-password" />
+                <span class="text-danger" asp-validation-for="Password"></span>
+            </div>
+            <div>
+                <label class="form-label" asp-for="ConfirmPassword"></label>
+                <input class="form-control" asp-for="ConfirmPassword" autocomplete="new-password" />
+                <span class="text-danger" asp-validation-for="ConfirmPassword"></span>
+            </div>
+        </section>
+
+        <section class="detail-section">
+            <h2>Roles</h2>
+            <div class="plain-list">
+                @foreach (var role in Model.AvailableRoles)
+                {
+                    <label class="form-check">
+                        <input class="form-check-input"
+                               name="SelectedRoleIDs"
+                               type="checkbox"
+                               value="@role.RoleID"
+                               @(Model.SelectedRoleIDs.Contains(role.RoleID) ? "checked" : string.Empty) />
+                        <span class="form-check-label">@role.Name</span>
+                    </label>
+                }
+            </div>
+        </section>
+    </div>
+
+    <div class="d-flex gap-2 mt-3">
+        <button class="btn btn-primary" type="submit">Save</button>
+        <a class="btn btn-outline-secondary" asp-controller="SuperAdmin" asp-action="EditCompany" asp-route-id="@Model.RenoCompanyID">Cancel</a>
+    </div>
+</form>
+
+@section Scripts {
+    <partial name="_ValidationScriptsPartial" />
+}

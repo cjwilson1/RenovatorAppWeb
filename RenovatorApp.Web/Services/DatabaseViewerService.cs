@@ -12,7 +12,11 @@ public sealed class DatabaseViewerService
     {
         "BuildingType",
         "InspectionAreaCategory",
-        "InspectionAreaType"
+        "InspectionAreaType",
+        "RenoCompany",
+        "RenoUser",
+        "Role",
+        "UserRole"
     };
     private readonly RenovatorAppDbContext _dbContext;
 
