@@ -4,6 +4,10 @@
     ViewData["Title"] = Model.Title;
     var previousPage = Math.Max(1, Model.Page - 1);
     var nextPage = Math.Min(Model.TotalPages, Model.Page + 1);
+    var isInspectionTable = string.Equals(Model.SelectedTableName, "Inspection", StringComparison.OrdinalIgnoreCase);
+    var idColumnIndex = isInspectionTable
+        ? Model.Columns.ToList().FindIndex(column => string.Equals(column, "Id", StringComparison.OrdinalIgnoreCase))
+        : -1;
 }
 
 <div class="page-header-row">
@@ -35,7 +39,21 @@
         {
             @foreach (var row in Model.Rows)
             {
-                <tr>
+                var detailUrl = string.Empty;
+                if (idColumnIndex >= 0
+                    && idColumnIndex < row.Count
+                    && Guid.TryParse(row[idColumnIndex], out var inspectionId))
+                {
+                    detailUrl = Url.Action(
+                        "CompanyInspectionDetail",
+                        "SuperAdmin",
+                        new { companyId = Model.RenoCompanyID, inspectionId }) ?? string.Empty;
+                }
+
+                <tr class="@(string.IsNullOrWhiteSpace(detailUrl) ? string.Empty : "clickable-table-row company-table-clickable-row")"
+                    tabindex="@(string.IsNullOrWhiteSpace(detailUrl) ? null : "0")"
+                    onclick="@(string.IsNullOrWhiteSpace(detailUrl) ? null : $"window.location.href='{detailUrl}'")"
+                    onkeydown="@(string.IsNullOrWhiteSpace(detailUrl) ? null : $"if(event.key==='Enter'||event.key===' '){{event.preventDefault(); window.location.href='{detailUrl}';}}")">
                     @foreach (var value in row)
                     {
                         <td>@value</td>

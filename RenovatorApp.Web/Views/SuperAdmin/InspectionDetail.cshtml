@@ -1,0 +1,169 @@
+@model RenovatorApp.Web.ViewModels.SuperAdminInspectionDetailViewModel
+@using RenovatorApp.Infrastructure.Models
+
+@{
+    ViewData["Title"] = Model.Inspection.Title;
+}
+
+<div class="page-header-row">
+    <div>
+        <h1>@Model.Inspection.Title</h1>
+        <p class="text-muted">@Model.CompanyName - @Model.Inspection.InspectionDate.ToString("d")</p>
+    </div>
+    <a class="btn btn-outline-secondary"
+       asp-controller="SuperAdmin"
+       asp-action="CompanyInspections"
+       asp-route-companyId="@Model.RenoCompanyID">
+        Back
+    </a>
+</div>
+
+<div class="detail-grid">
+    <section class="detail-section">
+        <h2>General</h2>
+        <dl>
+            <dt>Inspection ID</dt>
+            <dd class="readonly-id text-start">@Model.Inspection.Id</dd>
+            <dt>Date</dt>
+            <dd>@Model.Inspection.InspectionDate.ToString("d")</dd>
+            <dt>Inspector</dt>
+            <dd>@FormatValue(Model.Inspection.InspectorName, "No inspector")</dd>
+            <dt>Created</dt>
+            <dd>@Model.Inspection.CreatedAtUtc.ToLocalTime().ToString("g")</dd>
+            <dt>Last Updated</dt>
+            <dd>@Model.Inspection.UpdatedAtUtc.ToLocalTime().ToString("g")</dd>
+            <dt>Notes</dt>
+            <dd>@FormatValue(Model.Inspection.GeneralNotes, "No notes")</dd>
+        </dl>
+    </section>
+
+    <section class="detail-section">
+        <h2>Property</h2>
+        <dl>
+            <dt>Property ID</dt>
+            <dd class="readonly-id text-start">@Model.Inspection.PropertyId</dd>
+            <dt>Address</dt>
+            <dd>@FormatValue(Model.PropertyAddress, "No property address")</dd>
+            <dt>Buildings</dt>
+            <dd>@Model.Inspection.Property.Buildings.Count</dd>
+            <dt>Areas</dt>
+            <dd>@Model.Inspection.Property.Areas.Count</dd>
+        </dl>
+    </section>
+
+    <section class="detail-section">
+        <h2>Customer</h2>
+        @if (Model.Inspection.Customer is null)
+        {
+            <p>No customer assigned.</p>
+        }
+        else
+        {
+            <dl>
+                <dt>Customer ID</dt>
+                <dd class="readonly-id text-start">@Model.Inspection.Customer.CustomerId</dd>
+                <dt>Name</dt>
+                <dd>@FormatValue(Model.CustomerName, "No customer name")</dd>
+                <dt>Company</dt>
+                <dd>@FormatValue(Model.Inspection.Customer.CompanyName, "No company")</dd>
+                <dt>Phone</dt>
+                <dd>@FormatValue(Model.Inspection.Customer.PrimaryPhone, "No phone")</dd>
+                <dt>Email</dt>
+                <dd>@FormatValue(Model.Inspection.Customer.PrimaryEmailAddress, "No email")</dd>
+                <dt>Address</dt>
+                <dd>@FormatValue(Model.CustomerAddress, "No customer address")</dd>
+            </dl>
+        }
+    </section>
+
+    <section class="detail-section detail-section-wide">
+        <h2>Buildings</h2>
+        @if (Model.Inspection.Property.Buildings.Count == 0)
+        {
+            <p>No buildings found.</p>
+        }
+        else
+        {
+            <div class="building-list">
+                @foreach (var building in GetBuildings())
+                {
+                    var areas = GetAreas(building).ToList();
+
+                    <article class="building-detail">
+                        <div class="building-detail-header">
+                            <div>
+                                <h3>@FormatValue(building.Name, "Unnamed building")</h3>
+                                <p class="text-muted">@FormatValue(building.BuildingType?.Name, "No building type")</p>
+                            </div>
+                            <span class="badge text-bg-light">@areas.Count area@(areas.Count == 1 ? string.Empty : "s")</span>
+                        </div>
+
+                        <dl class="superadmin-building-summary">
+                            <dt>Building ID</dt>
+                            <dd class="readonly-id text-start">@building.Id</dd>
+                            <dt>Sort Order</dt>
+                            <dd>@building.SortOrder</dd>
+                        </dl>
+
+                        @if (areas.Count == 0)
+                        {
+                            <p class="text-muted mb-0">No areas found for this building.</p>
+                        }
+                        else
+                        {
+                            <div class="table-responsive">
+                                <table class="table table-sm align-middle mb-0">
+                                    <thead>
+                                    <tr>
+                                        <th scope="col">Area</th>
+                                        <th scope="col">Type</th>
+                                        <th scope="col" class="text-end">Rating</th>
+                                        <th scope="col" class="text-end">Sort</th>
+                                    </tr>
+                                    </thead>
+                                    <tbody>
+                                    @foreach (var area in areas)
+                                    {
+                                        <tr>
+                                            <td>@FormatValue(area.DisplayName, "Unnamed area")</td>
+                                            <td>@FormatValue(area.AreaType?.Name, "No area type")</td>
+                                            <td class="text-end">@FormatRating(area.OverallRating)</td>
+                                            <td class="text-end">@area.SortOrder</td>
+                                        </tr>
+                                    }
+                                    </tbody>
+                                </table>
+                            </div>
+                        }
+                    </article>
+                }
+            </div>
+        }
+    </section>
+</div>
+
+@functions {
+    private IEnumerable<Building> GetBuildings()
+    {
+        return Model.Inspection.Property.Buildings
+            .OrderBy(building => building.SortOrder)
+            .ThenBy(building => building.Name);
+    }
+
+    private IEnumerable<InspectionArea> GetAreas(Building building)
+    {
+        return building.Areas
+            .OrderBy(area => area.SortOrder)
+            .ThenBy(area => area.DisplayName);
+    }
+
+    private static string FormatValue(string? value, string fallback)
+    {
+        return string.IsNullOrWhiteSpace(value) ? fallback : value;
+    }
+
+    private static string FormatRating(int rating)
+    {
+        return rating == 0 ? "n/a" : rating.ToString();
+    }
+}

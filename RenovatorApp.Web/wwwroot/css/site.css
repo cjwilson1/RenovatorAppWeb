@@ -349,6 +349,22 @@ body > header,
   outline-offset: -2px;
 }
 
+.company-table-clickable-row:hover > td,
+.company-table-clickable-row:focus > td {
+  background: #eaf4ff;
+}
+
+.superadmin-building-summary {
+  display: grid;
+  gap: 0.25rem 0.75rem;
+  grid-template-columns: max-content minmax(0, 1fr);
+  margin-bottom: 0.75rem;
+}
+
+.superadmin-building-summary dd {
+  margin-bottom: 0;
+}
+
 .trip-map-image {
   border: 1px solid #d7d7d7;
   border-radius: 6px;
