@@ -1,4 +1,5 @@
 ﻿using Microsoft.AspNetCore.Mvc;
+using Microsoft.AspNetCore.Authorization;
 using Microsoft.EntityFrameworkCore;
 using RenovatorApp.Infrastructure.Data;
 using RenovatorApp.Infrastructure.Models;
@@ -7,10 +8,12 @@ using RenovatorApp.Web.Services;
 namespace RenovatorApp.Web.Controllers.Api;
 
 [ApiController]
+[AllowAnonymous]
 [Route("api/database-sync")]
 public sealed class DatabaseSyncApiController : ControllerBase
 {
     private const string ApiKeyHeaderName = "X-Api-Key";
+    private const string RenoCompanyIDHeaderName = "X-Reno-Company-ID";
     private readonly IConfiguration _configuration;
     private readonly RenovatorAppDbContext _dbContext;
     private readonly CurrentUserSession _currentUserSession;
@@ -30,7 +33,12 @@ public sealed class DatabaseSyncApiController : ControllerBase
             return Unauthorized();
         }
 
-        var renoCompanyID = _currentUserSession.RenoCompanyID;
+        if (!TryGetRenoCompanyID(out var renoCompanyID))
+        {
+            ModelState.AddModelError(RenoCompanyIDHeaderName, $"{RenoCompanyIDHeaderName} is required until mobile authentication is implemented.");
+            return ValidationProblem(ModelState);
+        }
+
         var addresses = await _dbContext.Addresses.AsNoTracking().ForCompany(renoCompanyID).OrderBy(address => address.Id).Select(address => new DatabaseSyncAddressDto(address.Id, address.PropertyId, address.Street1, address.Street2, address.City, address.State, address.PostalCode)).ToListAsync(cancellationToken);
         var buildings = await _dbContext.Buildings.AsNoTracking().ForCompany(renoCompanyID).OrderBy(building => building.PropertyId).ThenBy(building => building.SortOrder).ThenBy(building => building.Name).Select(building => new DatabaseSyncBuildingDto(building.Id, building.PropertyId, building.BuildingTypeId, building.Name, building.SortOrder)).ToListAsync(cancellationToken);
         var buildingTypes = await _dbContext.BuildingTypes.AsNoTracking().ForCompany(renoCompanyID).OrderBy(buildingType => buildingType.Name).Select(buildingType => new DatabaseSyncBuildingTypeDto(buildingType.Id, buildingType.Name)).ToListAsync(cancellationToken);
@@ -54,6 +62,25 @@ public sealed class DatabaseSyncApiController : ControllerBase
         }
 
         return Request.Headers.TryGetValue(ApiKeyHeaderName, out var apiKey) && string.Equals(apiKey.ToString(), configuredApiKey, StringComparison.Ordinal);
+    }
+
+    private bool TryGetRenoCompanyID(out Guid renoCompanyID)
+    {
+        if (_currentUserSession.IsLoggedIn)
+        {
+            renoCompanyID = _currentUserSession.RenoCompanyID;
+            return true;
+        }
+
+        if (Request.Headers.TryGetValue(RenoCompanyIDHeaderName, out var headerValue)
+            && Guid.TryParse(headerValue.ToString(), out renoCompanyID)
+            && renoCompanyID != Guid.Empty)
+        {
+            return true;
+        }
+
+        renoCompanyID = Guid.Empty;
+        return false;
     }
 
     private static DatabaseSyncCustomerDto ToCustomerDto(Customer customer)

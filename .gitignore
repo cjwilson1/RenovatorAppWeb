@@ -6,3 +6,6 @@
 *.suo
 .env
 appsettings.Development.json
+build-check/
+.playwright/
+RenovatorApp.Web/Documents/Inspections/*.pdf

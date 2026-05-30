@@ -1,5 +1,6 @@
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
+using Microsoft.AspNetCore.Authorization;
 using Npgsql;
 using RenovatorApp.Infrastructure.Services;
 using RenovatorApp.Web.Models;
@@ -8,10 +9,12 @@ using RenovatorApp.Web.Services;
 namespace RenovatorApp.Web.Controllers.Api;
 
 [ApiController]
+[AllowAnonymous]
 [Route("api/sync")]
 public sealed class SyncApiController : ControllerBase
 {
     private const string ApiKeyHeaderName = "X-Api-Key";
+    private const string RenoCompanyIDHeaderName = "X-Reno-Company-ID";
     private readonly IConfiguration _configuration;
     private readonly MobileSyncDataService _mobileSyncDataService;
     private readonly CurrentUserSession _currentUserSession;
@@ -53,7 +56,13 @@ public sealed class SyncApiController : ControllerBase
 
         try
         {
-            results = await _mobileSyncDataService.SyncAsync(_currentUserSession.RenoCompanyID, ToBatch(request), cancellationToken);
+            if (!TryGetRenoCompanyID(out var renoCompanyID))
+            {
+                ModelState.AddModelError(RenoCompanyIDHeaderName, $"{RenoCompanyIDHeaderName} is required until mobile authentication is implemented.");
+                return ValidationProblem(ModelState);
+            }
+
+            results = await _mobileSyncDataService.SyncAsync(renoCompanyID, ToBatch(request), cancellationToken);
         }
         catch (DbUpdateException exception) when (exception.InnerException is PostgresException postgresException)
         {
@@ -84,6 +93,25 @@ public sealed class SyncApiController : ControllerBase
 
         return Request.Headers.TryGetValue(ApiKeyHeaderName, out var apiKey)
             && string.Equals(apiKey.ToString(), configuredApiKey, StringComparison.Ordinal);
+    }
+
+    private bool TryGetRenoCompanyID(out Guid renoCompanyID)
+    {
+        if (_currentUserSession.IsLoggedIn)
+        {
+            renoCompanyID = _currentUserSession.RenoCompanyID;
+            return true;
+        }
+
+        if (Request.Headers.TryGetValue(RenoCompanyIDHeaderName, out var headerValue)
+            && Guid.TryParse(headerValue.ToString(), out renoCompanyID)
+            && renoCompanyID != Guid.Empty)
+        {
+            return true;
+        }
+
+        renoCompanyID = Guid.Empty;
+        return false;
     }
 
     private static MobileSyncBatch ToBatch(SyncRequest request)
