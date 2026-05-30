@@ -181,6 +181,26 @@ body > header,
   background-color: #dff1ff;
 }
 
+@media (max-width: 575.98px) and (orientation: portrait) {
+  .navbar .container-fluid {
+    flex-wrap: nowrap;
+  }
+
+  .navbar-toggler,
+  .navbar-collapse {
+    display: none !important;
+  }
+
+  .navbar-brand {
+    min-width: 0;
+  }
+
+  .user-menu {
+    flex: 0 0 auto;
+    margin-left: auto;
+  }
+}
+
 .empty-state,
 .detail-section {
   border: 1px solid #d7d7d7;
