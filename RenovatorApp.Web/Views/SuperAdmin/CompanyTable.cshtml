@@ -1,0 +1,68 @@
+@model RenovatorApp.Web.ViewModels.CompanyTablePageViewModel
+
+@{
+    ViewData["Title"] = Model.Title;
+    var previousPage = Math.Max(1, Model.Page - 1);
+    var nextPage = Math.Min(Model.TotalPages, Model.Page + 1);
+}
+
+<div class="page-header-row">
+    <div>
+        <h1>@Model.Title</h1>
+        <p class="text-muted">@Model.TotalRows row@(Model.TotalRows == 1 ? string.Empty : "s") for company @Model.RenoCompanyID</p>
+    </div>
+    <a class="btn btn-outline-secondary" asp-controller="SuperAdmin" asp-action="EditCompany" asp-route-id="@Model.RenoCompanyID">Back</a>
+</div>
+
+<div class="table-responsive">
+    <table class="table table-striped table-hover table-sm align-middle">
+        <thead>
+        <tr>
+            @foreach (var column in Model.Columns)
+            {
+                <th scope="col">@column</th>
+            }
+        </tr>
+        </thead>
+        <tbody>
+        @if (Model.Rows.Count == 0)
+        {
+            <tr>
+                <td colspan="@(Math.Max(Model.Columns.Count, 1))" class="text-muted">No rows found.</td>
+            </tr>
+        }
+        else
+        {
+            @foreach (var row in Model.Rows)
+            {
+                <tr>
+                    @foreach (var value in row)
+                    {
+                        <td>@value</td>
+                    }
+                </tr>
+            }
+        }
+        </tbody>
+    </table>
+</div>
+
+<div class="d-flex align-items-center justify-content-between gap-3">
+    <div class="btn-group" role="group" aria-label="@Model.Title pages">
+        <a class="btn btn-outline-secondary @(Model.HasPreviousPage ? string.Empty : "disabled")"
+           asp-controller="SuperAdmin"
+           asp-action="@Model.RouteAction"
+           asp-route-companyId="@Model.RenoCompanyID"
+           asp-route-page="@previousPage">
+            Previous
+        </a>
+        <a class="btn btn-outline-secondary @(Model.HasNextPage ? string.Empty : "disabled")"
+           asp-controller="SuperAdmin"
+           asp-action="@Model.RouteAction"
+           asp-route-companyId="@Model.RenoCompanyID"
+           asp-route-page="@nextPage">
+            Next
+        </a>
+    </div>
+    <span class="text-muted">Page @Model.Page of @Model.TotalPages</span>
+</div>

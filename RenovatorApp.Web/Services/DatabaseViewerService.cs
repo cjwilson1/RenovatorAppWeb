@@ -72,6 +72,48 @@ public sealed class DatabaseViewerService
         };
     }
 
+    public async Task<CompanyTablePageViewModel?> GetCompanyTablePageAsync(
+        Guid renoCompanyID,
+        string tableName,
+        string title,
+        string routeAction,
+        int page,
+        int pageSize,
+        CancellationToken cancellationToken = default)
+    {
+        var tableNames = GetTableNames();
+        var matchedTableName = tableNames.FirstOrDefault(name => string.Equals(name, tableName, StringComparison.OrdinalIgnoreCase));
+
+        if (matchedTableName is null)
+        {
+            return null;
+        }
+
+        page = Math.Max(page, 1);
+        pageSize = Math.Clamp(pageSize, 1, 100);
+
+        var quotedTableName = QuoteIdentifier(matchedTableName);
+        var totalRows = await GetCompanyTotalRowsAsync(quotedTableName, renoCompanyID, cancellationToken);
+        var totalPages = totalRows == 0 ? 1 : (int)Math.Ceiling(totalRows / (double)pageSize);
+        page = Math.Min(page, totalPages);
+
+        var rows = await GetCompanyRowsAsync(quotedTableName, renoCompanyID, page, pageSize, cancellationToken);
+
+        return new CompanyTablePageViewModel
+        {
+            RenoCompanyID = renoCompanyID,
+            Title = title,
+            RouteAction = routeAction,
+            SelectedTableName = matchedTableName,
+            Columns = rows.Columns,
+            Rows = rows.Values,
+            Page = page,
+            PageSize = pageSize,
+            TotalRows = totalRows,
+            TotalPages = totalPages
+        };
+    }
+
     public async Task ClearDatabaseAsync(CancellationToken cancellationToken = default)
     {
         var tableNames = GetTableNames()
@@ -120,6 +162,19 @@ public sealed class DatabaseViewerService
         return Convert.ToInt32(count);
     }
 
+    private async Task<int> GetCompanyTotalRowsAsync(string quotedTableName, Guid renoCompanyID, CancellationToken cancellationToken)
+    {
+        var connection = _dbContext.Database.GetDbConnection();
+        await EnsureOpenAsync(connection, cancellationToken);
+
+        await using var command = connection.CreateCommand();
+        command.CommandText = $"select count(*) from {quotedTableName} where \"RenoCompanyID\" = @renoCompanyID";
+        AddParameter(command, "renoCompanyID", renoCompanyID);
+
+        var count = await command.ExecuteScalarAsync(cancellationToken);
+        return Convert.ToInt32(count);
+    }
+
     private async Task<(IReadOnlyList<string> Columns, IReadOnlyList<IReadOnlyList<string>> Values)> GetRowsAsync(
         string quotedTableName,
         int page,
@@ -132,6 +187,44 @@ public sealed class DatabaseViewerService
         await using var command = connection.CreateCommand();
         command.CommandText = $"select * from {quotedTableName} limit @pageSize offset @offset";
 
+        AddParameter(command, "pageSize", pageSize);
+        AddParameter(command, "offset", (page - 1) * pageSize);
+
+        await using var reader = await command.ExecuteReaderAsync(cancellationToken);
+        var columns = Enumerable.Range(0, reader.FieldCount)
+            .Select(reader.GetName)
+            .ToList();
+        var rows = new List<IReadOnlyList<string>>();
+
+        while (await reader.ReadAsync(cancellationToken))
+        {
+            var values = new List<string>(reader.FieldCount);
+
+            for (var index = 0; index < reader.FieldCount; index++)
+            {
+                values.Add(FormatCellValue(reader.GetValue(index)));
+            }
+
+            rows.Add(values);
+        }
+
+        return (columns, rows);
+    }
+
+    private async Task<(IReadOnlyList<string> Columns, IReadOnlyList<IReadOnlyList<string>> Values)> GetCompanyRowsAsync(
+        string quotedTableName,
+        Guid renoCompanyID,
+        int page,
+        int pageSize,
+        CancellationToken cancellationToken)
+    {
+        var connection = _dbContext.Database.GetDbConnection();
+        await EnsureOpenAsync(connection, cancellationToken);
+
+        await using var command = connection.CreateCommand();
+        command.CommandText = $"select * from {quotedTableName} where \"RenoCompanyID\" = @renoCompanyID limit @pageSize offset @offset";
+
+        AddParameter(command, "renoCompanyID", renoCompanyID);
         AddParameter(command, "pageSize", pageSize);
         AddParameter(command, "offset", (page - 1) * pageSize);
 

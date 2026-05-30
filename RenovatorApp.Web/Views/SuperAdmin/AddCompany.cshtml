@@ -27,6 +27,36 @@
 
     <div class="detail-grid">
         <section class="detail-section detail-section-full">
+            @if (Model.IsEditMode && Model.RenoCompanyID is Guid tabCompanyId)
+            {
+                <ul class="nav nav-tabs company-table-tabs mb-3">
+                    <li class="nav-item">
+                        <a class="nav-link" asp-controller="SuperAdmin" asp-action="CompanyBuildingTypes" asp-route-companyId="@tabCompanyId">Building Type</a>
+                    </li>
+                    <li class="nav-item">
+                        <a class="nav-link" asp-controller="SuperAdmin" asp-action="CompanyCustomers" asp-route-companyId="@tabCompanyId">Customer</a>
+                    </li>
+                    <li class="nav-item">
+                        <a class="nav-link" asp-controller="SuperAdmin" asp-action="CompanyEmployees" asp-route-companyId="@tabCompanyId">Employee</a>
+                    </li>
+                    <li class="nav-item">
+                        <a class="nav-link" asp-controller="SuperAdmin" asp-action="CompanyInspections" asp-route-companyId="@tabCompanyId">Inspection</a>
+                    </li>
+                    <li class="nav-item">
+                        <a class="nav-link" asp-controller="SuperAdmin" asp-action="CompanyInspectors" asp-route-companyId="@tabCompanyId">Inspectors</a>
+                    </li>
+                    <li class="nav-item">
+                        <a class="nav-link" asp-controller="SuperAdmin" asp-action="CompanyMileage" asp-route-companyId="@tabCompanyId">Mileage</a>
+                    </li>
+                    <li class="nav-item">
+                        <a class="nav-link" asp-controller="SuperAdmin" asp-action="CompanyProperties" asp-route-companyId="@tabCompanyId">Property</a>
+                    </li>
+                    <li class="nav-item">
+                        <a class="nav-link" asp-controller="SuperAdmin" asp-action="CompanyUsersTable" asp-route-companyId="@tabCompanyId">Users</a>
+                    </li>
+                </ul>
+            }
+
             <div class="detail-section-title-row">
                 <h2>Company</h2>
                 @if (Model.IsEditMode && Model.RenoCompanyID is Guid headerCompanyId)

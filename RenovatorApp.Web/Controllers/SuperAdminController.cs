@@ -446,6 +446,54 @@ public sealed class SuperAdminController : Controller
         return RedirectToAction(nameof(Companies));
     }
 
+    [HttpGet("SuperAdmin/Companies/{companyId:guid}/BuildingTypes")]
+    public Task<IActionResult> CompanyBuildingTypes(Guid companyId, int page = 1, CancellationToken cancellationToken = default)
+    {
+        return CompanyTable(companyId, "Building Type", "BuildingType", nameof(CompanyBuildingTypes), page, cancellationToken);
+    }
+
+    [HttpGet("SuperAdmin/Companies/{companyId:guid}/Customers")]
+    public Task<IActionResult> CompanyCustomers(Guid companyId, int page = 1, CancellationToken cancellationToken = default)
+    {
+        return CompanyTable(companyId, "Customer", "Customer", nameof(CompanyCustomers), page, cancellationToken);
+    }
+
+    [HttpGet("SuperAdmin/Companies/{companyId:guid}/Employees")]
+    public Task<IActionResult> CompanyEmployees(Guid companyId, int page = 1, CancellationToken cancellationToken = default)
+    {
+        return CompanyTable(companyId, "Employee", "Employee", nameof(CompanyEmployees), page, cancellationToken);
+    }
+
+    [HttpGet("SuperAdmin/Companies/{companyId:guid}/Inspections")]
+    public Task<IActionResult> CompanyInspections(Guid companyId, int page = 1, CancellationToken cancellationToken = default)
+    {
+        return CompanyTable(companyId, "Inspection", "Inspection", nameof(CompanyInspections), page, cancellationToken);
+    }
+
+    [HttpGet("SuperAdmin/Companies/{companyId:guid}/Inspectors")]
+    public Task<IActionResult> CompanyInspectors(Guid companyId, int page = 1, CancellationToken cancellationToken = default)
+    {
+        return CompanyTable(companyId, "Inspectors", "Inspectors", nameof(CompanyInspectors), page, cancellationToken);
+    }
+
+    [HttpGet("SuperAdmin/Companies/{companyId:guid}/Mileage")]
+    public Task<IActionResult> CompanyMileage(Guid companyId, int page = 1, CancellationToken cancellationToken = default)
+    {
+        return CompanyTable(companyId, "Mileage", "MileageTracking", nameof(CompanyMileage), page, cancellationToken);
+    }
+
+    [HttpGet("SuperAdmin/Companies/{companyId:guid}/Properties")]
+    public Task<IActionResult> CompanyProperties(Guid companyId, int page = 1, CancellationToken cancellationToken = default)
+    {
+        return CompanyTable(companyId, "Property", "Property", nameof(CompanyProperties), page, cancellationToken);
+    }
+
+    [HttpGet("SuperAdmin/Companies/{companyId:guid}/Users")]
+    public Task<IActionResult> CompanyUsersTable(Guid companyId, int page = 1, CancellationToken cancellationToken = default)
+    {
+        return CompanyTable(companyId, "Users", "RenoUser", nameof(CompanyUsersTable), page, cancellationToken);
+    }
+
     [HttpGet("SuperAdmin/Companies/{companyId:guid}/Users/Add")]
     public async Task<IActionResult> AddCompanyUser(Guid companyId, CancellationToken cancellationToken)
     {
@@ -657,6 +705,33 @@ public sealed class SuperAdminController : Controller
     private static string Clean(string? value)
     {
         return value?.Trim() ?? string.Empty;
+    }
+
+    private async Task<IActionResult> CompanyTable(
+        Guid companyId,
+        string title,
+        string tableName,
+        string routeAction,
+        int page,
+        CancellationToken cancellationToken)
+    {
+        if (!await _dbContext.RenoCompanies.AnyAsync(company => company.RenoCompanyID == companyId, cancellationToken))
+        {
+            return NotFound();
+        }
+
+        var model = await _databaseViewerService.GetCompanyTablePageAsync(
+            companyId,
+            tableName,
+            title,
+            routeAction,
+            page,
+            DefaultPageSize,
+            cancellationToken);
+
+        return model is null
+            ? NotFound()
+            : View("CompanyTable", model);
     }
 
     private async Task SeedCompanyLookupTablesAsync(Guid newRenoCompanyID, CancellationToken cancellationToken)
