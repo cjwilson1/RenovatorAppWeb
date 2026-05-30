@@ -1,4 +1,5 @@
 using System.ComponentModel.DataAnnotations;
+using RenovatorApp.Infrastructure.Models;
 
 namespace RenovatorApp.Web.ViewModels;
 
@@ -133,4 +134,14 @@ public sealed class SuperAdminAttachUserOptionViewModel
     public string Login { get; init; } = string.Empty;
     public string Name { get; init; } = string.Empty;
     public string CompanyName { get; init; } = string.Empty;
+}
+
+public sealed class SuperAdminInspectionDetailViewModel
+{
+    public Guid RenoCompanyID { get; init; }
+    public string CompanyName { get; init; } = string.Empty;
+    public required Inspection Inspection { get; init; }
+    public string PropertyAddress { get; init; } = string.Empty;
+    public string CustomerName { get; init; } = string.Empty;
+    public string CustomerAddress { get; init; } = string.Empty;
 }

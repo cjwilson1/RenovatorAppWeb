@@ -470,6 +470,54 @@ public sealed class SuperAdminController : Controller
         return CompanyTable(companyId, "Inspection", "Inspection", nameof(CompanyInspections), page, cancellationToken);
     }
 
+    [HttpGet("SuperAdmin/Companies/{companyId:guid}/Inspections/{inspectionId:guid}")]
+    public async Task<IActionResult> CompanyInspectionDetail(Guid companyId, Guid inspectionId, CancellationToken cancellationToken = default)
+    {
+        var companyName = await _dbContext.RenoCompanies
+            .Where(company => company.RenoCompanyID == companyId)
+            .Select(company => company.Name)
+            .FirstOrDefaultAsync(cancellationToken);
+
+        if (companyName is null)
+        {
+            return NotFound();
+        }
+
+        var inspection = await _dbContext.Inspections
+            .AsNoTracking()
+            .ForCompany(companyId)
+            .Include(item => item.Customer)
+                .ThenInclude(customer => customer!.BillAddress)
+            .Include(item => item.Property)
+                .ThenInclude(property => property.Address)
+            .Include(item => item.Property)
+                .ThenInclude(property => property.Buildings)
+                    .ThenInclude(building => building.BuildingType)
+            .Include(item => item.Property)
+                .ThenInclude(property => property.Buildings)
+                    .ThenInclude(building => building.Areas)
+                        .ThenInclude(area => area.AreaType)
+            .Include(item => item.Property)
+                .ThenInclude(property => property.Areas)
+                    .ThenInclude(area => area.AreaType)
+            .FirstOrDefaultAsync(item => item.Id == inspectionId, cancellationToken);
+
+        if (inspection is null)
+        {
+            return NotFound();
+        }
+
+        return View("InspectionDetail", new SuperAdminInspectionDetailViewModel
+        {
+            RenoCompanyID = companyId,
+            CompanyName = companyName,
+            Inspection = inspection,
+            PropertyAddress = FormatAddress(inspection.Property.Address),
+            CustomerName = FormatCustomerName(inspection.Customer),
+            CustomerAddress = FormatAddress(inspection.Customer?.BillAddress)
+        });
+    }
+
     [HttpGet("SuperAdmin/Companies/{companyId:guid}/Inspectors")]
     public Task<IActionResult> CompanyInspectors(Guid companyId, int page = 1, CancellationToken cancellationToken = default)
     {
@@ -705,6 +753,42 @@ public sealed class SuperAdminController : Controller
     private static string Clean(string? value)
     {
         return value?.Trim() ?? string.Empty;
+    }
+
+    private static string FormatAddress(Address? address)
+    {
+        if (address is null)
+        {
+            return string.Empty;
+        }
+
+        var street = string.Join(" ", new[] { address.Street1, address.Street2, address.Street3 }
+            .Where(value => !string.IsNullOrWhiteSpace(value)));
+        var cityState = string.Join(", ", new[] { address.City, address.State }
+            .Where(value => !string.IsNullOrWhiteSpace(value)));
+        var cityStateZip = string.Join(" ", new[] { cityState, address.PostalCode }
+            .Where(value => !string.IsNullOrWhiteSpace(value)));
+
+        return string.Join(" - ", new[] { street, cityStateZip }
+            .Where(value => !string.IsNullOrWhiteSpace(value)));
+    }
+
+    private static string FormatCustomerName(Customer? customer)
+    {
+        if (customer is null)
+        {
+            return string.Empty;
+        }
+
+        if (!string.IsNullOrWhiteSpace(customer.DisplayName))
+        {
+            return customer.DisplayName;
+        }
+
+        var name = string.Join(" ", new[] { customer.GivenName, customer.FamilyName }
+            .Where(value => !string.IsNullOrWhiteSpace(value)));
+
+        return string.IsNullOrWhiteSpace(name) ? customer.CompanyName : name;
     }
 
     private async Task<IActionResult> CompanyTable(

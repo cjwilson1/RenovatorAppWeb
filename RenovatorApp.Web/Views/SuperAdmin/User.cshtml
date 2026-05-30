@@ -66,16 +66,19 @@
         </section>
 
         <section class="detail-section">
-            <h2>Password</h2>
+            <div class="detail-section-title-row">
+                <h2>Password</h2>
+                <button class="btn btn-outline-secondary btn-sm password-toggle-button" type="button">Show</button>
+            </div>
             <p class="text-muted">@(Model.IsEditMode ? "Leave blank to keep the current password." : "Password is required for new users.")</p>
             <div class="mb-3">
                 <label class="form-label" asp-for="Password"></label>
-                <input class="form-control" asp-for="Password" autocomplete="new-password" />
+                <input class="form-control password-toggle-field" asp-for="Password" autocomplete="new-password" />
                 <span class="text-danger" asp-validation-for="Password"></span>
             </div>
             <div>
                 <label class="form-label" asp-for="ConfirmPassword"></label>
-                <input class="form-control" asp-for="ConfirmPassword" autocomplete="new-password" />
+                <input class="form-control password-toggle-field" asp-for="ConfirmPassword" autocomplete="new-password" />
                 <span class="text-danger" asp-validation-for="ConfirmPassword"></span>
             </div>
         </section>
@@ -106,4 +109,16 @@
 
 @section Scripts {
     <partial name="_ValidationScriptsPartial" />
+    <script>
+        const passwordToggleButton = document.querySelector('.password-toggle-button');
+        const passwordToggleFields = document.querySelectorAll('.password-toggle-field');
+
+        passwordToggleButton?.addEventListener('click', () => {
+            const showPasswords = passwordToggleFields[0]?.type === 'password';
+            passwordToggleFields.forEach((field) => {
+                field.type = showPasswords ? 'text' : 'password';
+            });
+            passwordToggleButton.textContent = showPasswords ? 'Hide' : 'Show';
+        });
+    </script>
 }
