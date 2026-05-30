@@ -17,6 +17,7 @@ public sealed class SuperAdminController : Controller
     private const int DefaultPageSize = 20;
     private const int CompaniesPageSize = 10;
     private const int UsersPageSize = 10;
+    private static readonly Guid TemplateRenoCompanyID = Guid.Parse("11111111-1111-1111-1111-111111111111");
     private readonly DatabaseViewerService _databaseViewerService;
     private readonly RenovatorAppDbContext _dbContext;
     private readonly PasswordService _passwordService;
@@ -308,7 +309,7 @@ public sealed class SuperAdminController : Controller
             return View(model);
         }
 
-        _dbContext.RenoCompanies.Add(new RenoCompany
+        var company = new RenoCompany
         {
             Name = Clean(model.Name),
             StreetAddress = Clean(model.StreetAddress),
@@ -322,8 +323,10 @@ public sealed class SuperAdminController : Controller
             URL = Clean(model.URL),
             Active = model.Active,
             DateCreated = DateTime.UtcNow
-        });
+        };
 
+        _dbContext.RenoCompanies.Add(company);
+        await SeedCompanyLookupTablesAsync(company.RenoCompanyID, cancellationToken);
         await _dbContext.SaveChangesAsync(cancellationToken);
         return RedirectToAction(nameof(Companies));
     }
@@ -390,6 +393,56 @@ public sealed class SuperAdminController : Controller
         company.Active = model.Active;
 
         await _dbContext.SaveChangesAsync(cancellationToken);
+        return RedirectToAction(nameof(Companies));
+    }
+
+    [HttpPost("SuperAdmin/Companies/{id:guid}/Delete")]
+    [ValidateAntiForgeryToken]
+    public async Task<IActionResult> DeleteCompany(Guid id, CancellationToken cancellationToken)
+    {
+        var companyExists = await _dbContext.RenoCompanies
+            .AnyAsync(company => company.RenoCompanyID == id, cancellationToken);
+
+        if (!companyExists)
+        {
+            return RedirectToAction(nameof(Companies));
+        }
+
+        await using var transaction = await _dbContext.Database.BeginTransactionAsync(cancellationToken);
+
+        await _dbContext.UserRoles
+            .Where(userRole => _dbContext.RenoUsers.Any(user => user.UserID == userRole.UserID && user.RenoCompanyID == id))
+            .ExecuteDeleteAsync(cancellationToken);
+        await _dbContext.RenoUsers.Where(user => user.RenoCompanyID == id).ExecuteDeleteAsync(cancellationToken);
+
+        await _dbContext.InspectionAreaNotePhotos.Where(photo => photo.RenoCompanyID == id).ExecuteDeleteAsync(cancellationToken);
+        await _dbContext.InspectionAreaNoteEstimateItems.Where(item => item.RenoCompanyID == id).ExecuteDeleteAsync(cancellationToken);
+        await _dbContext.InspectionAreaNotes.Where(note => note.RenoCompanyID == id).ExecuteDeleteAsync(cancellationToken);
+        await _dbContext.InspectionAreas.Where(area => area.RenoCompanyID == id).ExecuteDeleteAsync(cancellationToken);
+        await _dbContext.Buildings.Where(building => building.RenoCompanyID == id).ExecuteDeleteAsync(cancellationToken);
+        await _dbContext.Inspections.Where(inspection => inspection.RenoCompanyID == id).ExecuteDeleteAsync(cancellationToken);
+
+        await _dbContext.MileageTrackingWaypoints.Where(waypoint => waypoint.RenoCompanyID == id).ExecuteDeleteAsync(cancellationToken);
+        await _dbContext.MileageTracking.Where(session => session.RenoCompanyID == id).ExecuteDeleteAsync(cancellationToken);
+
+        await _dbContext.Documents.Where(document => document.RenoCompanyID == id).ExecuteDeleteAsync(cancellationToken);
+        await _dbContext.Customers.Where(customer => customer.RenoCompanyID == id).ExecuteDeleteAsync(cancellationToken);
+        await _dbContext.Employees.Where(employee => employee.RenoCompanyID == id).ExecuteDeleteAsync(cancellationToken);
+        await _dbContext.Inspectors.Where(inspector => inspector.RenoCompanyID == id).ExecuteDeleteAsync(cancellationToken);
+
+        await _dbContext.Parts.Where(part => part.RenoCompanyID == id).ExecuteDeleteAsync(cancellationToken);
+        await _dbContext.PartSources.Where(source => source.RenoCompanyID == id).ExecuteDeleteAsync(cancellationToken);
+        await _dbContext.InspectionAreaTypes.Where(areaType => areaType.RenoCompanyID == id).ExecuteDeleteAsync(cancellationToken);
+        await _dbContext.InspectionAreaCategories.Where(category => category.RenoCompanyID == id).ExecuteDeleteAsync(cancellationToken);
+        await _dbContext.BuildingTypes.Where(buildingType => buildingType.RenoCompanyID == id).ExecuteDeleteAsync(cancellationToken);
+        await _dbContext.AppSettings.Where(setting => setting.RenoCompanyID == id).ExecuteDeleteAsync(cancellationToken);
+
+        await _dbContext.Addresses.Where(address => address.RenoCompanyID == id).ExecuteDeleteAsync(cancellationToken);
+        await _dbContext.Properties.Where(property => property.RenoCompanyID == id).ExecuteDeleteAsync(cancellationToken);
+        await _dbContext.RenoCompanies.Where(company => company.RenoCompanyID == id).ExecuteDeleteAsync(cancellationToken);
+
+        await transaction.CommitAsync(cancellationToken);
+
         return RedirectToAction(nameof(Companies));
     }
 
@@ -604,6 +657,123 @@ public sealed class SuperAdminController : Controller
     private static string Clean(string? value)
     {
         return value?.Trim() ?? string.Empty;
+    }
+
+    private async Task SeedCompanyLookupTablesAsync(Guid newRenoCompanyID, CancellationToken cancellationToken)
+    {
+        var buildingTypes = await _dbContext.BuildingTypes
+            .AsNoTracking()
+            .Where(item => item.RenoCompanyID == TemplateRenoCompanyID)
+            .OrderBy(item => item.Name)
+            .ToListAsync(cancellationToken);
+
+        foreach (var buildingType in buildingTypes)
+        {
+            _dbContext.BuildingTypes.Add(new BuildingType
+            {
+                Id = Guid.NewGuid(),
+                RenoCompanyID = newRenoCompanyID,
+                Name = buildingType.Name
+            });
+        }
+
+        var templateCategories = await _dbContext.InspectionAreaCategories
+            .AsNoTracking()
+            .Where(item => item.RenoCompanyID == TemplateRenoCompanyID)
+            .OrderBy(item => item.SortOrder)
+            .ThenBy(item => item.Name)
+            .ToListAsync(cancellationToken);
+
+        var categoryIdMap = new Dictionary<Guid, Guid>();
+        foreach (var category in templateCategories)
+        {
+            var newCategoryId = Guid.NewGuid();
+            categoryIdMap[category.Id] = newCategoryId;
+
+            _dbContext.InspectionAreaCategories.Add(new InspectionAreaCategory
+            {
+                Id = newCategoryId,
+                RenoCompanyID = newRenoCompanyID,
+                Name = category.Name,
+                SortOrder = category.SortOrder
+            });
+        }
+
+        var templateAreaTypes = await _dbContext.InspectionAreaTypes
+            .AsNoTracking()
+            .Where(item => item.RenoCompanyID == TemplateRenoCompanyID)
+            .OrderBy(item => item.SortOrder)
+            .ThenBy(item => item.Name)
+            .ToListAsync(cancellationToken);
+
+        foreach (var areaType in templateAreaTypes)
+        {
+            if (!categoryIdMap.TryGetValue(areaType.CategoryId, out var newCategoryId))
+            {
+                continue;
+            }
+
+            _dbContext.InspectionAreaTypes.Add(new InspectionAreaType
+            {
+                AreaTypeId = Guid.NewGuid(),
+                RenoCompanyID = newRenoCompanyID,
+                CategoryId = newCategoryId,
+                Name = areaType.Name,
+                SortOrder = areaType.SortOrder
+            });
+        }
+
+        var templatePartSources = await _dbContext.PartSources
+            .AsNoTracking()
+            .Where(item => item.RenoCompanyID == TemplateRenoCompanyID)
+            .OrderBy(item => item.Name)
+            .ToListAsync(cancellationToken);
+
+        var partSourceIdMap = new Dictionary<Guid, Guid>();
+        foreach (var partSource in templatePartSources)
+        {
+            var newPartSourceId = Guid.NewGuid();
+            partSourceIdMap[partSource.PartSourceId] = newPartSourceId;
+
+            _dbContext.PartSources.Add(new PartSource
+            {
+                PartSourceId = newPartSourceId,
+                RenoCompanyID = newRenoCompanyID,
+                Name = partSource.Name
+            });
+        }
+
+        var templateParts = await _dbContext.Parts
+            .AsNoTracking()
+            .Where(item => item.RenoCompanyID == TemplateRenoCompanyID)
+            .OrderBy(item => item.Name)
+            .ThenBy(item => item.Sku)
+            .ToListAsync(cancellationToken);
+
+        foreach (var part in templateParts)
+        {
+            if (!partSourceIdMap.TryGetValue(part.PartSourceId, out var newPartSourceId))
+            {
+                continue;
+            }
+
+            _dbContext.Parts.Add(new Part
+            {
+                PartId = Guid.NewGuid(),
+                RenoCompanyID = newRenoCompanyID,
+                PartSourceId = newPartSourceId,
+                Name = part.Name,
+                Description = part.Description,
+                ModelNumber = part.ModelNumber,
+                Manufacturer = part.Manufacturer,
+                Sku = part.Sku,
+                Url = part.Url,
+                ImageUrl = part.ImageUrl,
+                Cost = part.Cost,
+                IsPackage = part.IsPackage,
+                PackageUnits = part.PackageUnits
+            });
+        }
     }
 
     private async Task<IReadOnlyList<SuperAdminCompanyUserRowViewModel>> GetCompanyUsersAsync(Guid companyId, CancellationToken cancellationToken)

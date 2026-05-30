@@ -92,14 +92,38 @@
         </section>
     </div>
 
-    <div class="d-flex gap-2 mt-3">
+    <div class="d-flex align-items-center gap-2 mt-3">
         <button class="btn btn-primary" type="submit">Save</button>
         <a class="btn btn-outline-secondary" asp-controller="SuperAdmin" asp-action="Companies">Cancel</a>
+        @if (Model.IsEditMode && Model.RenoCompanyID is Guid deleteCompanyId)
+        {
+            <button class="btn btn-danger ms-3" type="button" data-bs-toggle="modal" data-bs-target="#deleteCompanyModal">Delete Company</button>
+        }
     </div>
 </form>
 
 @if (Model.IsEditMode && Model.RenoCompanyID is Guid companyId)
 {
+    <div class="modal fade" id="deleteCompanyModal" tabindex="-1" aria-labelledby="deleteCompanyTitle" aria-hidden="true">
+        <div class="modal-dialog">
+            <div class="modal-content">
+                <div class="modal-header">
+                    <h2 class="modal-title fs-5" id="deleteCompanyTitle">Delete Company</h2>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+                </div>
+                <div class="modal-body">
+                    Deleting a company will permanently delete the company and all its related data. The data cannot be restored. Are you sure?
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-outline-secondary" data-bs-dismiss="modal" autofocus>No</button>
+                    <form asp-controller="SuperAdmin" asp-action="DeleteCompany" asp-route-id="@companyId" method="post">
+                        <button type="submit" class="btn btn-danger">Yes</button>
+                    </form>
+                </div>
+            </div>
+        </div>
+    </div>
+
     <section class="detail-section detail-section-full mt-4">
         <div class="d-flex align-items-center justify-content-between gap-3 mb-3">
             <div>
