@@ -16,6 +16,38 @@ public sealed class InspectionDetailViewModel
     public string PropertyAddress { get; init; } = string.Empty;
     public string CustomerName { get; init; } = string.Empty;
     public string DefaultReportName { get; init; } = string.Empty;
+    public IReadOnlyList<InspectionMileageTrackingViewModel> MileageTrackingRecords { get; init; } = [];
+    public IReadOnlyList<InspectionMileageTrackingAttachViewModel> MileageTrackingAttachRecords { get; init; } = [];
+}
+
+public sealed class InspectionMileageTrackingViewModel
+{
+    public Guid UniqueId { get; init; }
+    public DateTime TrackingStartedAtUtc { get; init; }
+    public TimeSpan TotalTime { get; init; }
+    public double TotalMileage { get; init; }
+    public DateTime EndTimeUtc => TrackingStartedAtUtc.Add(TotalTime);
+    public string MapImageUrl { get; init; } = string.Empty;
+    public IReadOnlyList<InspectionMileageTrackingWaypointViewModel> Waypoints { get; init; } = [];
+}
+
+public sealed class InspectionMileageTrackingWaypointViewModel
+{
+    public DateTime WaypointTimeUtc { get; init; }
+    public double CumulativeMiles { get; init; }
+    public string GpsCoordinates { get; init; } = string.Empty;
+    public string Location { get; init; } = string.Empty;
+}
+
+public sealed class InspectionMileageTrackingAttachViewModel
+{
+    public Guid UniqueId { get; init; }
+    public DateTime TrackingStartedAtUtc { get; init; }
+    public TimeSpan TotalTime { get; init; }
+    public double TotalMileage { get; init; }
+    public DateTime EndTimeUtc => TrackingStartedAtUtc.Add(TotalTime);
+    public Guid? InspectionId { get; init; }
+    public string InspectionTitle { get; init; } = string.Empty;
 }
 
 public sealed class InspectionEditViewModel
@@ -30,8 +62,53 @@ public sealed class InspectionEditViewModel
     public IReadOnlyList<InspectionBuildingEditViewModel> Buildings { get; init; } = [];
     public IReadOnlyList<InspectorPickerItemViewModel> Inspectors { get; init; } = [];
     public IReadOnlyList<PartPickerItemViewModel> Parts { get; init; } = [];
+    public InspectionCustomerPickerViewModel CustomerPicker { get; init; } = new();
+    public bool ForceNewCustomer { get; set; }
+    public bool ShowCustomerMatchDialog { get; init; }
+    public IReadOnlyList<InspectionCustomerMatchViewModel> CustomerMatches { get; init; } = [];
     public string PageTitle => Id.HasValue ? "Edit Inspection" : "New Inspection";
     public string CancelAction => Id.HasValue ? "Details" : "Index";
+}
+
+public sealed class InspectionCustomerMatchViewModel
+{
+    public Guid CustomerId { get; init; }
+    public string FirstName { get; init; } = string.Empty;
+    public string LastName { get; init; } = string.Empty;
+    public string CompanyName { get; init; } = string.Empty;
+    public string Phone { get; init; } = string.Empty;
+    public string Email { get; init; } = string.Empty;
+    public string Street1 { get; init; } = string.Empty;
+    public string City { get; init; } = string.Empty;
+    public string State { get; init; } = string.Empty;
+    public string PostalCode { get; init; } = string.Empty;
+}
+
+public sealed class InspectionCustomerPickerViewModel
+{
+    public IReadOnlyList<InspectionCustomerPickerItemViewModel> Customers { get; init; } = [];
+    public int Page { get; init; } = 1;
+    public int PageSize { get; init; } = 15;
+    public int TotalCustomers { get; init; }
+    public int TotalPages { get; init; } = 1;
+    public string Search { get; init; } = string.Empty;
+    public bool OpenOnLoad { get; init; }
+}
+
+public sealed class InspectionCustomerPickerItemViewModel
+{
+    public Guid CustomerId { get; init; }
+    public string FirstName { get; init; } = string.Empty;
+    public string LastName { get; init; } = string.Empty;
+    public string CompanyName { get; init; } = string.Empty;
+    public string Phone { get; init; } = string.Empty;
+    public string Email { get; init; } = string.Empty;
+    public string Street1 { get; init; } = string.Empty;
+    public string Street2 { get; init; } = string.Empty;
+    public string City { get; init; } = string.Empty;
+    public string State { get; init; } = string.Empty;
+    public string PostalCode { get; init; } = string.Empty;
+    public string Notes { get; init; } = string.Empty;
 }
 
 public sealed class InspectorPickerItemViewModel
@@ -41,6 +118,7 @@ public sealed class InspectorPickerItemViewModel
     public string Email { get; init; } = string.Empty;
     public string Phone { get; init; } = string.Empty;
     public decimal HourlyRate { get; init; }
+    public bool IsDefault { get; init; }
 }
 
 public sealed class PartPickerItemViewModel
@@ -65,18 +143,18 @@ public sealed class InspectionPropertyAddressEditViewModel
 
 public sealed class InspectionCustomerEditViewModel
 {
-    public Guid? CustomerId { get; init; }
-    public string FirstName { get; init; } = string.Empty;
-    public string LastName { get; init; } = string.Empty;
-    public string CompanyName { get; init; } = string.Empty;
-    public string Phone { get; init; } = string.Empty;
-    public string Email { get; init; } = string.Empty;
-    public string Street1 { get; init; } = string.Empty;
-    public string Street2 { get; init; } = string.Empty;
-    public string City { get; init; } = string.Empty;
-    public string State { get; init; } = string.Empty;
-    public string PostalCode { get; init; } = string.Empty;
-    public string Notes { get; init; } = string.Empty;
+    public Guid? CustomerId { get; set; }
+    public string FirstName { get; set; } = string.Empty;
+    public string LastName { get; set; } = string.Empty;
+    public string CompanyName { get; set; } = string.Empty;
+    public string Phone { get; set; } = string.Empty;
+    public string Email { get; set; } = string.Empty;
+    public string Street1 { get; set; } = string.Empty;
+    public string Street2 { get; set; } = string.Empty;
+    public string City { get; set; } = string.Empty;
+    public string State { get; set; } = string.Empty;
+    public string PostalCode { get; set; } = string.Empty;
+    public string Notes { get; set; } = string.Empty;
 }
 
 public sealed class InspectionBuildingEditViewModel

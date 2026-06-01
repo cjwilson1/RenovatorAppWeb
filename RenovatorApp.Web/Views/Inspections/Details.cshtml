@@ -4,12 +4,25 @@
     ViewData["Title"] = Model.Inspection.Title;
 }
 
+<style>
+    .detach-trip-confirmation {
+        z-index: 1065;
+    }
+
+    .modal-backdrop.show + .modal-backdrop.show {
+        z-index: 1060;
+    }
+</style>
+
 <div class="page-header-row">
     <div>
         <h1>@Model.Inspection.Title</h1>
         <p class="text-muted">@Model.Inspection.InspectionDate.ToString("d")</p>
     </div>
     <div class="d-flex gap-2">
+        <button class="btn btn-danger" type="button" data-bs-toggle="modal" data-bs-target="#deleteInspectionModal">
+            Delete
+        </button>
         <a class="btn btn-outline-primary"
            asp-controller="Inspections"
            asp-action="Edit"
@@ -19,6 +32,27 @@
         <button class="btn btn-primary" type="button" data-bs-toggle="modal" data-bs-target="#createReportModal">
             Create Inspection Report
         </button>
+    </div>
+</div>
+
+<div class="modal" id="deleteInspectionModal" tabindex="-1" aria-labelledby="deleteInspectionModalLabel" aria-hidden="true">
+    <div class="modal-dialog modal-dialog-centered">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h2 class="modal-title fs-5" id="deleteInspectionModalLabel">Delete Inspection</h2>
+                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+            </div>
+            <div class="modal-body">
+                If you delete this Inspection, all inspection data will be deleted, and you will not be able to recover it. Are you sure?
+            </div>
+            <div class="modal-footer">
+                <button class="btn btn-secondary" type="button" data-bs-dismiss="modal">No</button>
+                <form asp-controller="Inspections" asp-action="Delete" asp-route-id="@Model.Inspection.Id" method="post">
+                    @Html.AntiForgeryToken()
+                    <button class="btn btn-danger" type="submit">Yes</button>
+                </form>
+            </div>
+        </div>
     </div>
 </div>
 
@@ -63,11 +97,6 @@
     </section>
 
     <section class="detail-section">
-        <h2>Property</h2>
-        <p>@(string.IsNullOrWhiteSpace(Model.PropertyAddress) ? "No property address" : Model.PropertyAddress)</p>
-    </section>
-
-    <section class="detail-section">
         <h2>Customer</h2>
         @if (Model.Inspection.Customer is null)
         {
@@ -87,6 +116,269 @@
             </dl>
         }
     </section>
+
+    <section class="detail-section">
+        <h2>Property</h2>
+        <p>@(string.IsNullOrWhiteSpace(Model.PropertyAddress) ? "No property address" : Model.PropertyAddress)</p>
+    </section>
+
+    <section class="detail-section detail-section-wide">
+        <div class="d-flex align-items-center justify-content-between gap-3 mb-3">
+            <h2 class="mb-0">Mileage</h2>
+            <button class="btn btn-primary" type="button" data-bs-toggle="modal" data-bs-target="#attachTripModal">
+                Attach Trip
+            </button>
+        </div>
+        @if (Model.MileageTrackingRecords.Count == 0)
+        {
+            <p>No mileage tracking records attached to this inspection.</p>
+        }
+        else
+        {
+            <div class="table-responsive">
+                <table class="table table-striped align-middle mb-0">
+                    <thead>
+                        <tr>
+                            <th scope="col">Start Time</th>
+                            <th scope="col">Elapsed Time</th>
+                            <th scope="col" class="text-end">Total Mileage</th>
+                            <th scope="col">End Time</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        @foreach (var trip in Model.MileageTrackingRecords)
+                        {
+                            <tr>
+                                <td>
+                                    <button class="btn btn-link p-0 align-baseline"
+                                            type="button"
+                                            data-bs-toggle="modal"
+                                            data-bs-target="#mileageTripModal-@trip.UniqueId">
+                                        @FormatDateTime(trip.TrackingStartedAtUtc)
+                                    </button>
+                                </td>
+                                <td>@FormatElapsedTime(trip.TotalTime)</td>
+                                <td class="text-end">@FormatMileage(trip.TotalMileage)</td>
+                                <td>@FormatDateTime(trip.EndTimeUtc)</td>
+                            </tr>
+                        }
+                    </tbody>
+                </table>
+            </div>
+        }
+    </section>
+
+    <div class="modal" id="attachTripModal" tabindex="-1" aria-labelledby="attachTripModalLabel" aria-hidden="true">
+        <div class="modal-dialog modal-xl modal-dialog-scrollable">
+            <div class="modal-content">
+                <div class="modal-header">
+                    <h2 class="modal-title fs-5" id="attachTripModalLabel">Attach Trip</h2>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+                </div>
+                <div class="modal-body">
+                    <div class="form-check mb-3">
+                        <input class="form-check-input" id="showAttachedTrips" type="checkbox" />
+                        <label class="form-check-label" for="showAttachedTrips">Show attached trips</label>
+                    </div>
+
+                    <div class="table-responsive">
+                        <table class="table table-striped table-hover align-middle mb-0">
+                            <thead>
+                                <tr>
+                                    <th scope="col">Start Time</th>
+                                    <th scope="col">Elapsed Time</th>
+                                    <th scope="col" class="text-end">Total Mileage</th>
+                                    <th scope="col">End Time</th>
+                                    <th scope="col">Inspection</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                @if (Model.MileageTrackingAttachRecords.Count == 0)
+                                {
+                                    <tr>
+                                        <td class="text-muted" colspan="5">No mileage tracking records found.</td>
+                                    </tr>
+                                }
+                                else
+                                {
+                                    @foreach (var trip in Model.MileageTrackingAttachRecords)
+                                    {
+                                        <tr class="clickable-table-row"
+                                            data-attach-trip-row
+                                            data-trip-id="@trip.UniqueId"
+                                            data-is-attached="@trip.InspectionId.HasValue.ToString().ToLowerInvariant()"
+                                            tabindex="0"
+                                            aria-label="Attach trip from @FormatDateTime(trip.TrackingStartedAtUtc)">
+                                            <td>@FormatDateTime(trip.TrackingStartedAtUtc)</td>
+                                            <td>@FormatElapsedTime(trip.TotalTime)</td>
+                                            <td class="text-end">@FormatMileage(trip.TotalMileage)</td>
+                                            <td>@FormatDateTime(trip.EndTimeUtc)</td>
+                                            <td>@(string.IsNullOrWhiteSpace(trip.InspectionTitle) ? "None" : trip.InspectionTitle)</td>
+                                        </tr>
+                                    }
+                                }
+                                <tr class="d-none" id="attachTripEmptyRow">
+                                    <td class="text-muted" colspan="5">No unattached mileage tracking records found.</td>
+                                </tr>
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+                <div class="modal-footer">
+                    <button class="btn btn-secondary" type="button" data-bs-dismiss="modal">Close</button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <div class="modal detach-trip-confirmation" id="confirmAttachTripModal" tabindex="-1" aria-labelledby="confirmAttachTripModalLabel" aria-hidden="true">
+        <div class="modal-dialog modal-dialog-centered">
+            <div class="modal-content">
+                <div class="modal-header">
+                    <h2 class="modal-title fs-5" id="confirmAttachTripModalLabel">Attach to Inspection</h2>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+                </div>
+                <div class="modal-body">
+                    <p class="mb-0">Do you want to attach this trip to the current inspection?</p>
+                </div>
+                <div class="modal-footer">
+                    <button class="btn btn-secondary" type="button" data-bs-dismiss="modal">No</button>
+                    <form asp-controller="Inspections" asp-action="AttachMileage" asp-route-id="@Model.Inspection.Id" method="post">
+                        @Html.AntiForgeryToken()
+                        <input id="attachMileageTripId" name="tripId" type="hidden" />
+                        <button class="btn btn-primary" type="submit">Yes</button>
+                    </form>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    @foreach (var trip in Model.MileageTrackingRecords)
+    {
+        <div class="modal" id="mileageTripModal-@trip.UniqueId" tabindex="-1" aria-labelledby="mileageTripModalLabel-@trip.UniqueId" aria-hidden="true">
+            <div class="modal-dialog modal-xl modal-dialog-scrollable">
+                <div class="modal-content">
+                    <div class="modal-header">
+                        <h2 class="modal-title fs-5" id="mileageTripModalLabel-@trip.UniqueId">Trip</h2>
+                        <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+                    </div>
+                    <div class="modal-body">
+                        <section class="detail-section mb-4">
+                            <h2>Trip Details</h2>
+                            <div class="table-responsive">
+                                <table class="table table-striped align-middle mb-0">
+                                    <thead>
+                                        <tr>
+                                            <th scope="col">Start Time</th>
+                                            <th scope="col">Elapsed Time</th>
+                                            <th scope="col" class="text-end">Total Mileage</th>
+                                            <th scope="col">End Time</th>
+                                        </tr>
+                                    </thead>
+                                    <tbody>
+                                        <tr>
+                                            <td>@FormatDateTime(trip.TrackingStartedAtUtc)</td>
+                                            <td>@FormatElapsedTime(trip.TotalTime)</td>
+                                            <td class="text-end">@FormatMileage(trip.TotalMileage)</td>
+                                            <td>@FormatDateTime(trip.EndTimeUtc)</td>
+                                        </tr>
+                                    </tbody>
+                                </table>
+                            </div>
+                        </section>
+
+                        <section class="detail-section mb-4">
+                            <h2>Map</h2>
+                            @if (string.IsNullOrWhiteSpace(trip.MapImageUrl))
+                            {
+                                <p class="text-muted">No map is available for this trip.</p>
+                            }
+                            else
+                            {
+                                <img class="trip-map-image"
+                                     src="@trip.MapImageUrl"
+                                     alt="Static map of trip waypoints" />
+                                <p class="text-muted mt-2">
+                                    Powered by <a href="https://www.geoapify.com/" target="_blank" rel="noopener">Geoapify</a>
+                                    and <a href="https://www.openstreetmap.org/copyright" target="_blank" rel="noopener">OpenStreetMap contributors</a>
+                                </p>
+                            }
+                        </section>
+
+                        <section class="detail-section">
+                            <h2>Waypoints</h2>
+                            <div class="table-responsive">
+                                <table class="table table-striped align-middle mb-0">
+                                    <thead>
+                                        <tr>
+                                            <th scope="col">#</th>
+                                            <th scope="col">Waypoint Time</th>
+                                            <th scope="col" class="text-end">Cumulative Miles</th>
+                                            <th scope="col">GPS Coordinates</th>
+                                            <th scope="col">Location</th>
+                                        </tr>
+                                    </thead>
+                                    <tbody>
+                                        @if (trip.Waypoints.Count == 0)
+                                        {
+                                            <tr>
+                                                <td class="text-muted" colspan="5">No waypoints found.</td>
+                                            </tr>
+                                        }
+                                        else
+                                        {
+                                            @for (var waypointIndex = 0; waypointIndex < trip.Waypoints.Count; waypointIndex++)
+                                            {
+                                                var waypoint = trip.Waypoints[waypointIndex];
+                                                <tr>
+                                                    <td>@(waypointIndex + 1)</td>
+                                                    <td>@FormatDateTime(waypoint.WaypointTimeUtc)</td>
+                                                    <td class="text-end">@FormatMileage(waypoint.CumulativeMiles)</td>
+                                                    <td>@FormatWaypointCoordinates(waypoint.GpsCoordinates, waypointIndex)</td>
+                                                    <td>@FormatLocation(waypoint.Location)</td>
+                                                </tr>
+                                            }
+                                        }
+                                    </tbody>
+                                </table>
+                            </div>
+                        </section>
+                    </div>
+                    <div class="modal-footer">
+                        <button class="btn btn-danger me-4"
+                                type="button"
+                                data-detach-trip-button
+                                data-confirm-modal-id="detachTripModal-@trip.UniqueId">
+                            Remove from Inspection
+                        </button>
+                        <button class="btn btn-secondary" type="button" data-bs-dismiss="modal">Close</button>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <div class="modal detach-trip-confirmation" id="detachTripModal-@trip.UniqueId" tabindex="-1" aria-labelledby="detachTripModalLabel-@trip.UniqueId" aria-hidden="true">
+            <div class="modal-dialog modal-dialog-centered">
+                <div class="modal-content">
+                    <div class="modal-header">
+                        <h2 class="modal-title fs-5" id="detachTripModalLabel-@trip.UniqueId">Detach Trip</h2>
+                        <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+                    </div>
+                    <div class="modal-body">
+                        <p class="mb-0">Are you sure you want to remove this Trip from the inspection?</p>
+                    </div>
+                    <div class="modal-footer">
+                        <button class="btn btn-secondary" type="button" data-bs-dismiss="modal">No</button>
+                        <form asp-controller="Inspections" asp-action="DetachMileage" asp-route-id="@Model.Inspection.Id" method="post">
+                            @Html.AntiForgeryToken()
+                            <input name="tripId" type="hidden" value="@trip.UniqueId" />
+                            <button class="btn btn-danger" type="submit">Yes</button>
+                        </form>
+                    </div>
+                </div>
+            </div>
+        </div>
+    }
 
     <section class="detail-section detail-section-wide">
         <h2>Buildings</h2>
@@ -219,6 +511,67 @@
     </section>
 </div>
 
+@section Scripts {
+    <script>
+        const showAttachedTrips = document.getElementById('showAttachedTrips');
+        const attachTripEmptyRow = document.getElementById('attachTripEmptyRow');
+        const attachMileageTripId = document.getElementById('attachMileageTripId');
+        const confirmAttachTripModal = document.getElementById('confirmAttachTripModal');
+
+        function updateAttachTripRows() {
+            const showAttached = showAttachedTrips?.checked || false;
+            let visibleCount = 0;
+
+            document.querySelectorAll('[data-attach-trip-row]').forEach(row => {
+                const isAttached = row.dataset.isAttached === 'true';
+                const isVisible = showAttached || !isAttached;
+
+                row.classList.toggle('d-none', !isVisible);
+
+                if (isVisible) {
+                    visibleCount++;
+                }
+            });
+
+            attachTripEmptyRow?.classList.toggle('d-none', visibleCount > 0);
+        }
+
+        showAttachedTrips?.addEventListener('change', updateAttachTripRows);
+
+        document.querySelectorAll('[data-attach-trip-row]').forEach(row => {
+            const openAttachConfirmation = () => {
+                if (attachMileageTripId) {
+                    attachMileageTripId.value = row.dataset.tripId || '';
+                }
+
+                if (confirmAttachTripModal) {
+                    bootstrap.Modal.getOrCreateInstance(confirmAttachTripModal).show();
+                }
+            };
+
+            row.addEventListener('click', openAttachConfirmation);
+            row.addEventListener('keydown', event => {
+                if (event.key === 'Enter' || event.key === ' ') {
+                    event.preventDefault();
+                    openAttachConfirmation();
+                }
+            });
+        });
+
+        updateAttachTripRows();
+
+        document.querySelectorAll('[data-detach-trip-button]').forEach(button => {
+            button.addEventListener('click', () => {
+                const confirmModal = document.getElementById(button.dataset.confirmModalId || '');
+
+                if (confirmModal) {
+                    bootstrap.Modal.getOrCreateInstance(confirmModal).show();
+                }
+            });
+        });
+    </script>
+}
+
 @functions {
     private IEnumerable<Building> GetBuildings()
     {
@@ -262,6 +615,37 @@
     private static string FormatHours(decimal value)
     {
         return value.ToString("0.##");
+    }
+
+    private static string FormatDateTime(DateTime value)
+    {
+        return value.ToLocalTime().ToString("g");
+    }
+
+    private static string FormatElapsedTime(TimeSpan value)
+    {
+        return value.TotalHours >= 1
+            ? $"{(int)value.TotalHours}:{value.Minutes:00}:{value.Seconds:00}"
+            : $"{value.Minutes:00}:{value.Seconds:00}";
+    }
+
+    private static string FormatMileage(double value)
+    {
+        return $"{value:N2}";
+    }
+
+    private static string FormatWaypointCoordinates(string value, int index)
+    {
+        return index == 0 && string.IsNullOrWhiteSpace(value)
+            ? "Trip start"
+            : value;
+    }
+
+    private static string FormatLocation(string value)
+    {
+        return string.IsNullOrWhiteSpace(value)
+            ? "-"
+            : value;
     }
 
     private static string GetPhotoSource(InspectionAreaNotePhoto photo)

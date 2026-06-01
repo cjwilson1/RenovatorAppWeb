@@ -19,6 +19,24 @@ public sealed class MileageTrackingRowViewModel
     public TimeSpan ElapsedTime { get; init; }
     public double TotalMileage { get; init; }
     public DateTime EndTimeUtc { get; init; }
+    public string InspectionTitle { get; init; } = string.Empty;
+}
+
+public sealed class MileageTrackingAttachInspectionViewModel
+{
+    public MileageTrackingRowViewModel Trip { get; init; } = new();
+    public IReadOnlyList<MileageTrackingInspectionPickerRowViewModel> Inspections { get; init; } = [];
+    public int Page { get; init; }
+    public int TotalPages { get; init; }
+    public int TotalInspections { get; init; }
+}
+
+public sealed class MileageTrackingInspectionPickerRowViewModel
+{
+    public Guid InspectionId { get; init; }
+    public string Title { get; init; } = string.Empty;
+    public DateTime InspectionDate { get; init; }
+    public string CustomerName { get; init; } = string.Empty;
 }
 
 public sealed class MileageTrackingWaypointViewModel

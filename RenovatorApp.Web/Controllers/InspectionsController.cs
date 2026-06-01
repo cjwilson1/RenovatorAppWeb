@@ -1,4 +1,6 @@
 using Microsoft.AspNetCore.Mvc;
+using Microsoft.EntityFrameworkCore;
+using RenovatorApp.Infrastructure.Data;
 using QuestPDF.Fluent;
 using QuestPDF.Helpers;
 using QuestPDF.Infrastructure;
@@ -6,21 +8,29 @@ using RenovatorApp.Infrastructure.Models;
 using RenovatorApp.Infrastructure.Services;
 using RenovatorApp.Web.Services;
 using RenovatorApp.Web.ViewModels;
+using System.Globalization;
+using System.Text.RegularExpressions;
 
 namespace RenovatorApp.Web.Controllers;
 
 public sealed class InspectionsController : Controller
 {
     private readonly InspectionDataService _inspectionDataService;
+    private readonly RenovatorAppDbContext _dbContext;
+    private readonly IConfiguration _configuration;
     private readonly IWebHostEnvironment _webHostEnvironment;
     private readonly CurrentUserSession _currentUserSession;
 
     public InspectionsController(
         InspectionDataService inspectionDataService,
+        RenovatorAppDbContext dbContext,
+        IConfiguration configuration,
         IWebHostEnvironment webHostEnvironment,
         CurrentUserSession currentUserSession)
     {
         _inspectionDataService = inspectionDataService;
+        _dbContext = dbContext;
+        _configuration = configuration;
         _webHostEnvironment = webHostEnvironment;
         _currentUserSession = currentUserSession;
     }
@@ -42,23 +52,134 @@ public sealed class InspectionsController : Controller
             return NotFound();
         }
 
+        var mileageTrackingRecords = await _dbContext.MileageTracking
+            .AsNoTracking()
+            .ForCompany(_currentUserSession.RenoCompanyID)
+            .Include(trip => trip.Waypoints)
+            .Where(trip => trip.InspectionId == id)
+            .OrderBy(trip => trip.TrackingStartedAtUtc)
+            .ToListAsync(cancellationToken);
+        var mileageTrackingViewModels = mileageTrackingRecords
+            .Select(trip => new InspectionMileageTrackingViewModel
+            {
+                UniqueId = trip.UniqueId,
+                TrackingStartedAtUtc = trip.TrackingStartedAtUtc,
+                TotalTime = trip.TotalTime,
+                TotalMileage = trip.TotalMileage,
+                MapImageUrl = BuildMileageStaticMapImageUrl(trip.Waypoints),
+                Waypoints = trip.Waypoints
+                    .OrderBy(waypoint => waypoint.WaypointTime)
+                    .Select(waypoint => new InspectionMileageTrackingWaypointViewModel
+                    {
+                        WaypointTimeUtc = waypoint.WaypointTime,
+                        CumulativeMiles = waypoint.CumulativeMiles,
+                        GpsCoordinates = waypoint.GpsCoordinates,
+                        Location = waypoint.Location ?? string.Empty
+                    })
+                    .ToList()
+            })
+            .ToList();
+        var mileageTrackingAttachRecords = await _dbContext.MileageTracking
+            .AsNoTracking()
+            .ForCompany(_currentUserSession.RenoCompanyID)
+            .Include(trip => trip.Inspection)
+            .OrderBy(trip => trip.TrackingStartedAtUtc)
+            .Select(trip => new InspectionMileageTrackingAttachViewModel
+            {
+                UniqueId = trip.UniqueId,
+                TrackingStartedAtUtc = trip.TrackingStartedAtUtc,
+                TotalTime = trip.TotalTime,
+                TotalMileage = trip.TotalMileage,
+                InspectionId = trip.InspectionId,
+                InspectionTitle = trip.Inspection == null ? string.Empty : trip.Inspection.Title
+            })
+            .ToListAsync(cancellationToken);
+
         return View(new InspectionDetailViewModel
         {
             Inspection = inspection,
             PropertyAddress = GetPropertyAddress(inspection.Property),
             CustomerName = GetCustomerName(inspection.Customer),
-            DefaultReportName = BuildDefaultReportName(inspection.Title, DateTime.Now)
+            DefaultReportName = BuildDefaultReportName(inspection.Title, DateTime.Now),
+            MileageTrackingRecords = mileageTrackingViewModels,
+            MileageTrackingAttachRecords = mileageTrackingAttachRecords
         });
     }
 
-    [HttpGet("Inspections/New")]
-    public async Task<IActionResult> New(CancellationToken cancellationToken)
+    [HttpPost]
+    [ValidateAntiForgeryToken]
+    public async Task<IActionResult> Delete(Guid id, CancellationToken cancellationToken)
     {
+        await _dbContext.Inspections
+            .Where(inspection => inspection.Id == id && inspection.RenoCompanyID == _currentUserSession.RenoCompanyID)
+            .ExecuteDeleteAsync(cancellationToken);
+
+        return RedirectToAction(nameof(Index));
+    }
+
+    [HttpPost]
+    [ValidateAntiForgeryToken]
+    public async Task<IActionResult> DetachMileage(Guid id, Guid tripId, CancellationToken cancellationToken)
+    {
+        var trip = await _dbContext.MileageTracking
+            .ForCompany(_currentUserSession.RenoCompanyID)
+            .FirstOrDefaultAsync(item => item.UniqueId == tripId && item.InspectionId == id, cancellationToken);
+
+        if (trip is not null)
+        {
+            trip.InspectionId = null;
+            await _dbContext.SaveChangesAsync(cancellationToken);
+        }
+
+        return RedirectToAction(nameof(Details), new { id });
+    }
+
+    [HttpPost]
+    [ValidateAntiForgeryToken]
+    public async Task<IActionResult> AttachMileage(Guid id, Guid tripId, CancellationToken cancellationToken)
+    {
+        var inspectionExists = await _dbContext.Inspections
+            .AsNoTracking()
+            .ForCompany(_currentUserSession.RenoCompanyID)
+            .AnyAsync(inspection => inspection.Id == id, cancellationToken);
+
+        if (!inspectionExists)
+        {
+            return NotFound();
+        }
+
+        var trip = await _dbContext.MileageTracking
+            .ForCompany(_currentUserSession.RenoCompanyID)
+            .FirstOrDefaultAsync(item => item.UniqueId == tripId, cancellationToken);
+
+        if (trip is null)
+        {
+            return NotFound();
+        }
+
+        trip.InspectionId = id;
+        await _dbContext.SaveChangesAsync(cancellationToken);
+
+        return RedirectToAction(nameof(Details), new { id });
+    }
+
+    [HttpGet("Inspections/New")]
+    public async Task<IActionResult> New(
+        string? customerSearch,
+        int customerPage = 1,
+        int customerRows = 15,
+        bool showCustomerPicker = false,
+        CancellationToken cancellationToken = default)
+    {
+        var inspectors = await GetInspectorPickerItemsAsync(cancellationToken);
+
         return View("Edit", new InspectionEditViewModel
         {
             InspectionDate = DateTime.Today,
-            Inspectors = await GetInspectorPickerItemsAsync(cancellationToken),
-            Parts = await GetPartPickerItemsAsync(cancellationToken)
+            InspectorName = inspectors.FirstOrDefault(inspector => inspector.IsDefault)?.FullName ?? string.Empty,
+            Inspectors = inspectors,
+            Parts = await GetPartPickerItemsAsync(cancellationToken),
+            CustomerPicker = await GetCustomerPickerAsync(customerSearch, customerPage, customerRows, showCustomerPicker, cancellationToken)
         });
     }
 
@@ -82,20 +203,119 @@ public sealed class InspectionsController : Controller
             Customer = ToCustomerEditViewModel(inspection.Customer),
             Buildings = ToBuildingEditViewModels(inspection.Property),
             Inspectors = await GetInspectorPickerItemsAsync(cancellationToken),
-            Parts = await GetPartPickerItemsAsync(cancellationToken)
+            Parts = await GetPartPickerItemsAsync(cancellationToken),
+            CustomerPicker = await GetCustomerPickerAsync(null, 1, 15, false, cancellationToken)
+        });
+    }
+
+    [HttpGet("Inspections/Edit/{id:guid}/FindCustomer")]
+    public async Task<IActionResult> EditFindCustomer(
+        Guid id,
+        string? customerSearch,
+        int customerPage = 1,
+        int customerRows = 15,
+        CancellationToken cancellationToken = default)
+    {
+        var inspection = await _inspectionDataService.GetInspectionDetailAsync(_currentUserSession.RenoCompanyID, id, cancellationToken);
+
+        if (inspection is null)
+        {
+            return NotFound();
+        }
+
+        return View("Edit", new InspectionEditViewModel
+        {
+            Id = inspection.Id,
+            Title = inspection.Title,
+            InspectionDate = inspection.InspectionDate,
+            InspectorName = inspection.InspectorName,
+            GeneralNotes = inspection.GeneralNotes,
+            PropertyAddress = ToPropertyAddressEditViewModel(inspection.Property.Address),
+            Customer = ToCustomerEditViewModel(inspection.Customer),
+            Buildings = ToBuildingEditViewModels(inspection.Property),
+            Inspectors = await GetInspectorPickerItemsAsync(cancellationToken),
+            Parts = await GetPartPickerItemsAsync(cancellationToken),
+            CustomerPicker = await GetCustomerPickerAsync(customerSearch, customerPage, customerRows, true, cancellationToken)
         });
     }
 
     [HttpPost]
     [ValidateAntiForgeryToken]
-    public IActionResult Edit(Guid? id)
+    public async Task<IActionResult> Edit(Guid? id, InspectionEditViewModel update, CancellationToken cancellationToken)
     {
         if (id.HasValue)
         {
-            return RedirectToAction(nameof(Details), new { id = id.Value });
+            if (string.IsNullOrWhiteSpace(update.Title))
+            {
+                ModelState.AddModelError(nameof(update.Title), "Title is required.");
+                return View(await BuildInspectionEditViewModelAsync(id.Value, update, cancellationToken));
+            }
+
+            var customerMatchModel = await BuildCustomerMatchDialogModelIfNeededAsync(id.Value, update, cancellationToken);
+
+            if (customerMatchModel is not null)
+            {
+                return View(customerMatchModel);
+            }
+
+            var saved = await SaveInspectionEditAsync(id.Value, update, cancellationToken);
+
+            if (!saved)
+            {
+                return NotFound();
+            }
+
+            return RedirectToAction(nameof(Edit), new { id = id.Value });
         }
 
-        return RedirectToAction(nameof(Index));
+        if (string.IsNullOrWhiteSpace(update.Title))
+        {
+            ModelState.AddModelError(nameof(update.Title), "Title is required.");
+            return View(await BuildUnsavedInspectionEditViewModelAsync(update, cancellationToken));
+        }
+
+        var unsavedCustomerMatchModel = await BuildCustomerMatchDialogModelIfNeededAsync(null, update, cancellationToken);
+
+        if (unsavedCustomerMatchModel is not null)
+        {
+            return View(unsavedCustomerMatchModel);
+        }
+
+        var renoCompanyId = _currentUserSession.RenoCompanyID;
+        var now = DateTime.UtcNow;
+        var propertyAddress = update.PropertyAddress ?? new InspectionPropertyAddressEditViewModel();
+        var property = new Property
+        {
+            RenoCompanyID = renoCompanyId,
+            Address = new Address
+            {
+                RenoCompanyID = renoCompanyId,
+                Street1 = Clean(propertyAddress.Street1),
+                Street2 = Clean(propertyAddress.Street2),
+                City = Clean(propertyAddress.City),
+                State = Clean(propertyAddress.State),
+                PostalCode = Clean(propertyAddress.PostalCode)
+            }
+        };
+        var customerId = await GetOrCreateInspectionCustomerIdAsync(update.Customer, update.ForceNewCustomer, renoCompanyId, cancellationToken);
+        var inspection = new Inspection
+        {
+            RenoCompanyID = renoCompanyId,
+            CreatedAtUtc = now,
+            UpdatedAtUtc = now,
+            Title = Clean(update.Title),
+            InspectionDate = NormalizeDate(update.InspectionDate),
+            InspectorName = Clean(update.InspectorName),
+            GeneralNotes = Clean(update.GeneralNotes),
+            PropertyId = property.Id,
+            Property = property,
+            CustomerId = customerId
+        };
+
+        _dbContext.Inspections.Add(inspection);
+        await _dbContext.SaveChangesAsync(cancellationToken);
+
+        return RedirectToAction(nameof(Edit), new { id = inspection.Id });
     }
 
     [HttpPost]
@@ -529,6 +749,127 @@ public sealed class InspectionsController : Controller
             GetCustomerName(inspection.Customer));
     }
 
+    private string BuildMileageStaticMapImageUrl(IEnumerable<MileageTrackingWaypoint> waypoints)
+    {
+        var apiKey = _configuration["Geoapify:ApiKey"]
+            ?? _configuration["GEOAPIFY_API_KEY"]
+            ?? string.Empty;
+
+        if (string.IsNullOrWhiteSpace(apiKey))
+        {
+            return string.Empty;
+        }
+
+        var orderedMapWaypoints = waypoints
+            .OrderBy(waypoint => waypoint.WaypointTime)
+            .Select((waypoint, index) => new
+            {
+                Waypoint = waypoint,
+                Number = index + 1
+            })
+            .Where(item => item.Number != 1 || item.Waypoint.CumulativeMiles > 0)
+            .Select(item => new
+            {
+                Coordinate = TryParseGpsCoordinates(item.Waypoint.GpsCoordinates),
+                item.Number
+            })
+            .Where(item => item.Coordinate.HasValue)
+            .Select(item => new MapWaypoint(item.Coordinate!.Value, item.Number))
+            .ToList();
+        var markerWaypoints = orderedMapWaypoints
+            .Where(waypoint => waypoint.Number != 1)
+            .ToList();
+
+        if (markerWaypoints.Count == 0)
+        {
+            return string.Empty;
+        }
+
+        var query = new List<string>
+        {
+            "style=osm-bright",
+            "width=900",
+            "height=360",
+            "scaleFactor=2",
+            "format=png"
+        };
+
+        var markers = markerWaypoints
+            .GroupBy(waypoint => waypoint.Coordinate)
+            .Select((group, index) =>
+            {
+                var coordinate = group.Key;
+                var pinColor = index == 0 ? "%23198754" : "%23d92d20";
+                var label = string.Join(",", group.Select(waypoint => waypoint.Number));
+                var contentsize = label.Length > 3 ? 10 : 14;
+
+                return string.Format(
+                    CultureInfo.InvariantCulture,
+                    "lonlat:{0:0.##############},{1:0.##############};type:material;color:{2};size:24;text:{3};contentsize:{4};contentcolor:%23ffffff;whitecircle:no",
+                    coordinate.Longitude,
+                    coordinate.Latitude,
+                    pinColor,
+                    Uri.EscapeDataString(label),
+                    contentsize);
+            });
+
+        query.Add($"marker={string.Join('|', markers)}");
+
+        if (orderedMapWaypoints.Count > 1)
+        {
+            var lineCoordinates = string.Join(
+                ',',
+                orderedMapWaypoints.Select(waypoint =>
+                {
+                    var coordinate = waypoint.Coordinate;
+
+                    return string.Format(
+                        CultureInfo.InvariantCulture,
+                        "{0:0.##############},{1:0.##############}",
+                        coordinate.Longitude,
+                        coordinate.Latitude);
+                }));
+
+            query.Add($"geometry={Uri.EscapeDataString($"polyline:{lineCoordinates};linecolor:#0d6efd;linewidth:4")}");
+        }
+
+        query.Add($"apiKey={Uri.EscapeDataString(apiKey)}");
+
+        return $"https://maps.geoapify.com/v1/staticmap?{string.Join('&', query)}";
+    }
+
+    private static MapCoordinate? TryParseGpsCoordinates(string value)
+    {
+        if (string.IsNullOrWhiteSpace(value))
+        {
+            return null;
+        }
+
+        var match = Regex.Match(
+            value,
+            @"(?<latitude>-?\d+(?:\.\d+)?)\s*,\s*(?<longitude>-?\d+(?:\.\d+)?)",
+            RegexOptions.CultureInvariant);
+
+        if (!match.Success)
+        {
+            return null;
+        }
+
+        if (!double.TryParse(match.Groups["latitude"].Value, NumberStyles.Float, CultureInfo.InvariantCulture, out var latitude)
+            || !double.TryParse(match.Groups["longitude"].Value, NumberStyles.Float, CultureInfo.InvariantCulture, out var longitude)
+            || latitude is < -90 or > 90
+            || longitude is < -180 or > 180)
+        {
+            return null;
+        }
+
+        return new MapCoordinate(latitude, longitude);
+    }
+
+    private readonly record struct MapCoordinate(double Latitude, double Longitude);
+
+    private readonly record struct MapWaypoint(MapCoordinate Coordinate, int Number);
+
     private static InspectionPropertyAddressEditViewModel ToPropertyAddressEditViewModel(Address? address)
     {
         if (address is null)
@@ -557,7 +898,8 @@ public sealed class InspectionsController : Controller
                 FullName = GetInspectorFullName(inspector),
                 Email = inspector.Email,
                 Phone = inspector.Phone,
-                HourlyRate = inspector.HourlyRate
+                HourlyRate = inspector.HourlyRate,
+                IsDefault = inspector.IsDefault
             })
             .ToList();
     }
@@ -585,6 +927,613 @@ public sealed class InspectionsController : Controller
                 Cost = part.Cost
             })
             .ToList();
+    }
+
+    private async Task<InspectionCustomerPickerViewModel> GetCustomerPickerAsync(
+        string? search,
+        int page,
+        int rows,
+        bool openOnLoad,
+        CancellationToken cancellationToken)
+    {
+        var allowedRows = new[] { 5, 10, 15, 25, 50, 100 };
+        var pageSize = allowedRows.Contains(rows) ? rows : 15;
+        var normalizedSearch = (search ?? string.Empty).Trim();
+        var query = _dbContext.Customers
+            .AsNoTracking()
+            .Include(customer => customer.BillAddress)
+            .ForCompany(_currentUserSession.RenoCompanyID);
+
+        if (!string.IsNullOrWhiteSpace(normalizedSearch))
+        {
+            var pattern = $"%{normalizedSearch}%";
+            query = query.Where(customer =>
+                EF.Functions.ILike(customer.DisplayName, pattern)
+                || EF.Functions.ILike(customer.CompanyName, pattern)
+                || EF.Functions.ILike(customer.GivenName, pattern)
+                || EF.Functions.ILike(customer.FamilyName, pattern)
+                || EF.Functions.ILike(customer.PrimaryPhone, pattern));
+        }
+
+        var totalCustomers = await query.CountAsync(cancellationToken);
+        var totalPages = Math.Max(1, (int)Math.Ceiling(totalCustomers / (double)pageSize));
+        page = Math.Clamp(page, 1, totalPages);
+
+        var customers = await query
+            .OrderBy(customer => customer.DisplayName)
+            .Skip((page - 1) * pageSize)
+            .Take(pageSize)
+            .Select(customer => new InspectionCustomerPickerItemViewModel
+            {
+                CustomerId = customer.CustomerId,
+                FirstName = customer.GivenName,
+                LastName = customer.FamilyName,
+                CompanyName = customer.CompanyName,
+                Phone = customer.PrimaryPhone,
+                Email = customer.PrimaryEmailAddress,
+                Street1 = customer.BillAddress == null ? string.Empty : customer.BillAddress.Street1,
+                Street2 = customer.BillAddress == null ? string.Empty : customer.BillAddress.Street2,
+                City = customer.BillAddress == null ? string.Empty : customer.BillAddress.City,
+                State = customer.BillAddress == null ? string.Empty : customer.BillAddress.State,
+                PostalCode = customer.BillAddress == null ? string.Empty : customer.BillAddress.PostalCode,
+                Notes = customer.Notes
+            })
+            .ToListAsync(cancellationToken);
+
+        return new InspectionCustomerPickerViewModel
+        {
+            Customers = customers,
+            Page = page,
+            PageSize = pageSize,
+            TotalCustomers = totalCustomers,
+            TotalPages = totalPages,
+            Search = normalizedSearch,
+            OpenOnLoad = openOnLoad
+        };
+    }
+
+    private async Task<Guid?> GetValidCustomerIdAsync(Guid? customerId, CancellationToken cancellationToken)
+    {
+        if (!customerId.HasValue)
+        {
+            return null;
+        }
+
+        var exists = await _dbContext.Customers
+            .AsNoTracking()
+            .ForCompany(_currentUserSession.RenoCompanyID)
+            .AnyAsync(customer => customer.CustomerId == customerId.Value, cancellationToken);
+
+        return exists ? customerId.Value : null;
+    }
+
+    private async Task<Guid?> GetOrCreateInspectionCustomerIdAsync(
+        InspectionCustomerEditViewModel? update,
+        bool forceNewCustomer,
+        Guid renoCompanyId,
+        CancellationToken cancellationToken)
+    {
+        if (update is null || IsCustomerEmpty(update))
+        {
+            return null;
+        }
+
+        if (update.CustomerId.HasValue && !forceNewCustomer)
+        {
+            return await GetValidCustomerIdAsync(update.CustomerId, cancellationToken);
+        }
+
+        var customer = new Customer
+        {
+            RenoCompanyID = renoCompanyId,
+            Active = true,
+            CreatedDate = DateTime.UtcNow
+        };
+
+        ApplyCustomerUpdate(customer, update, renoCompanyId);
+        _dbContext.Customers.Add(customer);
+
+        return customer.CustomerId;
+    }
+
+    private async Task<InspectionEditViewModel?> BuildCustomerMatchDialogModelIfNeededAsync(
+        Guid? inspectionId,
+        InspectionEditViewModel update,
+        CancellationToken cancellationToken)
+    {
+        if (update.ForceNewCustomer || update.Customer is null || IsCustomerEmpty(update.Customer) || update.Customer.CustomerId.HasValue)
+        {
+            return null;
+        }
+
+        var matches = await FindCustomerMatchesAsync(update.Customer, cancellationToken);
+        var exactMatch = matches.FirstOrDefault(match => match.IsExact);
+
+        if (exactMatch is not null)
+        {
+            update.Customer.CustomerId = exactMatch.Customer.CustomerId;
+            return null;
+        }
+
+        var closeMatches = matches
+            .Where(match => match.IsClose)
+            .Select(match => ToCustomerMatchViewModel(match.Customer))
+            .ToList();
+
+        if (closeMatches.Count == 0)
+        {
+            return null;
+        }
+
+        return inspectionId.HasValue
+            ? await BuildInspectionEditViewModelAsync(inspectionId.Value, update, cancellationToken, true, closeMatches)
+            : await BuildUnsavedInspectionEditViewModelAsync(update, cancellationToken, true, closeMatches);
+    }
+
+    private async Task<IReadOnlyList<CustomerMatchCandidate>> FindCustomerMatchesAsync(
+        InspectionCustomerEditViewModel enteredCustomer,
+        CancellationToken cancellationToken)
+    {
+        var renoCompanyId = _currentUserSession.RenoCompanyID;
+        var firstName = Clean(enteredCustomer.FirstName);
+        var lastName = Clean(enteredCustomer.LastName);
+        var companyName = Clean(enteredCustomer.CompanyName);
+        var phone = Clean(enteredCustomer.Phone);
+        var email = Clean(enteredCustomer.Email);
+        var street1 = Clean(enteredCustomer.Street1);
+        var query = _dbContext.Customers
+            .AsNoTracking()
+            .Include(customer => customer.BillAddress)
+            .ForCompany(renoCompanyId);
+
+        query = query.Where(customer =>
+            (!string.IsNullOrWhiteSpace(phone) && EF.Functions.ILike(customer.PrimaryPhone, $"%{phone}%"))
+            || (!string.IsNullOrWhiteSpace(email) && EF.Functions.ILike(customer.PrimaryEmailAddress, $"%{email}%"))
+            || (!string.IsNullOrWhiteSpace(firstName) && EF.Functions.ILike(customer.GivenName, $"%{firstName}%"))
+            || (!string.IsNullOrWhiteSpace(lastName) && EF.Functions.ILike(customer.FamilyName, $"%{lastName}%"))
+            || (!string.IsNullOrWhiteSpace(companyName) && EF.Functions.ILike(customer.CompanyName, $"%{companyName}%"))
+            || (!string.IsNullOrWhiteSpace(street1) && customer.BillAddress != null && EF.Functions.ILike(customer.BillAddress.Street1, $"%{street1}%")));
+
+        var candidates = await query
+            .OrderBy(customer => customer.DisplayName)
+            .Take(50)
+            .ToListAsync(cancellationToken);
+
+        return candidates
+            .Select(customer => new CustomerMatchCandidate(
+                customer,
+                IsExactCustomerMatch(enteredCustomer, customer),
+                GetCustomerMatchScore(enteredCustomer, customer) >= 3))
+            .Where(match => match.IsExact || match.IsClose)
+            .ToList();
+    }
+
+    private static bool IsExactCustomerMatch(InspectionCustomerEditViewModel enteredCustomer, Customer customer)
+    {
+        var significantComparisons = new[]
+        {
+            IsEnteredValueExact(enteredCustomer.FirstName, customer.GivenName),
+            IsEnteredValueExact(enteredCustomer.LastName, customer.FamilyName),
+            IsEnteredValueExact(enteredCustomer.Phone, customer.PrimaryPhone),
+            IsEnteredValueExact(enteredCustomer.Email, customer.PrimaryEmailAddress),
+            IsEnteredValueExact(enteredCustomer.Street1, customer.BillAddress?.Street1)
+        };
+
+        return significantComparisons.Count(value => value) >= 3
+            && IsEnteredValueExact(enteredCustomer.FirstName, customer.GivenName)
+            && IsEnteredValueExact(enteredCustomer.LastName, customer.FamilyName);
+    }
+
+    private static int GetCustomerMatchScore(InspectionCustomerEditViewModel enteredCustomer, Customer customer)
+    {
+        var score = 0;
+
+        score += IsEnteredValueExact(enteredCustomer.Phone, customer.PrimaryPhone) ? 3 : 0;
+        score += IsEnteredValueExact(enteredCustomer.Email, customer.PrimaryEmailAddress) ? 3 : 0;
+        score += IsEnteredValueExact(enteredCustomer.FirstName, customer.GivenName) ? 1 : 0;
+        score += IsEnteredValueExact(enteredCustomer.LastName, customer.FamilyName) ? 2 : 0;
+        score += IsEnteredValueExact(enteredCustomer.Street1, customer.BillAddress?.Street1) ? 2 : 0;
+        score += IsEnteredValueExact(enteredCustomer.CompanyName, customer.CompanyName) ? 1 : 0;
+
+        return score;
+    }
+
+    private static bool IsEnteredValueExact(string? enteredValue, string? existingValue)
+    {
+        var entered = NormalizeCustomerMatchValue(enteredValue);
+
+        return !string.IsNullOrWhiteSpace(entered)
+            && entered == NormalizeCustomerMatchValue(existingValue);
+    }
+
+    private static string NormalizeCustomerMatchValue(string? value)
+    {
+        return new string((value ?? string.Empty)
+            .Trim()
+            .ToLowerInvariant()
+            .Where(char.IsLetterOrDigit)
+            .ToArray());
+    }
+
+    private static InspectionCustomerMatchViewModel ToCustomerMatchViewModel(Customer customer)
+    {
+        return new InspectionCustomerMatchViewModel
+        {
+            CustomerId = customer.CustomerId,
+            FirstName = customer.GivenName,
+            LastName = customer.FamilyName,
+            CompanyName = customer.CompanyName,
+            Phone = customer.PrimaryPhone,
+            Email = customer.PrimaryEmailAddress,
+            Street1 = customer.BillAddress?.Street1 ?? string.Empty,
+            City = customer.BillAddress?.City ?? string.Empty,
+            State = customer.BillAddress?.State ?? string.Empty,
+            PostalCode = customer.BillAddress?.PostalCode ?? string.Empty
+        };
+    }
+
+    private static void ApplyCustomerUpdate(Customer customer, InspectionCustomerEditViewModel update, Guid renoCompanyId)
+    {
+        ApplyCustomerUpdate(customer, update, renoCompanyId);
+    }
+
+    private async Task<bool> SaveInspectionEditAsync(Guid id, InspectionEditViewModel update, CancellationToken cancellationToken)
+    {
+        var renoCompanyId = _currentUserSession.RenoCompanyID;
+        var inspection = await _dbContext.Inspections
+            .ForCompany(renoCompanyId)
+            .Include(item => item.Property)
+                .ThenInclude(property => property.Address)
+            .Include(item => item.Customer)
+                .ThenInclude(customer => customer!.BillAddress)
+            .Include(item => item.Property)
+                .ThenInclude(property => property.Areas)
+                    .ThenInclude(area => area.AreaNotes)
+                        .ThenInclude(note => note.EstimateItems)
+            .Include(item => item.Property)
+                .ThenInclude(property => property.Areas)
+                    .ThenInclude(area => area.AreaNotes)
+                        .ThenInclude(note => note.Photos)
+            .FirstOrDefaultAsync(item => item.Id == id, cancellationToken);
+
+        if (inspection is null)
+        {
+            return false;
+        }
+
+        var now = DateTime.UtcNow;
+        inspection.Title = Clean(update.Title);
+        inspection.InspectionDate = NormalizeDate(update.InspectionDate);
+        inspection.InspectorName = Clean(update.InspectorName);
+        inspection.GeneralNotes = Clean(update.GeneralNotes);
+        inspection.UpdatedAtUtc = now;
+
+        UpdatePropertyAddress(inspection.Property, update.PropertyAddress, renoCompanyId);
+        await UpdateInspectionCustomerAsync(inspection, update.Customer, renoCompanyId, cancellationToken);
+        UpdateInspectionAreas(inspection.Property.Areas, update.Buildings, renoCompanyId, now);
+
+        await _dbContext.SaveChangesAsync(cancellationToken);
+        return true;
+    }
+
+    private static void UpdatePropertyAddress(Property property, InspectionPropertyAddressEditViewModel? update, Guid renoCompanyId)
+    {
+        update ??= new InspectionPropertyAddressEditViewModel();
+        property.Address ??= new Address
+        {
+            RenoCompanyID = renoCompanyId,
+            PropertyId = property.Id
+        };
+
+        property.Address.RenoCompanyID = renoCompanyId;
+        property.Address.PropertyId = property.Id;
+        property.Address.Street1 = Clean(update.Street1);
+        property.Address.Street2 = Clean(update.Street2);
+        property.Address.City = Clean(update.City);
+        property.Address.State = Clean(update.State);
+        property.Address.PostalCode = Clean(update.PostalCode);
+    }
+
+    private async Task UpdateInspectionCustomerAsync(
+        Inspection inspection,
+        InspectionCustomerEditViewModel? update,
+        Guid renoCompanyId,
+        CancellationToken cancellationToken)
+    {
+        if (update is null || IsCustomerEmpty(update))
+        {
+            inspection.CustomerId = null;
+            inspection.Customer = null;
+            return;
+        }
+
+        Customer? customer = null;
+
+        if (update.CustomerId.HasValue && !inspection.CustomerId.HasValue && !inspection.CustomerId.Equals(update.CustomerId))
+        {
+            customer = await _dbContext.Customers
+                .Include(item => item.BillAddress)
+                .ForCompany(renoCompanyId)
+                .FirstOrDefaultAsync(item => item.CustomerId == update.CustomerId.Value, cancellationToken);
+        }
+        else if (update.CustomerId.HasValue)
+        {
+            customer = await _dbContext.Customers
+                .Include(item => item.BillAddress)
+                .ForCompany(renoCompanyId)
+                .FirstOrDefaultAsync(item => item.CustomerId == update.CustomerId.Value, cancellationToken);
+        }
+
+        if (customer is null)
+        {
+            customer = new Customer
+            {
+                RenoCompanyID = renoCompanyId,
+                Active = true,
+                CreatedDate = DateTime.UtcNow
+            };
+            _dbContext.Customers.Add(customer);
+        }
+
+        customer.GivenName = Clean(update.FirstName);
+        customer.FamilyName = Clean(update.LastName);
+        customer.CompanyName = Clean(update.CompanyName);
+        customer.PrimaryPhone = Clean(update.Phone);
+        customer.PrimaryEmailAddress = Clean(update.Email);
+        customer.Notes = Clean(update.Notes);
+        customer.DisplayName = BuildCustomerDisplayName(customer);
+        customer.FullyQualifiedName = customer.DisplayName;
+        customer.LastEditDate = DateTime.UtcNow;
+        UpdateCustomerBillAddress(customer, update, renoCompanyId);
+
+        inspection.Customer = customer;
+        inspection.CustomerId = customer.CustomerId;
+    }
+
+    private static void UpdateCustomerBillAddress(Customer customer, InspectionCustomerEditViewModel update, Guid renoCompanyId)
+    {
+        if (IsCustomerAddressEmpty(update))
+        {
+            customer.BillAddress = null;
+            customer.BillAddressId = null;
+            return;
+        }
+
+        customer.BillAddress ??= new Address
+        {
+            RenoCompanyID = renoCompanyId
+        };
+        customer.BillAddress.RenoCompanyID = renoCompanyId;
+        customer.BillAddress.Street1 = Clean(update.Street1);
+        customer.BillAddress.Street2 = Clean(update.Street2);
+        customer.BillAddress.City = Clean(update.City);
+        customer.BillAddress.State = Clean(update.State);
+        customer.BillAddress.PostalCode = Clean(update.PostalCode);
+    }
+
+    private void UpdateInspectionAreas(
+        IEnumerable<InspectionArea> areas,
+        IReadOnlyList<InspectionBuildingEditViewModel> postedBuildings,
+        Guid renoCompanyId,
+        DateTime now)
+    {
+        var postedAreas = postedBuildings
+            .SelectMany(building => building.Areas)
+            .GroupBy(area => area.Id)
+            .ToDictionary(group => group.Key, group => group.First());
+
+        foreach (var area in areas)
+        {
+            if (!postedAreas.TryGetValue(area.Id, out var postedArea))
+            {
+                continue;
+            }
+
+            area.OverallRating = postedArea.OverallRating;
+
+            var postedNotes = postedArea.Notes
+                .GroupBy(note => note.Id)
+                .ToDictionary(group => group.Key, group => group.First());
+
+            foreach (var note in area.AreaNotes)
+            {
+                if (!postedNotes.TryGetValue(note.Id, out var postedNote))
+                {
+                    continue;
+                }
+
+                UpdateEstimateItems(note, postedNote.EstimateItems, renoCompanyId, now);
+                UpdateCroppedPhotos(note, postedNote.Photos, now);
+            }
+        }
+    }
+
+    private void UpdateEstimateItems(
+        InspectionAreaNote note,
+        IReadOnlyList<InspectionAreaNoteEstimateItemEditViewModel> postedItems,
+        Guid renoCompanyId,
+        DateTime now)
+    {
+        var postedById = postedItems
+            .Where(item => item.Id != Guid.Empty)
+            .GroupBy(item => item.Id)
+            .ToDictionary(group => group.Key, group => group.First());
+
+        var removedItems = note.EstimateItems
+            .Where(item => !postedById.ContainsKey(item.Id))
+            .ToList();
+
+        _dbContext.InspectionAreaNoteEstimateItems.RemoveRange(removedItems);
+
+        foreach (var postedItem in postedItems.Where(item => !string.IsNullOrWhiteSpace(item.Name)))
+        {
+            var item = note.EstimateItems.FirstOrDefault(existing => existing.Id == postedItem.Id);
+
+            if (item is null)
+            {
+                item = new InspectionAreaNoteEstimateItem
+                {
+                    Id = postedItem.Id == Guid.Empty ? Guid.NewGuid() : postedItem.Id,
+                    RenoCompanyID = renoCompanyId,
+                    PropertyId = note.PropertyId,
+                    BuildingId = note.BuildingId,
+                    AreaId = note.AreaId,
+                    AreaNoteId = note.Id,
+                    CreatedAtUtc = now
+                };
+                note.EstimateItems.Add(item);
+            }
+
+            item.UpdatedAtUtc = now;
+            item.Name = Clean(postedItem.Name);
+            item.Cost = postedItem.Cost;
+            item.Hours = postedItem.Hours;
+        }
+    }
+
+    private static void UpdateCroppedPhotos(
+        InspectionAreaNote note,
+        IReadOnlyList<InspectionAreaNotePhotoEditViewModel> postedPhotos,
+        DateTime now)
+    {
+        var postedById = postedPhotos
+            .Where(photo => photo.Id != Guid.Empty && !string.IsNullOrWhiteSpace(photo.CroppedDataUrl))
+            .GroupBy(photo => photo.Id)
+            .ToDictionary(group => group.Key, group => group.First());
+
+        foreach (var photo in note.Photos)
+        {
+            if (!postedById.TryGetValue(photo.Id, out var postedPhoto)
+                || !TryParseDataUrl(postedPhoto.CroppedDataUrl, out var contentType, out var data))
+            {
+                continue;
+            }
+
+            photo.ContentType = contentType;
+            photo.Data = data;
+        }
+    }
+
+    private static bool TryParseDataUrl(string dataUrl, out string contentType, out byte[] data)
+    {
+        contentType = string.Empty;
+        data = [];
+
+        const string marker = ";base64,";
+        var markerIndex = dataUrl.IndexOf(marker, StringComparison.OrdinalIgnoreCase);
+
+        if (!dataUrl.StartsWith("data:", StringComparison.OrdinalIgnoreCase) || markerIndex < 0)
+        {
+            return false;
+        }
+
+        contentType = dataUrl[5..markerIndex];
+        var base64 = dataUrl[(markerIndex + marker.Length)..];
+
+        try
+        {
+            data = Convert.FromBase64String(base64);
+            return true;
+        }
+        catch (FormatException)
+        {
+            data = [];
+            return false;
+        }
+    }
+
+    private static bool IsCustomerEmpty(InspectionCustomerEditViewModel customer)
+    {
+        return string.IsNullOrWhiteSpace(customer.FirstName)
+            && string.IsNullOrWhiteSpace(customer.LastName)
+            && string.IsNullOrWhiteSpace(customer.CompanyName)
+            && string.IsNullOrWhiteSpace(customer.Phone)
+            && string.IsNullOrWhiteSpace(customer.Email)
+            && string.IsNullOrWhiteSpace(customer.Notes)
+            && IsCustomerAddressEmpty(customer);
+    }
+
+    private static bool IsCustomerAddressEmpty(InspectionCustomerEditViewModel customer)
+    {
+        return string.IsNullOrWhiteSpace(customer.Street1)
+            && string.IsNullOrWhiteSpace(customer.Street2)
+            && string.IsNullOrWhiteSpace(customer.City)
+            && string.IsNullOrWhiteSpace(customer.State)
+            && string.IsNullOrWhiteSpace(customer.PostalCode);
+    }
+
+    private static string BuildCustomerDisplayName(Customer customer)
+    {
+        var name = $"{customer.GivenName} {customer.FamilyName}".Trim();
+
+        if (!string.IsNullOrWhiteSpace(name))
+        {
+            return name;
+        }
+
+        return string.IsNullOrWhiteSpace(customer.CompanyName) ? "Unnamed Customer" : customer.CompanyName;
+    }
+
+    private sealed record CustomerMatchCandidate(Customer Customer, bool IsExact, bool IsClose);
+
+    private static string Clean(string? value)
+    {
+        return value?.Trim() ?? string.Empty;
+    }
+
+    private static DateTime NormalizeDate(DateTime value)
+    {
+        return DateTime.SpecifyKind(value.Date, DateTimeKind.Utc);
+    }
+
+    private async Task<InspectionEditViewModel> BuildUnsavedInspectionEditViewModelAsync(
+        InspectionEditViewModel update,
+        CancellationToken cancellationToken,
+        bool showCustomerMatchDialog = false,
+        IReadOnlyList<InspectionCustomerMatchViewModel>? customerMatches = null)
+    {
+        return new InspectionEditViewModel
+        {
+            Title = update.Title,
+            InspectionDate = update.InspectionDate,
+            InspectorName = update.InspectorName,
+            GeneralNotes = update.GeneralNotes,
+            PropertyAddress = update.PropertyAddress,
+            Customer = update.Customer,
+            Buildings = update.Buildings,
+            Inspectors = await GetInspectorPickerItemsAsync(cancellationToken),
+            Parts = await GetPartPickerItemsAsync(cancellationToken),
+            CustomerPicker = await GetCustomerPickerAsync(null, 1, 15, false, cancellationToken),
+            ForceNewCustomer = update.ForceNewCustomer,
+            ShowCustomerMatchDialog = showCustomerMatchDialog,
+            CustomerMatches = customerMatches ?? []
+        };
+    }
+
+    private async Task<InspectionEditViewModel> BuildInspectionEditViewModelAsync(
+        Guid id,
+        InspectionEditViewModel update,
+        CancellationToken cancellationToken,
+        bool showCustomerMatchDialog = false,
+        IReadOnlyList<InspectionCustomerMatchViewModel>? customerMatches = null)
+    {
+        return new InspectionEditViewModel
+        {
+            Id = id,
+            Title = update.Title,
+            InspectionDate = update.InspectionDate,
+            InspectorName = update.InspectorName,
+            GeneralNotes = update.GeneralNotes,
+            PropertyAddress = update.PropertyAddress ?? new InspectionPropertyAddressEditViewModel(),
+            Customer = update.Customer ?? new InspectionCustomerEditViewModel(),
+            Buildings = update.Buildings,
+            Inspectors = await GetInspectorPickerItemsAsync(cancellationToken),
+            Parts = await GetPartPickerItemsAsync(cancellationToken),
+            CustomerPicker = await GetCustomerPickerAsync(null, 1, 15, false, cancellationToken),
+            ForceNewCustomer = update.ForceNewCustomer,
+            ShowCustomerMatchDialog = showCustomerMatchDialog,
+            CustomerMatches = customerMatches ?? []
+        };
     }
 
     private static InspectionCustomerEditViewModel ToCustomerEditViewModel(Customer? customer)

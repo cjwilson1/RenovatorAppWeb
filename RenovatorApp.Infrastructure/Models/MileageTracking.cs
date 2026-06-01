@@ -11,5 +11,7 @@ public sealed class MileageTracking : IRenoCompanyEntity
     public string StartingPosition { get; set; } = string.Empty;
     public string EndingLocation { get; set; } = string.Empty;
     public string EndingPosition { get; set; } = string.Empty;
+    public Guid? InspectionId { get; set; }
+    public Inspection? Inspection { get; set; }
     public List<MileageTrackingWaypoint> Waypoints { get; set; } = [];
 }

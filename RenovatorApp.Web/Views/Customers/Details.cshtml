@@ -1,4 +1,5 @@
 @model RenovatorApp.Web.ViewModels.CustomerDetailViewModel
+@using RenovatorApp.Web.ViewModels
 
 @{
     ViewData["Title"] = "Customer";
@@ -274,26 +275,16 @@
     </div>
 </form>
 
-<div class="modal fade" id="deleteCustomerModal" tabindex="-1" aria-labelledby="deleteCustomerModalLabel" aria-hidden="true">
-    <div class="modal-dialog">
-        <div class="modal-content">
-            <div class="modal-header">
-                <h2 class="modal-title fs-5" id="deleteCustomerModalLabel">Delete Customer</h2>
-                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
-            </div>
-            <div class="modal-body">
-                <p class="mb-0">If you delete this customer all their inspection data will be removed. Are you sure?</p>
-            </div>
-            <div class="modal-footer">
-                <button class="btn btn-secondary" type="button" data-bs-dismiss="modal">No</button>
-                <form asp-controller="Customers" asp-action="Delete" asp-route-id="@Model.CustomerId" method="post">
-                    @Html.AntiForgeryToken()
-                    <button class="btn btn-danger" type="submit">Yes</button>
-                </form>
-            </div>
-        </div>
-    </div>
-</div>
+<partial name="_ConfirmationDialog"
+         model="@(new ConfirmationDialogViewModel
+                {
+                    ModalId = "deleteCustomerModal",
+                    Title = "Delete Customer",
+                    Message = "If you delete this customer all their inspection data will be removed. Are you sure?",
+                    Controller = "Customers",
+                    Action = "Delete",
+                    RouteId = Model.CustomerId.ToString()
+                })" />
 
 @section Scripts {
     <partial name="_ValidationScriptsPartial" />

@@ -16,6 +16,7 @@
         <thead>
             <tr>
                 <th scope="col">Start Time</th>
+                <th scope="col">Inspection</th>
                 <th scope="col">Elapsed Time</th>
                 <th scope="col" class="text-end">Total Mileage</th>
                 <th scope="col">End Time</th>
@@ -25,7 +26,7 @@
             @if (Model.Trips.Count == 0)
             {
                 <tr>
-                    <td class="text-muted" colspan="4">No mileage tracking rows found.</td>
+                    <td class="text-muted" colspan="5">No mileage tracking rows found.</td>
                 </tr>
             }
             else
@@ -37,6 +38,7 @@
                         tabindex="0"
                         aria-label="Open trip from @FormatDateTime(trip.StartTimeUtc)">
                         <td>@FormatDateTime(trip.StartTimeUtc)</td>
+                        <td>@(string.IsNullOrWhiteSpace(trip.InspectionTitle) ? "None" : trip.InspectionTitle)</td>
                         <td>@FormatElapsedTime(trip.ElapsedTime)</td>
                         <td class="text-end">@FormatMileage(trip.TotalMileage)</td>
                         <td>@FormatDateTime(trip.EndTimeUtc)</td>

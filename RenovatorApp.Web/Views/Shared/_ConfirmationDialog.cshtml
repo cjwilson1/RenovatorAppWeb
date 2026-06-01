@@ -1,0 +1,22 @@
+@model RenovatorApp.Web.ViewModels.ConfirmationDialogViewModel
+
+<div class="modal" id="@Model.ModalId" tabindex="-1" aria-labelledby="@(Model.ModalId)Label" aria-hidden="true">
+    <div class="modal-dialog modal-dialog-centered">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h2 class="modal-title fs-5" id="@(Model.ModalId)Label">@Model.Title</h2>
+                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+            </div>
+            <div class="modal-body">
+                <p class="mb-0">@Model.Message</p>
+            </div>
+            <div class="modal-footer">
+                <button class="btn btn-secondary" type="button" data-bs-dismiss="modal">@Model.CancelText</button>
+                <form asp-controller="@Model.Controller" asp-action="@Model.Action" asp-route-id="@Model.RouteId" method="post">
+                    @Html.AntiForgeryToken()
+                    <button class="btn @Model.ConfirmButtonClass" type="submit">@Model.ConfirmText</button>
+                </form>
+            </div>
+        </div>
+    </div>
+</div>

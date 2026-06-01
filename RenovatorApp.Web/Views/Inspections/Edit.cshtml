@@ -19,7 +19,8 @@
     </div>
 </div>
 
-<form asp-controller="Inspections" asp-action="Edit" asp-route-id="@Model.Id" method="post">
+<form asp-controller="Inspections" asp-action="Edit" asp-route-id="@Model.Id" id="inspectionEditForm" method="post">
+    <input asp-for="ForceNewCustomer" type="hidden" />
     <ul class="nav nav-tabs mb-3" id="inspectionEditTabs" role="tablist">
         <li class="nav-item" role="presentation">
             <button class="nav-link active" id="general-tab" data-bs-toggle="tab" data-bs-target="#general-panel" type="button" role="tab" aria-controls="general-panel" aria-selected="true">
@@ -27,13 +28,13 @@
             </button>
         </li>
         <li class="nav-item" role="presentation">
-            <button class="nav-link" id="property-tab" data-bs-toggle="tab" data-bs-target="#property-panel" type="button" role="tab" aria-controls="property-panel" aria-selected="false">
-                Property
+            <button class="nav-link" id="customer-tab" data-bs-toggle="tab" data-bs-target="#customer-panel" type="button" role="tab" aria-controls="customer-panel" aria-selected="false">
+                Customer
             </button>
         </li>
         <li class="nav-item" role="presentation">
-            <button class="nav-link" id="customer-tab" data-bs-toggle="tab" data-bs-target="#customer-panel" type="button" role="tab" aria-controls="customer-panel" aria-selected="false">
-                Customer
+            <button class="nav-link" id="property-tab" data-bs-toggle="tab" data-bs-target="#property-panel" type="button" role="tab" aria-controls="property-panel" aria-selected="false">
+                Property
             </button>
         </li>
         <li class="nav-item" role="presentation">
@@ -50,7 +51,8 @@
 
                 <div class="mb-3">
                     <label class="form-label" asp-for="Title"></label>
-                    <input class="form-control" asp-for="Title" type="text" />
+                    <input class="form-control" asp-for="Title" type="text" required />
+                    <span class="text-danger" asp-validation-for="Title"></span>
                 </div>
 
                 <div class="mb-3">
@@ -114,7 +116,15 @@
 
         <div class="tab-pane fade" id="customer-panel" role="tabpanel" aria-labelledby="customer-tab" tabindex="0">
             <section class="detail-section">
-                <h2>Customer</h2>
+                <div class="d-flex align-items-center justify-content-between gap-3 mb-3">
+                    <h2 class="mb-0">Customer</h2>
+                    <button class="btn btn-primary"
+                            type="button"
+                            data-bs-toggle="modal"
+                            data-bs-target="#findCustomerModal">
+                        Find Customer
+                    </button>
+                </div>
 
                 <input asp-for="Customer.CustomerId" type="hidden" />
 
@@ -291,6 +301,7 @@
                                                     var estimatePrefix = $"Buildings[{buildingIndex}].Areas[{areaIndex}].Notes[{noteIndex}].EstimateItems";
 
                                                     <section class="border rounded p-3">
+                                                        <input asp-for="Buildings[buildingIndex].Areas[areaIndex].Notes[noteIndex].Id" type="hidden" />
                                                         <p class="mb-3">@(string.IsNullOrWhiteSpace(note.Text) ? "No note text." : note.Text)</p>
 
                                                         <div class="d-flex flex-wrap align-items-center justify-content-between gap-3 mb-3">
@@ -397,6 +408,9 @@
                                                                     var croppedInputId = $"cropped-photo-{photo.Id}";
                                                                     var thumbnailImageId = $"thumbnail-photo-{photo.Id}";
 
+                                                                    <input name="Buildings[@buildingIndex].Areas[@areaIndex].Notes[@noteIndex].Photos[@photoIndex].Id"
+                                                                           type="hidden"
+                                                                           value="@photo.Id" />
                                                                     <input id="@croppedInputId"
                                                                            name="Buildings[@buildingIndex].Areas[@areaIndex].Notes[@noteIndex].Photos[@photoIndex].CroppedDataUrl"
                                                                            type="hidden"
@@ -457,6 +471,218 @@
         <button class="btn btn-primary" type="submit">Save</button>
     </div>
 </form>
+
+<partial name="_UnsavedChangesDialog" />
+
+<div class="modal" id="customerMatchModal" tabindex="-1" aria-labelledby="customerMatchModalLabel" aria-hidden="true">
+    <div class="modal-dialog modal-dialog-centered modal-lg">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h2 class="modal-title fs-5" id="customerMatchModalLabel">Customer Match</h2>
+                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+            </div>
+            <div class="modal-body">
+                <p>The customer data you entered closely matches an existing customer.</p>
+
+                <div class="d-grid gap-2 mb-3">
+                    @foreach (var customer in Model.CustomerMatches)
+                    {
+                        <button class="btn btn-outline-secondary text-start p-3"
+                                type="button"
+                                data-customer-match-id="@customer.CustomerId"
+                                data-customer-match-first-name="@customer.FirstName"
+                                data-customer-match-last-name="@customer.LastName"
+                                data-customer-match-company-name="@customer.CompanyName"
+                                data-customer-match-phone="@customer.Phone"
+                                data-customer-match-email="@customer.Email"
+                                data-customer-match-street1="@customer.Street1"
+                                data-customer-match-city="@customer.City"
+                                data-customer-match-state="@customer.State"
+                                data-customer-match-postal-code="@customer.PostalCode">
+                            <div class="d-flex flex-wrap justify-content-between gap-3">
+                                <strong>@string.Join(" ", new[] { customer.FirstName, customer.LastName }.Where(value => !string.IsNullOrWhiteSpace(value)))</strong>
+                                <span>@customer.Phone</span>
+                            </div>
+                            <div>@customer.CompanyName</div>
+                            <div class="small text-muted">@customer.Email</div>
+                            <div class="small text-muted">
+                                @string.Join(", ", new[] { customer.Street1, customer.City, customer.State, customer.PostalCode }
+                                    .Where(value => !string.IsNullOrWhiteSpace(value)))
+                            </div>
+                        </button>
+                    }
+                </div>
+
+                <p>If you want to use an existing customer, select that customer from the list.</p>
+                <p class="mb-0">If you want to create a new Customer, click New Customer.</p>
+            </div>
+            <div class="modal-footer">
+                <button class="btn btn-secondary" type="button" data-bs-dismiss="modal">Cancel</button>
+                <button class="btn btn-primary" id="customerMatchNewButton" type="button">New Customer</button>
+            </div>
+        </div>
+    </div>
+</div>
+
+@{
+    var customerPickerPreviousPage = Math.Max(1, Model.CustomerPicker.Page - 1);
+    var customerPickerNextPage = Math.Min(Model.CustomerPicker.TotalPages, Model.CustomerPicker.Page + 1);
+    var customerPickerRows = new[] { 5, 10, 15, 25, 50, 100 };
+    var customerPickerAction = Model.Id.HasValue ? "EditFindCustomer" : "New";
+}
+
+<div class="modal fade" id="findCustomerModal" tabindex="-1" aria-labelledby="findCustomerModalLabel" aria-hidden="true">
+        <div class="modal-dialog modal-fullscreen">
+            <div class="modal-content">
+                <div class="modal-header">
+                    <h2 class="modal-title fs-5" id="findCustomerModalLabel">Find Customer</h2>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+                </div>
+                <div class="modal-body">
+                    <form asp-controller="Inspections"
+                          asp-action="@customerPickerAction"
+                          asp-route-id="@Model.Id"
+                          class="mb-3"
+                          id="findCustomerForm"
+                          method="get">
+                        <input name="showCustomerPicker" type="hidden" value="true" />
+                        <input id="findCustomerPage" name="customerPage" type="hidden" value="@Model.CustomerPicker.Page" />
+
+                        <div class="d-flex flex-wrap justify-content-end gap-2">
+                            <input class="form-control"
+                                   id="findCustomerSearch"
+                                   name="customerSearch"
+                                   placeholder="search customers"
+                                   type="search"
+                                   value="@Model.CustomerPicker.Search"
+                                   style="max-width: 28rem;" />
+                            <button class="btn btn-outline-secondary" id="findCustomerClearButton" type="button">Clear</button>
+                        </div>
+
+                        <div class="d-flex justify-content-end mt-3">
+                            <label class="form-label d-flex align-items-center gap-2 mb-0" for="findCustomerRows">
+                                Rows
+                                <select class="form-select"
+                                        id="findCustomerRows"
+                                        name="customerRows"
+                                        style="width: auto;">
+                                    @foreach (var rows in customerPickerRows)
+                                    {
+                                        if (Model.CustomerPicker.PageSize == rows)
+                                        {
+                                            <option value="@rows" selected>@rows</option>
+                                        }
+                                        else
+                                        {
+                                            <option value="@rows">@rows</option>
+                                        }
+                                    }
+                                </select>
+                            </label>
+                        </div>
+                    </form>
+
+                    <div class="table-responsive">
+                        <table class="table table-striped table-hover align-middle">
+                            <thead>
+                                <tr>
+                                    <th scope="col">First Name</th>
+                                    <th scope="col">Last Name</th>
+                                    <th scope="col">Company</th>
+                                    <th scope="col">Phone</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                @if (Model.CustomerPicker.Customers.Count == 0)
+                                {
+                                    <tr>
+                                        <td class="text-muted" colspan="4">No customers found.</td>
+                                    </tr>
+                                }
+                                else
+                                {
+                                    @foreach (var customer in Model.CustomerPicker.Customers)
+                                    {
+                                        <tr class="clickable-table-row"
+                                            data-customer-id="@customer.CustomerId"
+                                            data-customer-first-name="@customer.FirstName"
+                                            data-customer-last-name="@customer.LastName"
+                                            data-customer-company-name="@customer.CompanyName"
+                                            data-customer-phone="@customer.Phone"
+                                            data-customer-email="@customer.Email"
+                                            data-customer-street1="@customer.Street1"
+                                            data-customer-street2="@customer.Street2"
+                                            data-customer-city="@customer.City"
+                                            data-customer-state="@customer.State"
+                                            data-customer-postal-code="@customer.PostalCode"
+                                            data-customer-notes="@customer.Notes"
+                                            tabindex="0"
+                                            aria-label="Select @string.Join(" ", new[] { customer.FirstName, customer.LastName }.Where(value => !string.IsNullOrWhiteSpace(value)))">
+                                            <td>@customer.FirstName</td>
+                                            <td>@customer.LastName</td>
+                                            <td>@customer.CompanyName</td>
+                                            <td>@customer.Phone</td>
+                                        </tr>
+                                    }
+                                }
+                            </tbody>
+                        </table>
+                    </div>
+
+                    <div class="d-flex align-items-center justify-content-between gap-3">
+                        <div class="btn-group" role="group" aria-label="Customer picker pages">
+                            <a class="btn btn-outline-secondary @(Model.CustomerPicker.Page == 1 ? "disabled" : string.Empty)"
+                               asp-controller="Inspections"
+                               asp-action="@customerPickerAction"
+                               asp-route-id="@Model.Id"
+                               asp-route-customerSearch="@Model.CustomerPicker.Search"
+                               asp-route-customerRows="@Model.CustomerPicker.PageSize"
+                               asp-route-customerPage="1"
+                               asp-route-showCustomerPicker="true">
+                                First
+                            </a>
+                            <a class="btn btn-outline-secondary @(Model.CustomerPicker.Page == 1 ? "disabled" : string.Empty)"
+                               asp-controller="Inspections"
+                               asp-action="@customerPickerAction"
+                               asp-route-id="@Model.Id"
+                               asp-route-customerSearch="@Model.CustomerPicker.Search"
+                               asp-route-customerRows="@Model.CustomerPicker.PageSize"
+                               asp-route-customerPage="@customerPickerPreviousPage"
+                               asp-route-showCustomerPicker="true">
+                                Previous
+                            </a>
+                            <a class="btn btn-outline-secondary @(Model.CustomerPicker.Page == Model.CustomerPicker.TotalPages ? "disabled" : string.Empty)"
+                               asp-controller="Inspections"
+                               asp-action="@customerPickerAction"
+                               asp-route-id="@Model.Id"
+                               asp-route-customerSearch="@Model.CustomerPicker.Search"
+                               asp-route-customerRows="@Model.CustomerPicker.PageSize"
+                               asp-route-customerPage="@customerPickerNextPage"
+                               asp-route-showCustomerPicker="true">
+                                Next
+                            </a>
+                            <a class="btn btn-outline-secondary @(Model.CustomerPicker.Page == Model.CustomerPicker.TotalPages ? "disabled" : string.Empty)"
+                               asp-controller="Inspections"
+                               asp-action="@customerPickerAction"
+                               asp-route-id="@Model.Id"
+                               asp-route-customerSearch="@Model.CustomerPicker.Search"
+                               asp-route-customerRows="@Model.CustomerPicker.PageSize"
+                               asp-route-customerPage="@Model.CustomerPicker.TotalPages"
+                               asp-route-showCustomerPicker="true">
+                                Last
+                            </a>
+                        </div>
+                        <span class="text-muted">Page @Model.CustomerPicker.Page of @Model.CustomerPicker.TotalPages</span>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+@if (!Model.Id.HasValue)
+{
+    <partial name="_SaveInspectionRequiredDialog" />
+}
 
 <div class="modal fade" id="addPartModal" tabindex="-1" aria-labelledby="addPartModalLabel" aria-hidden="true">
     <div class="modal-dialog">
@@ -707,6 +933,139 @@
 
 @section Scripts {
     <script>
+        const inspectionIsSaved = @Model.Id.HasValue.ToString().ToLowerInvariant();
+        const inspectionEditForm = document.getElementById('inspectionEditForm');
+        const unsavedChangesModal = document.getElementById('unsavedChangesModal');
+        const unsavedChangesYesButton = document.getElementById('unsavedChangesYesButton');
+        const customerMatchModal = document.getElementById('customerMatchModal');
+        const customerMatchNewButton = document.getElementById('customerMatchNewButton');
+        const forceNewCustomerInput = document.getElementById('ForceNewCustomer');
+        const showCustomerMatchDialog = @Model.ShowCustomerMatchDialog.ToString().ToLowerInvariant();
+        let inspectionHasUnsavedChanges = false;
+        let inspectionAllowNavigation = false;
+        let pendingNavigationUrl = '';
+
+        function markInspectionDirty() {
+            inspectionHasUnsavedChanges = true;
+        }
+
+        function continuePendingNavigation() {
+            if (!pendingNavigationUrl) {
+                return;
+            }
+
+            inspectionAllowNavigation = true;
+            window.location.href = pendingNavigationUrl;
+        }
+
+        function promptForUnsavedNavigation(url) {
+            pendingNavigationUrl = url;
+
+            if (unsavedChangesModal) {
+                bootstrap.Modal.getOrCreateInstance(unsavedChangesModal).show();
+            }
+        }
+
+        function showCustomerTab() {
+            const customerTab = document.getElementById('customer-tab');
+
+            if (customerTab) {
+                bootstrap.Tab.getOrCreateInstance(customerTab).show();
+            }
+        }
+
+        inspectionEditForm?.addEventListener('input', markInspectionDirty);
+        inspectionEditForm?.addEventListener('change', markInspectionDirty);
+        inspectionEditForm?.addEventListener('submit', () => {
+            inspectionAllowNavigation = true;
+            inspectionHasUnsavedChanges = false;
+        });
+
+        window.addEventListener('beforeunload', event => {
+            if (!inspectionHasUnsavedChanges || inspectionAllowNavigation) {
+                return;
+            }
+
+            event.preventDefault();
+            event.returnValue = '';
+        });
+
+        unsavedChangesYesButton?.addEventListener('click', continuePendingNavigation);
+        unsavedChangesModal?.addEventListener('hidden.bs.modal', () => {
+            if (!inspectionAllowNavigation) {
+                pendingNavigationUrl = '';
+            }
+        });
+
+        document.querySelectorAll('a[href]').forEach(link => {
+            link.addEventListener('click', event => {
+                const href = link.getAttribute('href') || '';
+
+                if (href.startsWith('#') || link.target === '_blank' || link.hasAttribute('download')) {
+                    return;
+                }
+
+                if (inspectionHasUnsavedChanges && !inspectionAllowNavigation) {
+                    event.preventDefault();
+                    promptForUnsavedNavigation(link.href);
+                }
+            });
+        });
+
+        if (showCustomerMatchDialog && customerMatchModal) {
+            showCustomerTab();
+            bootstrap.Modal.getOrCreateInstance(customerMatchModal).show();
+        }
+
+        document.querySelectorAll('[data-customer-match-id]').forEach(button => {
+            button.addEventListener('click', () => {
+                showCustomerTab();
+                setCustomerField('Customer_CustomerId', button.dataset.customerMatchId);
+                setCustomerField('Customer_FirstName', button.dataset.customerMatchFirstName);
+                setCustomerField('Customer_LastName', button.dataset.customerMatchLastName);
+                setCustomerField('Customer_CompanyName', button.dataset.customerMatchCompanyName);
+                setCustomerField('Customer_Phone', button.dataset.customerMatchPhone);
+                setCustomerField('Customer_Email', button.dataset.customerMatchEmail);
+                setCustomerField('Customer_Street1', button.dataset.customerMatchStreet1);
+                setCustomerField('Customer_Street2', '');
+                setCustomerField('Customer_City', button.dataset.customerMatchCity);
+                setCustomerField('Customer_State', button.dataset.customerMatchState);
+                setCustomerField('Customer_PostalCode', button.dataset.customerMatchPostalCode);
+
+                if (forceNewCustomerInput) {
+                    forceNewCustomerInput.value = 'false';
+                }
+
+                inspectionAllowNavigation = true;
+                bootstrap.Modal.getOrCreateInstance(customerMatchModal).hide();
+                inspectionEditForm?.submit();
+            });
+        });
+
+        customerMatchNewButton?.addEventListener('click', () => {
+            setCustomerField('Customer_CustomerId', '');
+
+            if (forceNewCustomerInput) {
+                forceNewCustomerInput.value = 'true';
+            }
+
+            inspectionAllowNavigation = true;
+            inspectionEditForm?.submit();
+        });
+
+        if (!inspectionIsSaved) {
+            document.querySelectorAll('#customer-tab, #property-tab, #buildings-tab').forEach(tab => {
+                tab.addEventListener('show.bs.tab', event => {
+                    event.preventDefault();
+                    const saveInspectionRequiredModal = document.getElementById('saveInspectionRequiredModal');
+
+                    if (saveInspectionRequiredModal) {
+                        bootstrap.Modal.getOrCreateInstance(saveInspectionRequiredModal).show();
+                    }
+                });
+            });
+        }
+
         document.querySelectorAll('[data-building-target]').forEach(button => {
             button.addEventListener('click', () => {
                 const target = button.dataset.buildingTarget;
@@ -745,14 +1104,101 @@
 
         const inspectorPickerModal = document.getElementById('inspectorPickerModal');
         const inspectorNameInput = document.getElementById('InspectorName');
+        const findCustomerModal = document.getElementById('findCustomerModal');
+        const findCustomerForm = document.getElementById('findCustomerForm');
+        const findCustomerSearch = document.getElementById('findCustomerSearch');
+        const findCustomerClearButton = document.getElementById('findCustomerClearButton');
+        const findCustomerRows = document.getElementById('findCustomerRows');
+        const findCustomerPage = document.getElementById('findCustomerPage');
+        const openFindCustomerOnLoad = @Model.CustomerPicker.OpenOnLoad.ToString().ToLowerInvariant();
+        let findCustomerSearchTimer;
 
         document.querySelectorAll('[data-inspector-name]').forEach(button => {
             button.addEventListener('click', () => {
                 if (inspectorNameInput) {
                     inspectorNameInput.value = button.dataset.inspectorName || '';
+                    markInspectionDirty();
                 }
 
                 bootstrap.Modal.getOrCreateInstance(inspectorPickerModal).hide();
+            });
+        });
+
+        if (openFindCustomerOnLoad && findCustomerModal) {
+            showCustomerTab();
+            bootstrap.Modal.getOrCreateInstance(findCustomerModal).show();
+        }
+
+        findCustomerSearch?.addEventListener('input', () => {
+            window.clearTimeout(findCustomerSearchTimer);
+            findCustomerSearchTimer = window.setTimeout(() => {
+                if (findCustomerPage) {
+                    findCustomerPage.value = '1';
+                }
+
+                findCustomerForm?.submit();
+            }, 350);
+        });
+
+        findCustomerClearButton?.addEventListener('click', () => {
+            if (findCustomerSearch) {
+                findCustomerSearch.value = '';
+            }
+
+            if (findCustomerPage) {
+                findCustomerPage.value = '1';
+            }
+
+            findCustomerForm?.submit();
+        });
+
+        findCustomerRows?.addEventListener('change', () => {
+            if (findCustomerPage) {
+                findCustomerPage.value = '1';
+            }
+
+            findCustomerForm?.submit();
+        });
+
+        function setCustomerField(id, value) {
+            const input = document.getElementById(id);
+
+            if (input) {
+                input.value = value || '';
+            }
+        }
+
+        document.querySelectorAll('[data-customer-id]').forEach(row => {
+            const selectCustomer = () => {
+                showCustomerTab();
+                setCustomerField('Customer_CustomerId', row.dataset.customerId);
+                setCustomerField('Customer_FirstName', row.dataset.customerFirstName);
+                setCustomerField('Customer_LastName', row.dataset.customerLastName);
+                setCustomerField('Customer_CompanyName', row.dataset.customerCompanyName);
+                setCustomerField('Customer_Phone', row.dataset.customerPhone);
+                setCustomerField('Customer_Email', row.dataset.customerEmail);
+                setCustomerField('Customer_Street1', row.dataset.customerStreet1);
+                setCustomerField('Customer_Street2', row.dataset.customerStreet2);
+                setCustomerField('Customer_City', row.dataset.customerCity);
+                setCustomerField('Customer_State', row.dataset.customerState);
+                setCustomerField('Customer_PostalCode', row.dataset.customerPostalCode);
+                setCustomerField('Customer_Notes', row.dataset.customerNotes);
+                if (forceNewCustomerInput) {
+                    forceNewCustomerInput.value = 'false';
+                }
+                markInspectionDirty();
+
+                if (findCustomerModal) {
+                    bootstrap.Modal.getOrCreateInstance(findCustomerModal).hide();
+                }
+            };
+
+            row.addEventListener('click', selectCustomer);
+            row.addEventListener('keydown', event => {
+                if (event.key === 'Enter' || event.key === ' ') {
+                    event.preventDefault();
+                    selectCustomer();
+                }
             });
         });
 
@@ -919,6 +1365,7 @@
             emptyMessage?.classList.add('d-none');
             tableContainer?.classList.remove('d-none');
             recalculateEstimateTotals(noteId);
+            markInspectionDirty();
             bootstrap.Modal.getOrCreateInstance(addPartModal).hide();
         });
 
@@ -1009,6 +1456,7 @@
             }
 
             updateEstimateEmptyState(tableContainer, emptyMessage);
+            markInspectionDirty();
             bootstrap.Modal.getOrCreateInstance(deletePartModal).hide();
             activeDeletePartButton = null;
         });
@@ -1056,6 +1504,7 @@
             inputGroup.querySelector('[data-estimate-cost-input]').value = cost.toString();
             inputGroup.querySelector('[data-estimate-hours-input]').value = hours.toString();
             recalculateEstimateTotals(noteId);
+            markInspectionDirty();
             bootstrap.Modal.getOrCreateInstance(editPartModal).hide();
             activeEditPartButton = null;
         });
@@ -1276,6 +1725,7 @@
             resetCropSelection();
             photoModalImage.addEventListener('load', () => updateModalMetadataFromImage(croppedDataUrl), { once: true });
             photoModalImage.src = croppedDataUrl;
+            markInspectionDirty();
             bootstrap.Modal.getOrCreateInstance(photoModal).hide();
         });
 
@@ -1294,6 +1744,7 @@
 
             photoModalImage.src = activeOriginalPhotoSrc;
             resetCropSelection();
+            markInspectionDirty();
 
             if (activePhotoButton) {
                 photoModalSize.textContent = activePhotoButton.dataset.photoSize || '';

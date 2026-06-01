@@ -12,6 +12,7 @@ namespace RenovatorApp.Web.Controllers;
 
 public sealed class MileageTrackingController : Controller
 {
+    private const int AttachInspectionPageSize = 15;
     private readonly RenovatorAppDbContext _dbContext;
     private readonly IConfiguration _configuration;
     private readonly IHttpClientFactory _httpClientFactory;
@@ -34,6 +35,7 @@ public sealed class MileageTrackingController : Controller
         var trips = await _dbContext.MileageTracking
             .AsNoTracking()
             .ForCompany(_currentUserSession.RenoCompanyID)
+            .Include(trip => trip.Inspection)
             .OrderByDescending(trip => trip.TrackingStartedAtUtc)
             .Select(trip => ToRowViewModel(trip))
             .ToListAsync(cancellationToken);
@@ -74,6 +76,80 @@ public sealed class MileageTrackingController : Controller
         });
     }
 
+    public async Task<IActionResult> AttachInspection(Guid id, int page = 1, CancellationToken cancellationToken = default)
+    {
+        var trip = await _dbContext.MileageTracking
+            .AsNoTracking()
+            .Include(item => item.Inspection)
+            .FirstOrDefaultAsync(item => item.UniqueId == id && item.RenoCompanyID == _currentUserSession.RenoCompanyID, cancellationToken);
+
+        if (trip is null)
+        {
+            return NotFound();
+        }
+
+        var query = _dbContext.Inspections
+            .AsNoTracking()
+            .ForCompany(_currentUserSession.RenoCompanyID)
+            .Include(inspection => inspection.Customer);
+        var totalInspections = await query.CountAsync(cancellationToken);
+        var totalPages = Math.Max(1, (int)Math.Ceiling(totalInspections / (double)AttachInspectionPageSize));
+        page = Math.Clamp(page, 1, totalPages);
+        var inspections = await query
+            .OrderByDescending(inspection => inspection.InspectionDate)
+            .ThenBy(inspection => inspection.Title)
+            .Skip((page - 1) * AttachInspectionPageSize)
+            .Take(AttachInspectionPageSize)
+            .Select(inspection => new MileageTrackingInspectionPickerRowViewModel
+            {
+                InspectionId = inspection.Id,
+                Title = inspection.Title,
+                InspectionDate = inspection.InspectionDate,
+                CustomerName = inspection.Customer == null
+                    ? string.Empty
+                    : string.Join(" ", new[] { inspection.Customer.GivenName, inspection.Customer.FamilyName }
+                        .Where(value => !string.IsNullOrWhiteSpace(value)))
+            })
+            .ToListAsync(cancellationToken);
+
+        return View(new MileageTrackingAttachInspectionViewModel
+        {
+            Trip = ToRowViewModel(trip),
+            Inspections = inspections,
+            Page = page,
+            TotalPages = totalPages,
+            TotalInspections = totalInspections
+        });
+    }
+
+    [HttpPost]
+    [ValidateAntiForgeryToken]
+    public async Task<IActionResult> AttachInspection(Guid id, Guid inspectionId, CancellationToken cancellationToken)
+    {
+        var trip = await _dbContext.MileageTracking
+            .FirstOrDefaultAsync(item => item.UniqueId == id && item.RenoCompanyID == _currentUserSession.RenoCompanyID, cancellationToken);
+
+        if (trip is null)
+        {
+            return NotFound();
+        }
+
+        var inspectionExists = await _dbContext.Inspections
+            .AsNoTracking()
+            .ForCompany(_currentUserSession.RenoCompanyID)
+            .AnyAsync(inspection => inspection.Id == inspectionId, cancellationToken);
+
+        if (!inspectionExists)
+        {
+            return NotFound();
+        }
+
+        trip.InspectionId = inspectionId;
+        await _dbContext.SaveChangesAsync(cancellationToken);
+
+        return RedirectToAction(nameof(Index));
+    }
+
     private static MileageTrackingRowViewModel ToRowViewModel(MileageTracking trip)
     {
         return new MileageTrackingRowViewModel
@@ -82,7 +158,8 @@ public sealed class MileageTrackingController : Controller
             StartTimeUtc = trip.TrackingStartedAtUtc,
             ElapsedTime = trip.TotalTime,
             TotalMileage = trip.TotalMileage,
-            EndTimeUtc = trip.TrackingStartedAtUtc.Add(trip.TotalTime)
+            EndTimeUtc = trip.TrackingStartedAtUtc.Add(trip.TotalTime),
+            InspectionTitle = trip.Inspection?.Title ?? string.Empty
         };
     }
 

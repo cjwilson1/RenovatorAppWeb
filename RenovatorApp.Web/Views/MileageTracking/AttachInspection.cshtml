@@ -1,0 +1,160 @@
+@model RenovatorApp.Web.ViewModels.MileageTrackingAttachInspectionViewModel
+@{
+    ViewData["Title"] = "Attach Inspection";
+    var previousPage = Math.Max(1, Model.Page - 1);
+    var nextPage = Math.Min(Model.TotalPages, Model.Page + 1);
+}
+
+<div class="page-header-row">
+    <div>
+        <h1>Attach Inspection</h1>
+        <p class="text-muted">@Model.TotalInspections inspection@(Model.TotalInspections == 1 ? string.Empty : "s")</p>
+    </div>
+    <a class="btn btn-secondary" asp-controller="MileageTracking" asp-action="Trip" asp-route-id="@Model.Trip.UniqueId">Back</a>
+</div>
+
+<section class="detail-section mb-4">
+    <h2>Trip Details</h2>
+    <div class="table-responsive">
+        <table class="table table-striped align-middle mb-0">
+            <thead>
+                <tr>
+                    <th scope="col">Start Time</th>
+                    <th scope="col">Elapsed Time</th>
+                    <th scope="col" class="text-end">Total Mileage</th>
+                    <th scope="col">End Time</th>
+                </tr>
+            </thead>
+            <tbody>
+                <tr>
+                    <td>@FormatDateTime(Model.Trip.StartTimeUtc)</td>
+                    <td>@FormatElapsedTime(Model.Trip.ElapsedTime)</td>
+                    <td class="text-end">@FormatMileage(Model.Trip.TotalMileage)</td>
+                    <td>@FormatDateTime(Model.Trip.EndTimeUtc)</td>
+                </tr>
+            </tbody>
+        </table>
+    </div>
+</section>
+
+<div class="table-responsive">
+    <table class="table table-striped table-hover align-middle">
+        <thead>
+            <tr>
+                <th scope="col">Title</th>
+                <th scope="col">Inspection Date</th>
+                <th scope="col">Customer</th>
+            </tr>
+        </thead>
+        <tbody>
+            @if (Model.Inspections.Count == 0)
+            {
+                <tr>
+                    <td class="text-muted" colspan="3">No inspections found.</td>
+                </tr>
+            }
+            else
+            {
+                @foreach (var inspection in Model.Inspections)
+                {
+                    <tr class="clickable-table-row"
+                        data-inspection-id="@inspection.InspectionId"
+                        data-inspection-title="@inspection.Title"
+                        tabindex="0"
+                        aria-label="Attach trip to @inspection.Title">
+                        <td>@inspection.Title</td>
+                        <td>@FormatDateTime(inspection.InspectionDate)</td>
+                        <td>@(string.IsNullOrWhiteSpace(inspection.CustomerName) ? "No customer" : inspection.CustomerName)</td>
+                    </tr>
+                }
+            }
+        </tbody>
+    </table>
+</div>
+
+<div class="d-flex align-items-center justify-content-between gap-3">
+    <div class="btn-group" role="group" aria-label="Inspection pages">
+        <a class="btn btn-outline-secondary @(Model.Page == 1 ? "disabled" : string.Empty)"
+           asp-controller="MileageTracking"
+           asp-action="AttachInspection"
+           asp-route-id="@Model.Trip.UniqueId"
+           asp-route-page="@previousPage">
+            Previous
+        </a>
+        <a class="btn btn-outline-secondary @(Model.Page == Model.TotalPages ? "disabled" : string.Empty)"
+           asp-controller="MileageTracking"
+           asp-action="AttachInspection"
+           asp-route-id="@Model.Trip.UniqueId"
+           asp-route-page="@nextPage">
+            Next
+        </a>
+    </div>
+    <span class="text-muted">Page @Model.Page of @Model.TotalPages</span>
+</div>
+
+<div class="modal" id="attachInspectionModal" tabindex="-1" aria-labelledby="attachInspectionModalLabel" aria-hidden="true">
+    <div class="modal-dialog modal-dialog-centered">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h2 class="modal-title fs-5" id="attachInspectionModalLabel">Attach Trip to Inspection</h2>
+                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+            </div>
+            <div class="modal-body">
+                <p class="mb-0" id="attachInspectionMessage"></p>
+            </div>
+            <div class="modal-footer">
+                <button class="btn btn-secondary" type="button" data-bs-dismiss="modal">No</button>
+                <form asp-controller="MileageTracking" asp-action="AttachInspection" asp-route-id="@Model.Trip.UniqueId" method="post">
+                    @Html.AntiForgeryToken()
+                    <input id="attachInspectionId" name="inspectionId" type="hidden" />
+                    <button class="btn btn-primary" type="submit">Yes</button>
+                </form>
+            </div>
+        </div>
+    </div>
+</div>
+
+@section Scripts {
+    <script>
+        const attachInspectionModal = document.getElementById('attachInspectionModal');
+        const attachInspectionId = document.getElementById('attachInspectionId');
+        const attachInspectionMessage = document.getElementById('attachInspectionMessage');
+
+        document.querySelectorAll('[data-inspection-id]').forEach(row => {
+            const openDialog = () => {
+                const title = row.dataset.inspectionTitle || '';
+
+                attachInspectionId.value = row.dataset.inspectionId || '';
+                attachInspectionMessage.textContent = `Attach this trip to Inspection ${title}?`;
+                bootstrap.Modal.getOrCreateInstance(attachInspectionModal).show();
+            };
+
+            row.addEventListener('click', openDialog);
+            row.addEventListener('keydown', event => {
+                if (event.key === 'Enter' || event.key === ' ') {
+                    event.preventDefault();
+                    openDialog();
+                }
+            });
+        });
+    </script>
+}
+
+@functions {
+    private static string FormatDateTime(DateTime value)
+    {
+        return value.ToLocalTime().ToString("g");
+    }
+
+    private static string FormatElapsedTime(TimeSpan value)
+    {
+        return value.TotalHours >= 1
+            ? $"{(int)value.TotalHours}:{value.Minutes:00}:{value.Seconds:00}"
+            : $"{value.Minutes:00}:{value.Seconds:00}";
+    }
+
+    private static string FormatMileage(double value)
+    {
+        return $"{value:N2}";
+    }
+}

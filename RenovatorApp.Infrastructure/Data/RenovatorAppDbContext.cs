@@ -209,6 +209,12 @@ public sealed class RenovatorAppDbContext : DbContext
             .HasForeignKey(waypoint => waypoint.MileageTrackingId)
             .OnDelete(DeleteBehavior.Cascade);
 
+        modelBuilder.Entity<MileageTracking>()
+            .HasOne(session => session.Inspection)
+            .WithMany(inspection => inspection.MileageTrackingRecords)
+            .HasForeignKey(session => session.InspectionId)
+            .OnDelete(DeleteBehavior.SetNull);
+
         modelBuilder.Entity<RenoUser>()
             .HasOne(user => user.RenoCompany)
             .WithMany(company => company.Users)
@@ -253,6 +259,7 @@ public sealed class RenovatorAppDbContext : DbContext
         modelBuilder.Entity<InspectionAreaType>().HasIndex(areaType => new { areaType.RenoCompanyID, areaType.Name }).IsUnique();
         modelBuilder.Entity<MileageTracking>().HasIndex(session => session.TrackingStartedAtUtc);
         modelBuilder.Entity<MileageTracking>().HasIndex(session => session.RenoCompanyID);
+        modelBuilder.Entity<MileageTracking>().HasIndex(session => session.InspectionId);
         modelBuilder.Entity<MileageTrackingWaypoint>().HasIndex(waypoint => waypoint.MileageTrackingId);
         modelBuilder.Entity<MileageTrackingWaypoint>().HasIndex(waypoint => waypoint.WaypointTime);
         modelBuilder.Entity<Part>().HasIndex(part => part.Name);

@@ -12,7 +12,15 @@
 </div>
 
 <section class="detail-section mb-4">
-    <h2>Trip Details</h2>
+    <div class="d-flex align-items-center justify-content-between gap-3 mb-3">
+        <h2 class="mb-0">Trip Details</h2>
+        <a class="btn btn-primary"
+           asp-controller="MileageTracking"
+           asp-action="AttachInspection"
+           asp-route-id="@Model.Trip.UniqueId">
+            Attach to Inspection
+        </a>
+    </div>
     <div class="table-responsive">
         <table class="table table-striped align-middle mb-0">
             <thead>

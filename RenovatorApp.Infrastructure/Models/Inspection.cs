@@ -14,4 +14,5 @@ public sealed class Inspection : IRenoCompanyEntity
     public Guid? CustomerId { get; set; }
     public Property Property { get; set; } = null!;
     public Customer? Customer { get; set; }
+    public List<MileageTracking> MileageTrackingRecords { get; set; } = [];
 }
