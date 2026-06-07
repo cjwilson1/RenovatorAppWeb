@@ -28,9 +28,9 @@
         <thead>
             <tr>
                 <th scope="col">Document Name</th>
-                <th scope="col">Customer First/Last Name</th>
+                <th scope="col">Customer</th>
+                <th scope="col">Inspection</th>
                 <th scope="col">Document Type</th>
-                <th scope="col">Filename</th>
                 <th scope="col">Create Date</th>
                 <th scope="col" class="text-end">Actions</th>
             </tr>
@@ -46,6 +46,8 @@
             {
                 @foreach (var document in Model.Documents)
                 {
+                    var assignmentFormId = $"assignDocument-{document.DocumentId}";
+
                     <tr>
                         <td>
                             <a asp-controller="Documents"
@@ -56,11 +58,48 @@
                                 <strong>@document.DocumentName</strong>
                             </a>
                         </td>
-                        <td>@document.CustomerName</td>
+                        <td>
+                            <select class="form-select form-select-sm"
+                                    form="@assignmentFormId"
+                                    name="customerId"
+                                    aria-label="Assign customer for @document.DocumentName">
+                                <option value="">None</option>
+                                @foreach (var customer in Model.Customers)
+                                {
+                                    <option value="@customer.Id" selected="@(document.CustomerId == customer.Id)">
+                                        @customer.Name
+                                    </option>
+                                }
+                            </select>
+                        </td>
+                        <td>
+                            <select class="form-select form-select-sm"
+                                    form="@assignmentFormId"
+                                    name="inspectionId"
+                                    aria-label="Assign inspection for @document.DocumentName">
+                                <option value="">None</option>
+                                @foreach (var inspection in Model.Inspections)
+                                {
+                                    <option value="@inspection.Id" selected="@(document.InspectionId == inspection.Id)">
+                                        @inspection.Name
+                                    </option>
+                                }
+                            </select>
+                        </td>
                         <td>@document.DocumentType</td>
-                        <td>@document.Filename</td>
                         <td>@FormatDate(document.CreateDate)</td>
                         <td class="text-end">
+                            <form asp-controller="Documents"
+                                  asp-action="Assign"
+                                  asp-route-id="@document.DocumentId"
+                                  id="@assignmentFormId"
+                                  method="post"
+                                  class="d-inline">
+                                @Html.AntiForgeryToken()
+                                <input name="search" type="hidden" value="@Model.Search" />
+                                <input name="page" type="hidden" value="@Model.Page" />
+                                <button class="btn btn-primary btn-sm" type="submit">Save</button>
+                            </form>
                             <button class="btn btn-danger btn-sm"
                                     type="button"
                                     data-bs-toggle="modal"

@@ -22,9 +22,24 @@ namespace RenovatorApp.Infrastructure.Data.Migrations
 
             NpgsqlModelBuilderExtensions.UseIdentityByDefaultColumns(modelBuilder);
 
+            modelBuilder.Entity("CustomerProperty", b =>
+                {
+                    b.Property<Guid>("CustomerId")
+                        .HasColumnType("uuid");
+
+                    b.Property<Guid>("PropertyId")
+                        .HasColumnType("uuid");
+
+                    b.HasKey("CustomerId", "PropertyId");
+
+                    b.HasIndex("PropertyId");
+
+                    b.ToTable("CustomerProperty", (string)null);
+                });
+
             modelBuilder.Entity("RenovatorApp.Infrastructure.Models.Address", b =>
                 {
-                    b.Property<Guid>("Id")
+                    b.Property<Guid>("AddressId")
                         .ValueGeneratedOnAdd()
                         .HasColumnType("uuid");
 
@@ -66,7 +81,7 @@ namespace RenovatorApp.Infrastructure.Data.Migrations
                         .IsRequired()
                         .HasColumnType("text");
 
-                    b.HasKey("Id");
+                    b.HasKey("AddressId");
 
                     b.HasIndex("PropertyId")
                         .IsUnique();
@@ -76,7 +91,7 @@ namespace RenovatorApp.Infrastructure.Data.Migrations
 
             modelBuilder.Entity("RenovatorApp.Infrastructure.Models.AppSetting", b =>
                 {
-                    b.Property<Guid>("Id")
+                    b.Property<Guid>("AppSettingId")
                         .ValueGeneratedOnAdd()
                         .HasColumnType("uuid");
 
@@ -91,7 +106,7 @@ namespace RenovatorApp.Infrastructure.Data.Migrations
                         .IsRequired()
                         .HasColumnType("text");
 
-                    b.HasKey("Id");
+                    b.HasKey("AppSettingId");
 
                     b.HasIndex("RenoCompanyID", "Name")
                         .IsUnique();
@@ -101,7 +116,7 @@ namespace RenovatorApp.Infrastructure.Data.Migrations
 
             modelBuilder.Entity("RenovatorApp.Infrastructure.Models.Building", b =>
                 {
-                    b.Property<Guid>("Id")
+                    b.Property<Guid>("BuildingId")
                         .ValueGeneratedOnAdd()
                         .HasColumnType("uuid");
 
@@ -121,7 +136,7 @@ namespace RenovatorApp.Infrastructure.Data.Migrations
                     b.Property<int>("SortOrder")
                         .HasColumnType("integer");
 
-                    b.HasKey("Id");
+                    b.HasKey("BuildingId");
 
                     b.HasIndex("BuildingTypeId");
 
@@ -132,7 +147,7 @@ namespace RenovatorApp.Infrastructure.Data.Migrations
 
             modelBuilder.Entity("RenovatorApp.Infrastructure.Models.BuildingType", b =>
                 {
-                    b.Property<Guid>("Id")
+                    b.Property<Guid>("BuildingTypeId")
                         .ValueGeneratedOnAdd()
                         .HasColumnType("uuid");
 
@@ -143,7 +158,7 @@ namespace RenovatorApp.Infrastructure.Data.Migrations
                     b.Property<Guid>("RenoCompanyID")
                         .HasColumnType("uuid");
 
-                    b.HasKey("Id");
+                    b.HasKey("BuildingTypeId");
 
                     b.HasIndex("RenoCompanyID", "Name")
                         .IsUnique();
@@ -346,9 +361,8 @@ namespace RenovatorApp.Infrastructure.Data.Migrations
                         .IsRequired()
                         .HasColumnType("text");
 
-                    b.Property<string>("DocumentType")
-                        .IsRequired()
-                        .HasColumnType("text");
+                    b.Property<Guid>("DocumentTypeId")
+                        .HasColumnType("uuid");
 
                     b.Property<string>("Extension")
                         .IsRequired()
@@ -357,6 +371,9 @@ namespace RenovatorApp.Infrastructure.Data.Migrations
                     b.Property<string>("Filename")
                         .IsRequired()
                         .HasColumnType("text");
+
+                    b.Property<Guid?>("InspectionId")
+                        .HasColumnType("uuid");
 
                     b.Property<string>("Path")
                         .IsRequired()
@@ -371,11 +388,31 @@ namespace RenovatorApp.Infrastructure.Data.Migrations
 
                     b.HasIndex("CustomerId");
 
-                    b.HasIndex("DocumentType");
+                    b.HasIndex("DocumentTypeId");
+
+                    b.HasIndex("InspectionId");
 
                     b.HasIndex("RenoCompanyID");
 
                     b.ToTable("Documents", (string)null);
+                });
+
+            modelBuilder.Entity("RenovatorApp.Infrastructure.Models.DocumentType", b =>
+                {
+                    b.Property<Guid>("DocumentTypeId")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("uuid");
+
+                    b.Property<string>("Name")
+                        .IsRequired()
+                        .HasColumnType("text");
+
+                    b.HasKey("DocumentTypeId");
+
+                    b.HasIndex("Name")
+                        .IsUnique();
+
+                    b.ToTable("DocumentType", (string)null);
                 });
 
             modelBuilder.Entity("RenovatorApp.Infrastructure.Models.Employee", b =>
@@ -506,7 +543,7 @@ namespace RenovatorApp.Infrastructure.Data.Migrations
 
             modelBuilder.Entity("RenovatorApp.Infrastructure.Models.Inspection", b =>
                 {
-                    b.Property<Guid>("Id")
+                    b.Property<Guid>("InspectionId")
                         .ValueGeneratedOnAdd()
                         .HasColumnType("uuid");
 
@@ -540,7 +577,7 @@ namespace RenovatorApp.Infrastructure.Data.Migrations
                     b.Property<DateTime>("UpdatedAtUtc")
                         .HasColumnType("timestamp with time zone");
 
-                    b.HasKey("Id");
+                    b.HasKey("InspectionId");
 
                     b.HasIndex("CreatedAtUtc");
 
@@ -559,7 +596,7 @@ namespace RenovatorApp.Infrastructure.Data.Migrations
 
             modelBuilder.Entity("RenovatorApp.Infrastructure.Models.InspectionArea", b =>
                 {
-                    b.Property<Guid>("Id")
+                    b.Property<Guid>("InspectionAreaId")
                         .ValueGeneratedOnAdd()
                         .HasColumnType("uuid");
 
@@ -585,7 +622,7 @@ namespace RenovatorApp.Infrastructure.Data.Migrations
                     b.Property<int>("SortOrder")
                         .HasColumnType("integer");
 
-                    b.HasKey("Id");
+                    b.HasKey("InspectionAreaId");
 
                     b.HasIndex("AreaTypeId");
 
@@ -598,7 +635,7 @@ namespace RenovatorApp.Infrastructure.Data.Migrations
 
             modelBuilder.Entity("RenovatorApp.Infrastructure.Models.InspectionAreaCategory", b =>
                 {
-                    b.Property<Guid>("Id")
+                    b.Property<Guid>("InspectionAreaCategoryId")
                         .ValueGeneratedOnAdd()
                         .HasColumnType("uuid");
 
@@ -612,7 +649,7 @@ namespace RenovatorApp.Infrastructure.Data.Migrations
                     b.Property<int>("SortOrder")
                         .HasColumnType("integer");
 
-                    b.HasKey("Id");
+                    b.HasKey("InspectionAreaCategoryId");
 
                     b.HasIndex("RenoCompanyID", "Name")
                         .IsUnique();
@@ -622,7 +659,7 @@ namespace RenovatorApp.Infrastructure.Data.Migrations
 
             modelBuilder.Entity("RenovatorApp.Infrastructure.Models.InspectionAreaNote", b =>
                 {
-                    b.Property<Guid>("Id")
+                    b.Property<Guid>("InspectionAreaNoteId")
                         .ValueGeneratedOnAdd()
                         .HasColumnType("uuid");
 
@@ -648,7 +685,7 @@ namespace RenovatorApp.Infrastructure.Data.Migrations
                     b.Property<DateTime>("UpdatedAtUtc")
                         .HasColumnType("timestamp with time zone");
 
-                    b.HasKey("Id");
+                    b.HasKey("InspectionAreaNoteId");
 
                     b.HasIndex("AreaId");
 
@@ -657,7 +694,7 @@ namespace RenovatorApp.Infrastructure.Data.Migrations
 
             modelBuilder.Entity("RenovatorApp.Infrastructure.Models.InspectionAreaNoteEstimateItem", b =>
                 {
-                    b.Property<Guid>("Id")
+                    b.Property<Guid>("InspectionAreaNoteEstimateItemId")
                         .ValueGeneratedOnAdd()
                         .HasColumnType("uuid");
 
@@ -694,7 +731,7 @@ namespace RenovatorApp.Infrastructure.Data.Migrations
                     b.Property<DateTime>("UpdatedAtUtc")
                         .HasColumnType("timestamp with time zone");
 
-                    b.HasKey("Id");
+                    b.HasKey("InspectionAreaNoteEstimateItemId");
 
                     b.HasIndex("AreaNoteId");
 
@@ -703,7 +740,7 @@ namespace RenovatorApp.Infrastructure.Data.Migrations
 
             modelBuilder.Entity("RenovatorApp.Infrastructure.Models.InspectionAreaNotePhoto", b =>
                 {
-                    b.Property<Guid>("Id")
+                    b.Property<Guid>("InspectionAreaNotePhotoId")
                         .ValueGeneratedOnAdd()
                         .HasColumnType("uuid");
 
@@ -737,7 +774,7 @@ namespace RenovatorApp.Infrastructure.Data.Migrations
                     b.Property<Guid>("RenoCompanyID")
                         .HasColumnType("uuid");
 
-                    b.HasKey("Id");
+                    b.HasKey("InspectionAreaNotePhotoId");
 
                     b.HasIndex("AreaNoteId");
 
@@ -746,7 +783,7 @@ namespace RenovatorApp.Infrastructure.Data.Migrations
 
             modelBuilder.Entity("RenovatorApp.Infrastructure.Models.InspectionAreaType", b =>
                 {
-                    b.Property<Guid>("AreaTypeId")
+                    b.Property<Guid>("InspectionAreaTypeId")
                         .ValueGeneratedOnAdd()
                         .HasColumnType("uuid");
 
@@ -763,7 +800,7 @@ namespace RenovatorApp.Infrastructure.Data.Migrations
                     b.Property<int>("SortOrder")
                         .HasColumnType("integer");
 
-                    b.HasKey("AreaTypeId");
+                    b.HasKey("InspectionAreaTypeId");
 
                     b.HasIndex("CategoryId");
 
@@ -775,7 +812,7 @@ namespace RenovatorApp.Infrastructure.Data.Migrations
 
             modelBuilder.Entity("RenovatorApp.Infrastructure.Models.Inspector", b =>
                 {
-                    b.Property<Guid>("Id")
+                    b.Property<Guid>("InspectorId")
                         .ValueGeneratedOnAdd()
                         .HasColumnType("uuid");
 
@@ -805,14 +842,14 @@ namespace RenovatorApp.Infrastructure.Data.Migrations
                     b.Property<Guid>("RenoCompanyID")
                         .HasColumnType("uuid");
 
-                    b.HasKey("Id");
+                    b.HasKey("InspectorId");
 
                     b.ToTable("Inspectors", (string)null);
                 });
 
             modelBuilder.Entity("RenovatorApp.Infrastructure.Models.MileageTracking", b =>
                 {
-                    b.Property<Guid>("UniqueId")
+                    b.Property<Guid>("MileageTrackingID")
                         .ValueGeneratedOnAdd()
                         .HasColumnType("uuid");
 
@@ -847,7 +884,7 @@ namespace RenovatorApp.Infrastructure.Data.Migrations
                     b.Property<DateTime>("TrackingStartedAtUtc")
                         .HasColumnType("timestamp with time zone");
 
-                    b.HasKey("UniqueId");
+                    b.HasKey("MileageTrackingID");
 
                     b.HasIndex("InspectionId");
 
@@ -860,7 +897,7 @@ namespace RenovatorApp.Infrastructure.Data.Migrations
 
             modelBuilder.Entity("RenovatorApp.Infrastructure.Models.MileageTrackingWaypoint", b =>
                 {
-                    b.Property<Guid>("UniqueId")
+                    b.Property<Guid>("MileageTrackingWaypointId")
                         .ValueGeneratedOnAdd()
                         .HasColumnType("uuid");
 
@@ -883,7 +920,7 @@ namespace RenovatorApp.Infrastructure.Data.Migrations
                     b.Property<DateTime>("WaypointTime")
                         .HasColumnType("timestamp with time zone");
 
-                    b.HasKey("UniqueId");
+                    b.HasKey("MileageTrackingWaypointId");
 
                     b.HasIndex("MileageTrackingId");
 
@@ -976,14 +1013,18 @@ namespace RenovatorApp.Infrastructure.Data.Migrations
 
             modelBuilder.Entity("RenovatorApp.Infrastructure.Models.Property", b =>
                 {
-                    b.Property<Guid>("Id")
+                    b.Property<Guid>("PropertyId")
                         .ValueGeneratedOnAdd()
                         .HasColumnType("uuid");
+
+                    b.Property<string>("Name")
+                        .IsRequired()
+                        .HasColumnType("text");
 
                     b.Property<Guid>("RenoCompanyID")
                         .HasColumnType("uuid");
 
-                    b.HasKey("Id");
+                    b.HasKey("PropertyId");
 
                     b.ToTable("Property", (string)null);
                 });
@@ -1139,6 +1180,21 @@ namespace RenovatorApp.Infrastructure.Data.Migrations
                     b.ToTable("UserRole", (string)null);
                 });
 
+            modelBuilder.Entity("CustomerProperty", b =>
+                {
+                    b.HasOne("RenovatorApp.Infrastructure.Models.Customer", null)
+                        .WithMany()
+                        .HasForeignKey("CustomerId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+
+                    b.HasOne("RenovatorApp.Infrastructure.Models.Property", null)
+                        .WithMany()
+                        .HasForeignKey("PropertyId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+                });
+
             modelBuilder.Entity("RenovatorApp.Infrastructure.Models.Address", b =>
                 {
                     b.HasOne("RenovatorApp.Infrastructure.Models.Property", "Property")
@@ -1192,7 +1248,22 @@ namespace RenovatorApp.Infrastructure.Data.Migrations
                         .HasForeignKey("CustomerId")
                         .OnDelete(DeleteBehavior.SetNull);
 
+                    b.HasOne("RenovatorApp.Infrastructure.Models.DocumentType", "DocumentType")
+                        .WithMany("Documents")
+                        .HasForeignKey("DocumentTypeId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired();
+
+                    b.HasOne("RenovatorApp.Infrastructure.Models.Inspection", "Inspection")
+                        .WithMany("Documents")
+                        .HasForeignKey("InspectionId")
+                        .OnDelete(DeleteBehavior.SetNull);
+
                     b.Navigation("Customer");
+
+                    b.Navigation("DocumentType");
+
+                    b.Navigation("Inspection");
                 });
 
             modelBuilder.Entity("RenovatorApp.Infrastructure.Models.Employee", b =>
@@ -1380,8 +1451,15 @@ namespace RenovatorApp.Infrastructure.Data.Migrations
                     b.Navigation("Inspections");
                 });
 
+            modelBuilder.Entity("RenovatorApp.Infrastructure.Models.DocumentType", b =>
+                {
+                    b.Navigation("Documents");
+                });
+
             modelBuilder.Entity("RenovatorApp.Infrastructure.Models.Inspection", b =>
                 {
+                    b.Navigation("Documents");
+
                     b.Navigation("MileageTrackingRecords");
                 });
 

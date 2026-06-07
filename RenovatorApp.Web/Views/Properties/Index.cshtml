@@ -1,0 +1,257 @@
+@model RenovatorApp.Web.ViewModels.PropertiesIndexViewModel
+@{
+    ViewData["Title"] = "Properties";
+    var previousPage = Math.Max(1, Model.Page - 1);
+    var nextPage = Math.Min(Model.TotalPages, Model.Page + 1);
+}
+
+<div class="page-header-row">
+    <div>
+        <h1>Properties</h1>
+        <p class="text-muted">@Model.TotalProperties propert@(Model.TotalProperties == 1 ? "y" : "ies")</p>
+    </div>
+</div>
+
+<form class="customer-search-row" id="propertySearchForm" method="get">
+    <input class="form-control"
+           id="propertySearch"
+           name="search"
+           placeholder="Search Properties"
+           type="search"
+           value="@Model.Search" />
+    <button class="btn btn-outline-secondary" id="clearPropertySearch" type="button">Clear</button>
+    <input id="propertyPage" name="page" type="hidden" value="@Model.Page" />
+</form>
+
+<div class="table-responsive">
+    <table class="table table-striped align-middle">
+        <thead>
+            <tr>
+                <th scope="col">Name</th>
+                <th scope="col">Address</th>
+                <th scope="col">Customer</th>
+                <th scope="col">Inspection</th>
+            </tr>
+        </thead>
+        <tbody>
+            @if (Model.Properties.Count == 0)
+            {
+                <tr>
+                    <td class="text-muted" colspan="4">No properties found.</td>
+                </tr>
+            }
+            else
+            {
+                @foreach (var property in Model.Properties)
+                {
+                    <tr class="clickable-table-row"
+                        data-property-row
+                        data-property-modal-id="propertyModal-@property.PropertyId"
+                        role="button"
+                        tabindex="0"
+                        aria-label="Open property @property.Name">
+                        <td><strong>@property.Name</strong></td>
+                        <td>@property.Address</td>
+                        <td>@property.CustomerNames</td>
+                        <td>@property.InspectionNames</td>
+                    </tr>
+                }
+            }
+        </tbody>
+    </table>
+</div>
+
+<div class="d-flex align-items-center justify-content-between gap-3">
+    <div class="btn-group" role="group" aria-label="Property pages">
+        <a class="btn btn-outline-secondary @(Model.Page == 1 ? "disabled" : string.Empty)"
+           asp-controller="Properties"
+           asp-action="Index"
+           asp-route-search="@Model.Search"
+           asp-route-page="@previousPage">
+            Previous
+        </a>
+        <a class="btn btn-outline-secondary @(Model.Page == Model.TotalPages ? "disabled" : string.Empty)"
+           asp-controller="Properties"
+           asp-action="Index"
+           asp-route-search="@Model.Search"
+           asp-route-page="@nextPage">
+            Next
+        </a>
+    </div>
+    <span class="text-muted">Page @Model.Page of @Model.TotalPages</span>
+</div>
+
+@foreach (var property in Model.Properties)
+{
+    var propertyDisplayName = property.Name;
+    var hasSelectedState = Model.StateOptions.Any(state => string.Equals(state.Abbreviation, property.State, StringComparison.OrdinalIgnoreCase));
+
+    <div class="modal fade" id="propertyModal-@property.PropertyId" tabindex="-1" aria-labelledby="propertyModalTitle-@property.PropertyId" aria-hidden="true">
+        <div class="modal-dialog modal-lg modal-dialog-centered">
+            <div class="modal-content">
+                <form asp-controller="Properties"
+                      asp-action="Update"
+                      asp-route-id="@property.PropertyId"
+                      method="post">
+                    @Html.AntiForgeryToken()
+                    <input name="search" type="hidden" value="@Model.Search" />
+                    <input name="page" type="hidden" value="@Model.Page" />
+                    <div class="modal-header">
+                        <div>
+                            <h2 class="modal-title fs-5" id="propertyModalTitle-@property.PropertyId">Property</h2>
+                            <p class="text-muted mb-0">@propertyDisplayName</p>
+                        </div>
+                        <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+                    </div>
+                    <div class="modal-body">
+                        <div class="row g-3">
+                            <div class="col-12">
+                                <label class="form-label" for="propertyName-@property.PropertyId">Property Name</label>
+                                <input class="form-control" id="propertyName-@property.PropertyId" name="Name" value="@property.Name" />
+                            </div>
+                            <div class="col-12">
+                                <label class="form-label" for="propertyStreet1-@property.PropertyId">Street 1</label>
+                                <input class="form-control" id="propertyStreet1-@property.PropertyId" name="Street1" value="@property.Street1" />
+                            </div>
+                            <div class="col-md-6">
+                                <label class="form-label" for="propertyStreet2-@property.PropertyId">Street 2</label>
+                                <input class="form-control" id="propertyStreet2-@property.PropertyId" name="Street2" value="@property.Street2" />
+                            </div>
+                            <div class="col-md-6">
+                                <label class="form-label" for="propertyStreet3-@property.PropertyId">Street 3</label>
+                                <input class="form-control" id="propertyStreet3-@property.PropertyId" name="Street3" value="@property.Street3" />
+                            </div>
+                            <div class="col-md-5">
+                                <label class="form-label" for="propertyCity-@property.PropertyId">City</label>
+                                <input class="form-control" id="propertyCity-@property.PropertyId" name="City" value="@property.City" />
+                            </div>
+                            <div class="col-md-4">
+                                <label class="form-label" for="propertyState-@property.PropertyId">State</label>
+                                <select class="form-select" id="propertyState-@property.PropertyId" name="State">
+                                    <option value="">Select state</option>
+                                    @if (!string.IsNullOrWhiteSpace(property.State) && !hasSelectedState)
+                                    {
+                                        <option value="@property.State" selected>@property.State</option>
+                                    }
+                                    @foreach (var state in Model.StateOptions)
+                                    {
+                                        <option value="@state.Abbreviation" selected="@string.Equals(state.Abbreviation, property.State, StringComparison.OrdinalIgnoreCase)">@state.Name</option>
+                                    }
+                                </select>
+                            </div>
+                            <div class="col-md-3">
+                                <label class="form-label" for="propertyPostalCode-@property.PropertyId">Zip</label>
+                                <input class="form-control" id="propertyPostalCode-@property.PropertyId" name="PostalCode" value="@property.PostalCode" />
+                            </div>
+                            <div class="col-md-6">
+                                <label class="form-label" for="propertyCountrySubDivisionCode-@property.PropertyId">Country Subdivision Code</label>
+                                <input class="form-control" id="propertyCountrySubDivisionCode-@property.PropertyId" name="CountrySubDivisionCode" value="@property.CountrySubDivisionCode" />
+                            </div>
+                            <div class="col-md-6">
+                                <label class="form-label" for="propertyCountry-@property.PropertyId">Country</label>
+                                <input class="form-control" id="propertyCountry-@property.PropertyId" name="Country" value="@property.Country" />
+                            </div>
+                        </div>
+                    </div>
+                    <div class="modal-footer">
+                        <button class="btn btn-danger"
+                                data-property-delete-confirm
+                                data-property-modal-id="propertyModal-@property.PropertyId"
+                                data-property-confirm-modal-id="deletePropertyModal-@property.PropertyId"
+                                type="button">
+                            Delete
+                        </button>
+                        <button class="btn btn-outline-secondary" data-bs-dismiss="modal" type="button">Cancel</button>
+                        <button class="btn btn-primary" type="submit">Save</button>
+                    </div>
+                </form>
+            </div>
+        </div>
+    </div>
+
+    <div class="modal fade" id="deletePropertyModal-@property.PropertyId" tabindex="-1" aria-labelledby="deletePropertyModalTitle-@property.PropertyId" aria-hidden="true">
+        <div class="modal-dialog modal-dialog-centered">
+            <div class="modal-content">
+                <form asp-controller="Properties"
+                      asp-action="Delete"
+                      asp-route-id="@property.PropertyId"
+                      method="post">
+                    @Html.AntiForgeryToken()
+                    <input name="search" type="hidden" value="@Model.Search" />
+                    <input name="page" type="hidden" value="@Model.Page" />
+                    <div class="modal-header">
+                        <h2 class="modal-title fs-5" id="deletePropertyModalTitle-@property.PropertyId">Delete Property</h2>
+                        <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+                    </div>
+                    <div class="modal-body">
+                        <p>Deleting this property will permanenatly delete it from the database and cannot be recovered. Are you sure?</p>
+                    </div>
+                    <div class="modal-footer">
+                        <button class="btn btn-outline-secondary" data-bs-dismiss="modal" type="button">No</button>
+                        <button class="btn btn-danger" type="submit">Yes</button>
+                    </div>
+                </form>
+            </div>
+        </div>
+    </div>
+}
+
+@section Scripts {
+    <script>
+        const searchForm = document.getElementById('propertySearchForm');
+        const searchInput = document.getElementById('propertySearch');
+        const pageInput = document.getElementById('propertyPage');
+        const clearSearchButton = document.getElementById('clearPropertySearch');
+        let searchTimer;
+
+        searchInput?.addEventListener('input', () => {
+            window.clearTimeout(searchTimer);
+            const value = (searchInput.value || '').trim();
+            searchTimer = window.setTimeout(() => {
+                if (value.length === 0 || value.length >= 2) {
+                    pageInput.value = '1';
+                    searchForm.submit();
+                }
+            }, 350);
+        });
+
+        clearSearchButton?.addEventListener('click', () => {
+            searchInput.value = '';
+            pageInput.value = '1';
+            searchForm.submit();
+        });
+
+        document.querySelectorAll('[data-property-row]').forEach((row) => {
+            const openPropertyModal = () => {
+                const modal = document.getElementById(row.dataset.propertyModalId);
+                if (!modal) {
+                    return;
+                }
+
+                bootstrap.Modal.getOrCreateInstance(modal).show();
+            };
+
+            row.addEventListener('click', openPropertyModal);
+            row.addEventListener('keydown', (event) => {
+                if (event.key === 'Enter' || event.key === ' ') {
+                    event.preventDefault();
+                    openPropertyModal();
+                }
+            });
+        });
+
+        document.querySelectorAll('[data-property-delete-confirm]').forEach((button) => {
+            button.addEventListener('click', () => {
+                const editModal = document.getElementById(button.dataset.propertyModalId);
+                const confirmModal = document.getElementById(button.dataset.propertyConfirmModalId);
+                if (!editModal || !confirmModal) {
+                    return;
+                }
+
+                const confirmInstance = bootstrap.Modal.getOrCreateInstance(confirmModal);
+                editModal.addEventListener('hidden.bs.modal', () => confirmInstance.show(), { once: true });
+                bootstrap.Modal.getOrCreateInstance(editModal).hide();
+            });
+        });
+    </script>
+}

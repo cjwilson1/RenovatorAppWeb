@@ -109,6 +109,60 @@ public sealed class SettingsController : Controller
         return View();
     }
 
+    public async Task<IActionResult> DefaultSettings(CancellationToken cancellationToken)
+    {
+        var defaultState = await _dbContext.AppSettings
+            .AsNoTracking()
+            .ForCompany(_currentUserSession.RenoCompanyID)
+            .Where(setting => setting.Name == "defaultstate")
+            .Select(setting => setting.Value)
+            .FirstOrDefaultAsync(cancellationToken);
+
+        return View(new DefaultSettingsViewModel
+        {
+            DefaultState = defaultState ?? string.Empty,
+            States = StateOptionsProvider.GetStates(),
+            StatusMessage = TempData["DefaultSettingsStatus"] as string ?? string.Empty
+        });
+    }
+
+    [HttpPost]
+    [ValidateAntiForgeryToken]
+    public async Task<IActionResult> DefaultSettings(DefaultSettingsViewModel update, CancellationToken cancellationToken)
+    {
+        var selectedState = (update.DefaultState ?? string.Empty).Trim().ToUpperInvariant();
+
+        if (!StateOptionsProvider.GetStates().Any(state => state.Abbreviation == selectedState))
+        {
+            ModelState.AddModelError(nameof(update.DefaultState), "Choose a valid state.");
+            return View(new DefaultSettingsViewModel
+            {
+                DefaultState = selectedState,
+                States = StateOptionsProvider.GetStates()
+            });
+        }
+
+        var setting = await _dbContext.AppSettings
+            .ForCompany(_currentUserSession.RenoCompanyID)
+            .FirstOrDefaultAsync(item => item.Name == "defaultstate", cancellationToken);
+
+        if (setting is null)
+        {
+            setting = new AppSetting
+            {
+                RenoCompanyID = _currentUserSession.RenoCompanyID,
+                Name = "defaultstate"
+            };
+            _dbContext.AppSettings.Add(setting);
+        }
+
+        setting.Value = selectedState;
+        await _dbContext.SaveChangesAsync(cancellationToken);
+
+        TempData["DefaultSettingsStatus"] = "Default settings saved.";
+        return RedirectToAction(nameof(DefaultSettings));
+    }
+
     public async Task<IActionResult> FindPart(CancellationToken cancellationToken)
     {
         var parts = await _inspectionDataService.GetPartsAsync(_currentUserSession.RenoCompanyID, cancellationToken);

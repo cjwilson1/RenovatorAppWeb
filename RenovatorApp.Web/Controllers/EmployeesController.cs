@@ -254,7 +254,7 @@ public sealed class EmployeesController : Controller
             _dbContext.Addresses.Add(employee.PrimaryAddress);
         }
 
-        employee.PrimaryAddressId = employee.PrimaryAddress.Id;
+        employee.PrimaryAddressId = employee.PrimaryAddress.AddressId;
     }
 
     private static EmployeeAddressViewModel? ToAddressViewModel(Address? address)

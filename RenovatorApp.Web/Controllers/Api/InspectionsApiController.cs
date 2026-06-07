@@ -37,7 +37,7 @@ public sealed class InspectionsApiController : ControllerBase
     private static InspectionSummaryDto ToSummaryDto(Inspection inspection)
     {
         return new InspectionSummaryDto(
-            inspection.Id,
+            inspection.InspectionId,
             inspection.Title,
             inspection.InspectionDate,
             inspection.UpdatedAtUtc,
@@ -57,7 +57,7 @@ public sealed class InspectionsApiController : ControllerBase
                 .OrderBy(building => building.SortOrder)
                 .ThenBy(building => building.Name)
                 .Select(building => new BuildingDto(
-                    building.Id,
+                    building.BuildingId,
                     building.Name,
                     building.BuildingType?.Name ?? string.Empty,
                     building.Areas.Select(ToAreaDto).ToList()))
@@ -68,7 +68,7 @@ public sealed class InspectionsApiController : ControllerBase
     private static PropertyDto ToPropertyDto(Property property)
     {
         return new PropertyDto(
-            property.Id,
+            property.PropertyId,
             property.Address.Street1,
             property.Address.Street2,
             property.Address.City,
@@ -92,13 +92,13 @@ public sealed class InspectionsApiController : ControllerBase
     private static AreaDto ToAreaDto(InspectionArea area)
     {
         return new AreaDto(
-            area.Id,
+            area.InspectionAreaId,
             area.DisplayName,
             area.AreaType?.Name ?? string.Empty,
             area.AreaType?.Category?.Name ?? string.Empty,
             area.OverallRating,
             area.AreaNotes.Select(note => new NoteDto(
-                note.Id,
+                note.InspectionAreaNoteId,
                 note.Text,
                 note.EstimateItems.Count,
                 note.Photos.Count)).ToList());

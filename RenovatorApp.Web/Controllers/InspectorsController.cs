@@ -38,7 +38,7 @@ public sealed class InspectorsController : Controller
             .Take(PageSize)
             .Select(inspector => new InspectorRowViewModel
             {
-                Id = inspector.Id,
+                Id = inspector.InspectorId,
                 FirstName = inspector.FirstName,
                 LastName = inspector.LastName,
                 HourlyRate = inspector.HourlyRate,
@@ -69,7 +69,7 @@ public sealed class InspectorsController : Controller
         var renoCompanyID = _currentUserSession.RenoCompanyID;
         var inspector = await _dbContext.Inspectors
             .AsNoTracking()
-            .FirstOrDefaultAsync(item => item.Id == id && item.RenoCompanyID == renoCompanyID, cancellationToken);
+            .FirstOrDefaultAsync(item => item.InspectorId == id && item.RenoCompanyID == renoCompanyID, cancellationToken);
 
         if (inspector is null)
         {
@@ -78,7 +78,7 @@ public sealed class InspectorsController : Controller
 
         return View(new InspectorEditViewModel
         {
-            Id = inspector.Id,
+            Id = inspector.InspectorId,
             FirstName = inspector.FirstName,
             LastName = inspector.LastName,
             HourlyRate = inspector.HourlyRate,
@@ -103,14 +103,14 @@ public sealed class InspectorsController : Controller
         if (model.Id is Guid id)
         {
             inspector = await _dbContext.Inspectors
-                .FirstOrDefaultAsync(item => item.Id == id && item.RenoCompanyID == renoCompanyID, cancellationToken)
+                .FirstOrDefaultAsync(item => item.InspectorId == id && item.RenoCompanyID == renoCompanyID, cancellationToken)
                 ?? throw new InvalidOperationException("Inspector was not found.");
         }
         else
         {
             inspector = new Inspector
             {
-                Id = Guid.NewGuid(),
+                InspectorId = Guid.NewGuid(),
                 RenoCompanyID = renoCompanyID
             };
             _dbContext.Inspectors.Add(inspector);
@@ -126,7 +126,7 @@ public sealed class InspectorsController : Controller
         if (inspector.IsDefault)
         {
             await _dbContext.Inspectors
-                .Where(item => item.RenoCompanyID == renoCompanyID && item.Id != inspector.Id)
+                .Where(item => item.RenoCompanyID == renoCompanyID && item.InspectorId != inspector.InspectorId)
                 .ExecuteUpdateAsync(setters => setters.SetProperty(item => item.IsDefault, false), cancellationToken);
         }
 

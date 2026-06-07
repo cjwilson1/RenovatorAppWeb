@@ -50,7 +50,7 @@ public sealed class MileageTrackingController : Controller
     {
         var trip = await _dbContext.MileageTracking
             .Include(item => item.Waypoints)
-            .FirstOrDefaultAsync(item => item.UniqueId == id && item.RenoCompanyID == _currentUserSession.RenoCompanyID, cancellationToken);
+            .FirstOrDefaultAsync(item => item.MileageTrackingID == id && item.RenoCompanyID == _currentUserSession.RenoCompanyID, cancellationToken);
 
         if (trip is null)
         {
@@ -81,7 +81,7 @@ public sealed class MileageTrackingController : Controller
         var trip = await _dbContext.MileageTracking
             .AsNoTracking()
             .Include(item => item.Inspection)
-            .FirstOrDefaultAsync(item => item.UniqueId == id && item.RenoCompanyID == _currentUserSession.RenoCompanyID, cancellationToken);
+            .FirstOrDefaultAsync(item => item.MileageTrackingID == id && item.RenoCompanyID == _currentUserSession.RenoCompanyID, cancellationToken);
 
         if (trip is null)
         {
@@ -102,7 +102,7 @@ public sealed class MileageTrackingController : Controller
             .Take(AttachInspectionPageSize)
             .Select(inspection => new MileageTrackingInspectionPickerRowViewModel
             {
-                InspectionId = inspection.Id,
+                InspectionId = inspection.InspectionId,
                 Title = inspection.Title,
                 InspectionDate = inspection.InspectionDate,
                 CustomerName = inspection.Customer == null
@@ -127,7 +127,7 @@ public sealed class MileageTrackingController : Controller
     public async Task<IActionResult> AttachInspection(Guid id, Guid inspectionId, CancellationToken cancellationToken)
     {
         var trip = await _dbContext.MileageTracking
-            .FirstOrDefaultAsync(item => item.UniqueId == id && item.RenoCompanyID == _currentUserSession.RenoCompanyID, cancellationToken);
+            .FirstOrDefaultAsync(item => item.MileageTrackingID == id && item.RenoCompanyID == _currentUserSession.RenoCompanyID, cancellationToken);
 
         if (trip is null)
         {
@@ -137,7 +137,7 @@ public sealed class MileageTrackingController : Controller
         var inspectionExists = await _dbContext.Inspections
             .AsNoTracking()
             .ForCompany(_currentUserSession.RenoCompanyID)
-            .AnyAsync(inspection => inspection.Id == inspectionId, cancellationToken);
+            .AnyAsync(inspection => inspection.InspectionId == inspectionId, cancellationToken);
 
         if (!inspectionExists)
         {
@@ -154,7 +154,7 @@ public sealed class MileageTrackingController : Controller
     {
         return new MileageTrackingRowViewModel
         {
-            UniqueId = trip.UniqueId,
+            UniqueId = trip.MileageTrackingID,
             StartTimeUtc = trip.TrackingStartedAtUtc,
             ElapsedTime = trip.TotalTime,
             TotalMileage = trip.TotalMileage,

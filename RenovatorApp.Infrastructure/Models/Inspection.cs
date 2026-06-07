@@ -2,7 +2,7 @@ namespace RenovatorApp.Infrastructure.Models;
 
 public sealed class Inspection : IRenoCompanyEntity
 {
-    public Guid Id { get; set; } = Guid.NewGuid();
+    public Guid InspectionId { get; set; } = Guid.NewGuid();
     public Guid RenoCompanyID { get; set; }
     public DateTime CreatedAtUtc { get; set; } = DateTime.UtcNow;
     public DateTime UpdatedAtUtc { get; set; } = DateTime.UtcNow;
@@ -15,4 +15,5 @@ public sealed class Inspection : IRenoCompanyEntity
     public Property Property { get; set; } = null!;
     public Customer? Customer { get; set; }
     public List<MileageTracking> MileageTrackingRecords { get; set; } = [];
+    public List<Document> Documents { get; set; } = [];
 }

@@ -33,6 +33,8 @@ public sealed class InspectionDataService
             .ForCompany(renoCompanyID)
             .Include(inspection => inspection.Customer)
                 .ThenInclude(customer => customer!.BillAddress)
+            .Include(inspection => inspection.Documents)
+                .ThenInclude(document => document.DocumentType)
             .Include(inspection => inspection.Property)
                 .ThenInclude(property => property.Address)
             .Include(inspection => inspection.Property)
@@ -55,7 +57,7 @@ public sealed class InspectionDataService
                 .ThenInclude(property => property.Areas)
                     .ThenInclude(area => area.AreaNotes)
                         .ThenInclude(note => note.Photos)
-            .FirstOrDefaultAsync(inspection => inspection.Id == inspectionId, cancellationToken);
+            .FirstOrDefaultAsync(inspection => inspection.InspectionId == inspectionId, cancellationToken);
     }
 
     public async Task<IReadOnlyList<Inspector>> GetInspectorsAsync(Guid renoCompanyID, CancellationToken cancellationToken = default)

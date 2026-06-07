@@ -63,8 +63,11 @@ public sealed class CustomerDetailViewModel
     public DateTime? LastSyncDate { get; init; }
     public DateTime? LastEditDate { get; init; }
     public CustomerAddressViewModel? BillAddress { get; set; }
+    public IReadOnlyList<CustomerPropertyViewModel> Properties { get; init; } = [];
+    public bool CanAddBillingAddressProperty { get; init; }
     public IReadOnlyList<CustomerDocumentViewModel> Documents { get; init; } = [];
     public CustomerAddressViewModel? ShipAddress { get; set; }
+    public IReadOnlyList<StateOptionViewModel> StateOptions { get; set; } = [];
 }
 
 public sealed class CustomerDetailUpdateViewModel
@@ -96,6 +99,27 @@ public sealed class CustomerDocumentViewModel
     public string DocumentType { get; init; } = string.Empty;
     public string Filename { get; init; } = string.Empty;
     public DateTime CreateDate { get; init; }
+}
+
+public sealed class CustomerPropertyViewModel
+{
+    public Guid PropertyId { get; init; }
+    public string Name { get; init; } = string.Empty;
+    public string StreetAddress { get; init; } = string.Empty;
+    public string Street1 { get; init; } = string.Empty;
+    public string Street2 { get; init; } = string.Empty;
+    public string Street3 { get; init; } = string.Empty;
+    public string City { get; init; } = string.Empty;
+    public string State { get; init; } = string.Empty;
+    public string PostalCode { get; init; } = string.Empty;
+    public string Country { get; init; } = string.Empty;
+}
+
+public sealed class CustomerAddPropertyViewModel
+{
+    public Guid? PropertyId { get; set; }
+    public string? Name { get; set; }
+    public CustomerAddressUpdateViewModel Address { get; set; } = new();
 }
 
 public sealed class CustomerAddressViewModel

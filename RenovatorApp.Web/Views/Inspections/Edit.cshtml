@@ -1,10 +1,22 @@
 @model RenovatorApp.Web.ViewModels.InspectionEditViewModel
 @{
     ViewData["Title"] = Model.PageTitle;
+    var activeTab = Model.ActiveTab is "customer" or "property" or "buildings" ? Model.ActiveTab : "general";
+
+    string TabButtonClass(string tabName) => activeTab == tabName ? "nav-link active" : "nav-link";
+    string TabPanelClass(string tabName) => activeTab == tabName ? "tab-pane fade show active" : "tab-pane fade";
+    string TabSelected(string tabName) => activeTab == tabName ? "true" : "false";
+    string DisplayValue(string? value) => value ?? string.Empty;
+    var customerFieldsClass = Model.Customer.CustomerId.HasValue ? string.Empty : "d-none";
+    var propertyFieldsClass = Model.PropertyId.HasValue ? string.Empty : "d-none";
 }
 
 <style>
     #findPartModal {
+        z-index: 1065;
+    }
+
+    #newCustomerModal {
         z-index: 1065;
     }
 
@@ -16,42 +28,48 @@
 <div class="page-header-row">
     <div>
         <h1>@Model.PageTitle</h1>
+        @if (Model.Id.HasValue)
+        {
+            <p class="text-muted small" id="inspectionTitleSubheader">@Model.Title</p>
+        }
     </div>
 </div>
 
 <form asp-controller="Inspections" asp-action="Edit" asp-route-id="@Model.Id" id="inspectionEditForm" method="post">
     <input asp-for="ForceNewCustomer" type="hidden" />
+    <input asp-for="ActiveTab" id="ActiveTab" type="hidden" />
+    <input asp-for="PropertyId" type="hidden" />
     <ul class="nav nav-tabs mb-3" id="inspectionEditTabs" role="tablist">
         <li class="nav-item" role="presentation">
-            <button class="nav-link active" id="general-tab" data-bs-toggle="tab" data-bs-target="#general-panel" type="button" role="tab" aria-controls="general-panel" aria-selected="true">
+            <button class="@TabButtonClass("general")" id="general-tab" data-bs-toggle="tab" data-bs-target="#general-panel" type="button" role="tab" aria-controls="general-panel" aria-selected="@TabSelected("general")">
                 General
             </button>
         </li>
         <li class="nav-item" role="presentation">
-            <button class="nav-link" id="customer-tab" data-bs-toggle="tab" data-bs-target="#customer-panel" type="button" role="tab" aria-controls="customer-panel" aria-selected="false">
+            <button class="@TabButtonClass("customer")" id="customer-tab" data-bs-toggle="tab" data-bs-target="#customer-panel" type="button" role="tab" aria-controls="customer-panel" aria-selected="@TabSelected("customer")">
                 Customer
             </button>
         </li>
         <li class="nav-item" role="presentation">
-            <button class="nav-link" id="property-tab" data-bs-toggle="tab" data-bs-target="#property-panel" type="button" role="tab" aria-controls="property-panel" aria-selected="false">
+            <button class="@TabButtonClass("property")" id="property-tab" data-bs-toggle="tab" data-bs-target="#property-panel" type="button" role="tab" aria-controls="property-panel" aria-selected="@TabSelected("property")">
                 Property
             </button>
         </li>
         <li class="nav-item" role="presentation">
-            <button class="nav-link" id="buildings-tab" data-bs-toggle="tab" data-bs-target="#buildings-panel" type="button" role="tab" aria-controls="buildings-panel" aria-selected="false">
+            <button class="@TabButtonClass("buildings")" id="buildings-tab" data-bs-toggle="tab" data-bs-target="#buildings-panel" type="button" role="tab" aria-controls="buildings-panel" aria-selected="@TabSelected("buildings")">
                 Buildings
             </button>
         </li>
     </ul>
 
     <div class="tab-content" id="inspectionEditTabContent">
-        <div class="tab-pane fade show active" id="general-panel" role="tabpanel" aria-labelledby="general-tab" tabindex="0">
+        <div class="@TabPanelClass("general")" id="general-panel" role="tabpanel" aria-labelledby="general-tab" tabindex="0">
             <section class="detail-section">
                 <h2>General</h2>
 
                 <div class="mb-3">
                     <label class="form-label" asp-for="Title"></label>
-                    <input class="form-control" asp-for="Title" type="text" required />
+                    <input class="form-control" asp-for="Title" data-inspection-title-input type="text" required />
                     <span class="text-danger" asp-validation-for="Title"></span>
                 </div>
 
@@ -83,38 +101,61 @@
             </section>
         </div>
 
-        <div class="tab-pane fade" id="property-panel" role="tabpanel" aria-labelledby="property-tab" tabindex="0">
+        <div class="@TabPanelClass("property")" id="property-panel" role="tabpanel" aria-labelledby="property-tab" tabindex="0">
             <section class="detail-section">
-                <h2>Property</h2>
-
-                <div class="mb-3">
-                    <label class="form-label" asp-for="PropertyAddress.Street1">Street 1</label>
-                    <input class="form-control" asp-for="PropertyAddress.Street1" type="text" />
+                <div class="d-flex align-items-center justify-content-between gap-3 mb-3">
+                    <h2 class="mb-0">Property</h2>
+                    @if (Model.Id.HasValue && Model.Customer.CustomerId.HasValue)
+                    {
+                        <button class="btn btn-primary"
+                                type="button"
+                                data-bs-toggle="modal"
+                                data-bs-target="#choosePropertyModal">
+                            Choose Property
+                        </button>
+                    }
+                    else
+                    {
+                        <button class="btn btn-primary" type="button" disabled>Choose Property</button>
+                    }
                 </div>
 
-                <div class="mb-3">
-                    <label class="form-label" asp-for="PropertyAddress.Street2">Street 2</label>
-                    <input class="form-control" asp-for="PropertyAddress.Street2" type="text" />
-                </div>
+                <input asp-for="PropertyAddress.Street1" type="hidden" />
+                <input asp-for="PropertyAddress.Street2" type="hidden" />
+                <input asp-for="PropertyAddress.City" type="hidden" />
+                <input asp-for="PropertyAddress.State" type="hidden" />
+                <input asp-for="PropertyAddress.PostalCode" type="hidden" />
 
-                <div class="row">
-                    <div class="col-md-5 mb-3">
-                        <label class="form-label" asp-for="PropertyAddress.City">City</label>
-                        <input class="form-control" asp-for="PropertyAddress.City" type="text" />
+                <div class="@propertyFieldsClass" id="propertyDetailsFields">
+                    <div class="mb-3">
+                        <label class="form-label" asp-for="PropertyAddress.Street1">Street 1</label>
+                        <div class="form-control-plaintext border rounded bg-light px-3 py-2">@DisplayValue(Model.PropertyAddress.Street1)</div>
                     </div>
-                    <div class="col-md-3 mb-3">
-                        <label class="form-label" asp-for="PropertyAddress.State"></label>
-                        <input class="form-control" asp-for="PropertyAddress.State" type="text" />
+
+                    <div class="mb-3">
+                        <label class="form-label" asp-for="PropertyAddress.Street2">Street 2</label>
+                        <div class="form-control-plaintext border rounded bg-light px-3 py-2">@DisplayValue(Model.PropertyAddress.Street2)</div>
                     </div>
-                    <div class="col-md-4 mb-0">
-                        <label class="form-label" asp-for="PropertyAddress.PostalCode">Postal Code</label>
-                        <input class="form-control" asp-for="PropertyAddress.PostalCode" type="text" />
+
+                    <div class="row">
+                        <div class="col-md-5 mb-3">
+                            <label class="form-label" asp-for="PropertyAddress.City">City</label>
+                            <div class="form-control-plaintext border rounded bg-light px-3 py-2">@DisplayValue(Model.PropertyAddress.City)</div>
+                        </div>
+                        <div class="col-md-3 mb-3">
+                            <label class="form-label" asp-for="PropertyAddress.State"></label>
+                            <div class="form-control-plaintext border rounded bg-light px-3 py-2">@DisplayValue(Model.PropertyAddress.State)</div>
+                        </div>
+                        <div class="col-md-4 mb-0">
+                            <label class="form-label" asp-for="PropertyAddress.PostalCode">Postal Code</label>
+                            <div class="form-control-plaintext border rounded bg-light px-3 py-2">@DisplayValue(Model.PropertyAddress.PostalCode)</div>
+                        </div>
                     </div>
                 </div>
             </section>
         </div>
 
-        <div class="tab-pane fade" id="customer-panel" role="tabpanel" aria-labelledby="customer-tab" tabindex="0">
+        <div class="@TabPanelClass("customer")" id="customer-panel" role="tabpanel" aria-labelledby="customer-tab" tabindex="0">
             <section class="detail-section">
                 <div class="d-flex align-items-center justify-content-between gap-3 mb-3">
                     <h2 class="mb-0">Customer</h2>
@@ -122,72 +163,85 @@
                             type="button"
                             data-bs-toggle="modal"
                             data-bs-target="#findCustomerModal">
-                        Find Customer
+                        Choose Customer
                     </button>
                 </div>
 
                 <input asp-for="Customer.CustomerId" type="hidden" />
+                <input asp-for="Customer.FirstName" type="hidden" />
+                <input asp-for="Customer.LastName" type="hidden" />
+                <input asp-for="Customer.CompanyName" type="hidden" />
+                <input asp-for="Customer.Phone" type="hidden" />
+                <input asp-for="Customer.Email" type="hidden" />
+                <input asp-for="Customer.Street1" type="hidden" />
+                <input asp-for="Customer.Street2" type="hidden" />
+                <input asp-for="Customer.City" type="hidden" />
+                <input asp-for="Customer.State" type="hidden" />
+                <input asp-for="Customer.PostalCode" type="hidden" />
+                <input asp-for="Customer.Notes" type="hidden" />
 
-                <div class="row">
-                    <div class="col-md-6 mb-3">
-                        <label class="form-label" asp-for="Customer.FirstName">First Name</label>
-                        <input class="form-control" asp-for="Customer.FirstName" type="text" />
+                <div class="@customerFieldsClass" id="customerDetailsFields">
+                    <div class="row">
+                        <div class="col-md-6 mb-3">
+                            <label class="form-label" asp-for="Customer.FirstName">First Name</label>
+                            <div class="form-control-plaintext border rounded bg-light px-3 py-2" id="Customer_FirstName_Display">@DisplayValue(Model.Customer.FirstName)</div>
+                        </div>
+                        <div class="col-md-6 mb-3">
+                            <label class="form-label" asp-for="Customer.LastName">Last Name</label>
+                            <div class="form-control-plaintext border rounded bg-light px-3 py-2" id="Customer_LastName_Display">@DisplayValue(Model.Customer.LastName)</div>
+                        </div>
                     </div>
-                    <div class="col-md-6 mb-3">
-                        <label class="form-label" asp-for="Customer.LastName">Last Name</label>
-                        <input class="form-control" asp-for="Customer.LastName" type="text" />
-                    </div>
-                </div>
 
-                <div class="mb-3">
-                    <label class="form-label" asp-for="Customer.CompanyName">Company Name</label>
-                    <input class="form-control" asp-for="Customer.CompanyName" type="text" />
-                </div>
-
-                <div class="row">
-                    <div class="col-md-6 mb-3">
-                        <label class="form-label" asp-for="Customer.Phone"></label>
-                        <input class="form-control" asp-for="Customer.Phone" type="tel" />
+                    <div class="mb-3">
+                        <label class="form-label" asp-for="Customer.CompanyName">Company Name</label>
+                        <div class="form-control-plaintext border rounded bg-light px-3 py-2" id="Customer_CompanyName_Display">@DisplayValue(Model.Customer.CompanyName)</div>
                     </div>
-                    <div class="col-md-6 mb-3">
-                        <label class="form-label" asp-for="Customer.Email"></label>
-                        <input class="form-control" asp-for="Customer.Email" type="email" />
-                    </div>
-                </div>
 
-                <div class="mb-3">
-                    <label class="form-label" asp-for="Customer.Street1">Street 1</label>
-                    <input class="form-control" asp-for="Customer.Street1" type="text" />
-                </div>
-
-                <div class="mb-3">
-                    <label class="form-label" asp-for="Customer.Street2">Street 2</label>
-                    <input class="form-control" asp-for="Customer.Street2" type="text" />
-                </div>
-
-                <div class="row">
-                    <div class="col-md-5 mb-3">
-                        <label class="form-label" asp-for="Customer.City"></label>
-                        <input class="form-control" asp-for="Customer.City" type="text" />
+                    <div class="row">
+                        <div class="col-md-6 mb-3">
+                            <label class="form-label" asp-for="Customer.Phone"></label>
+                            <div class="form-control-plaintext border rounded bg-light px-3 py-2" id="Customer_Phone_Display">@DisplayValue(Model.Customer.Phone)</div>
+                        </div>
+                        <div class="col-md-6 mb-3">
+                            <label class="form-label" asp-for="Customer.Email"></label>
+                            <div class="form-control-plaintext border rounded bg-light px-3 py-2" id="Customer_Email_Display">@DisplayValue(Model.Customer.Email)</div>
+                        </div>
                     </div>
-                    <div class="col-md-3 mb-3">
-                        <label class="form-label" asp-for="Customer.State"></label>
-                        <input class="form-control" asp-for="Customer.State" type="text" />
-                    </div>
-                    <div class="col-md-4 mb-3">
-                        <label class="form-label" asp-for="Customer.PostalCode">Postal Code</label>
-                        <input class="form-control" asp-for="Customer.PostalCode" type="text" />
-                    </div>
-                </div>
 
-                <div class="mb-0">
-                    <label class="form-label" asp-for="Customer.Notes"></label>
-                    <textarea class="form-control" asp-for="Customer.Notes" rows="5"></textarea>
+                    <div class="mb-3">
+                        <label class="form-label" asp-for="Customer.Street1">Street 1</label>
+                        <div class="form-control-plaintext border rounded bg-light px-3 py-2" id="Customer_Street1_Display">@DisplayValue(Model.Customer.Street1)</div>
+                    </div>
+
+                    <div class="mb-3">
+                        <label class="form-label" asp-for="Customer.Street2">Street 2</label>
+                        <div class="form-control-plaintext border rounded bg-light px-3 py-2" id="Customer_Street2_Display">@DisplayValue(Model.Customer.Street2)</div>
+                    </div>
+
+                    <div class="row">
+                        <div class="col-md-5 mb-3">
+                            <label class="form-label" asp-for="Customer.City"></label>
+                            <div class="form-control-plaintext border rounded bg-light px-3 py-2" id="Customer_City_Display">@DisplayValue(Model.Customer.City)</div>
+                        </div>
+                        <div class="col-md-3 mb-3">
+                            <label class="form-label" asp-for="Customer.State"></label>
+                            <div class="form-control-plaintext border rounded bg-light px-3 py-2" id="Customer_State_Display">@DisplayValue(Model.Customer.State)</div>
+                        </div>
+                        <div class="col-md-4 mb-3">
+                            <label class="form-label" asp-for="Customer.PostalCode">Postal Code</label>
+                            <div class="form-control-plaintext border rounded bg-light px-3 py-2" id="Customer_PostalCode_Display">@DisplayValue(Model.Customer.PostalCode)</div>
+                        </div>
+                    </div>
+
+                    <div class="mb-0">
+                        <label class="form-label" asp-for="Customer.Notes"></label>
+                        <div class="form-control-plaintext border rounded bg-light px-3 py-2" id="Customer_Notes_Display" style="min-height: 7rem; white-space: pre-wrap;">@DisplayValue(Model.Customer.Notes)</div>
+                    </div>
                 </div>
             </section>
         </div>
 
-        <div class="tab-pane fade" id="buildings-panel" role="tabpanel" aria-labelledby="buildings-tab" tabindex="0">
+        <div class="@TabPanelClass("buildings")" id="buildings-panel" role="tabpanel" aria-labelledby="buildings-tab" tabindex="0">
             <section class="detail-section">
                 <h2>Buildings</h2>
 
@@ -474,6 +528,22 @@
 
 <partial name="_UnsavedChangesDialog" />
 
+@if (Model.Id.HasValue)
+{
+    <div class="modal fade" id="choosePropertyModal" tabindex="-1" aria-labelledby="choosePropertyModalLabel" aria-hidden="true">
+        <div class="modal-dialog modal-fullscreen">
+            <div class="modal-content">
+                <div class="modal-body p-0" style="height: 100%;">
+                    <iframe id="choosePropertyFrame"
+                            title="Choose Property"
+                            src="@Url.Action("ChooseProperty", "Inspections", new { id = Model.Id, embedded = true })"
+                            style="border: 0; display: block; height: 100%; width: 100%;"></iframe>
+                </div>
+            </div>
+        </div>
+    </div>
+}
+
 <div class="modal" id="customerMatchModal" tabindex="-1" aria-labelledby="customerMatchModalLabel" aria-hidden="true">
     <div class="modal-dialog modal-dialog-centered modal-lg">
         <div class="modal-content">
@@ -535,8 +605,8 @@
         <div class="modal-dialog modal-fullscreen">
             <div class="modal-content">
                 <div class="modal-header">
-                    <h2 class="modal-title fs-5" id="findCustomerModalLabel">Find Customer</h2>
-                    <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+                    <h2 class="modal-title fs-5" id="findCustomerModalLabel">Choose Customer</h2>
+                    <button type="button" class="btn btn-outline-secondary ms-auto" data-bs-dismiss="modal">Cancel</button>
                 </div>
                 <div class="modal-body">
                     <form asp-controller="Inspections"
@@ -548,15 +618,18 @@
                         <input name="showCustomerPicker" type="hidden" value="true" />
                         <input id="findCustomerPage" name="customerPage" type="hidden" value="@Model.CustomerPicker.Page" />
 
-                        <div class="d-flex flex-wrap justify-content-end gap-2">
-                            <input class="form-control"
-                                   id="findCustomerSearch"
-                                   name="customerSearch"
-                                   placeholder="search customers"
-                                   type="search"
-                                   value="@Model.CustomerPicker.Search"
-                                   style="max-width: 28rem;" />
-                            <button class="btn btn-outline-secondary" id="findCustomerClearButton" type="button">Clear</button>
+                        <div class="d-flex flex-wrap align-items-center justify-content-between gap-3">
+                            <div class="d-flex align-items-center gap-2 flex-grow-1">
+                                <input class="form-control"
+                                       id="findCustomerSearch"
+                                       name="customerSearch"
+                                       placeholder="search customers"
+                                       type="search"
+                                       value="@Model.CustomerPicker.Search"
+                                       style="max-width: 44rem;" />
+                                <button class="btn btn-outline-secondary" id="findCustomerClearButton" type="button">Clear</button>
+                            </div>
+                            <button class="btn btn-primary" id="findCustomerNewButton" type="button">New Customer</button>
                         </div>
 
                         <div class="d-flex justify-content-end mt-3">
@@ -678,6 +751,101 @@
             </div>
         </div>
     </div>
+
+<div class="modal fade" id="newCustomerModal" tabindex="-1" aria-labelledby="newCustomerModalLabel" aria-hidden="true">
+    <div class="modal-dialog modal-dialog-centered modal-xl">
+        <div class="modal-content">
+            <form asp-controller="Inspections" asp-action="CreateCustomer" id="newCustomerForm" method="post">
+                @Html.AntiForgeryToken()
+                <div class="modal-header">
+                    <h2 class="modal-title fs-5" id="newCustomerModalLabel">New Customer</h2>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+                </div>
+                <div class="modal-body">
+                    <div class="alert alert-danger d-none" id="newCustomerError" role="alert"></div>
+
+                    <div class="row">
+                        <div class="col-md-6 mb-3">
+                            <label class="form-label" for="NewCustomer_GivenName">First Name</label>
+                            <input class="form-control" id="NewCustomer_GivenName" name="GivenName" type="text" />
+                        </div>
+                        <div class="col-md-6 mb-3">
+                            <label class="form-label" for="NewCustomer_FamilyName">Last Name</label>
+                            <input class="form-control" id="NewCustomer_FamilyName" name="FamilyName" type="text" />
+                        </div>
+                    </div>
+
+                    <div class="row">
+                        <div class="col-md-6 mb-3">
+                            <label class="form-label" for="NewCustomer_PrimaryEmailAddress">Email</label>
+                            <input class="form-control" id="NewCustomer_PrimaryEmailAddress" name="PrimaryEmailAddress" type="email" />
+                        </div>
+                        <div class="col-md-6 mb-3">
+                            <label class="form-label" for="NewCustomer_PrimaryPhone">Phone</label>
+                            <input class="form-control" id="NewCustomer_PrimaryPhone" name="PrimaryPhone" type="tel" />
+                        </div>
+                    </div>
+
+                    <div class="row">
+                        <div class="col-md-4 mb-3">
+                            <label class="form-label" for="NewCustomer_MobilePhone">Mobile Phone</label>
+                            <input class="form-control" id="NewCustomer_MobilePhone" name="MobilePhone" type="tel" />
+                        </div>
+                        <div class="col-md-4 mb-3">
+                            <label class="form-label" for="NewCustomer_Fax">Fax</label>
+                            <input class="form-control" id="NewCustomer_Fax" name="Fax" type="tel" />
+                        </div>
+                        <div class="col-md-4 mb-3">
+                            <label class="form-label" for="NewCustomer_Website">WebSite</label>
+                            <input class="form-control" id="NewCustomer_Website" name="Website" type="text" />
+                        </div>
+                    </div>
+
+                    <div class="mb-3">
+                        <label class="form-label" for="NewCustomer_CompanyName">Company Name</label>
+                        <input class="form-control" id="NewCustomer_CompanyName" name="CompanyName" type="text" />
+                    </div>
+
+                    <h3 class="h6">Billing Address</h3>
+                    <div class="mb-3">
+                        <label class="form-label" for="NewCustomer_BillAddress_Street1">Street1</label>
+                        <input class="form-control" id="NewCustomer_BillAddress_Street1" name="BillAddress.Street1" type="text" />
+                    </div>
+                    <div class="mb-3">
+                        <label class="form-label" for="NewCustomer_BillAddress_Street2">Street2</label>
+                        <input class="form-control" id="NewCustomer_BillAddress_Street2" name="BillAddress.Street2" type="text" />
+                    </div>
+                    <div class="mb-3">
+                        <label class="form-label" for="NewCustomer_BillAddress_Street3">Street3</label>
+                        <input class="form-control" id="NewCustomer_BillAddress_Street3" name="BillAddress.Street3" type="text" />
+                    </div>
+                    <div class="row">
+                        <div class="col-md-4 mb-3">
+                            <label class="form-label" for="NewCustomer_BillAddress_City">City</label>
+                            <input class="form-control" id="NewCustomer_BillAddress_City" name="BillAddress.City" type="text" />
+                        </div>
+                        <div class="col-md-2 mb-3">
+                            <label class="form-label" for="NewCustomer_BillAddress_State">State</label>
+                            <input class="form-control" id="NewCustomer_BillAddress_State" name="BillAddress.State" type="text" />
+                        </div>
+                        <div class="col-md-3 mb-3">
+                            <label class="form-label" for="NewCustomer_BillAddress_PostalCode">Zip</label>
+                            <input class="form-control" id="NewCustomer_BillAddress_PostalCode" name="BillAddress.PostalCode" type="text" />
+                        </div>
+                        <div class="col-md-3 mb-3">
+                            <label class="form-label" for="NewCustomer_BillAddress_Country">Country</label>
+                            <input class="form-control" id="NewCustomer_BillAddress_Country" name="BillAddress.Country" type="text" />
+                        </div>
+                    </div>
+                </div>
+                <div class="modal-footer">
+                    <button class="btn btn-secondary" type="button" data-bs-dismiss="modal">Cancel</button>
+                    <button class="btn btn-primary" id="newCustomerSaveButton" type="submit">Save</button>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
 
 @if (!Model.Id.HasValue)
 {
@@ -940,6 +1108,9 @@
         const customerMatchModal = document.getElementById('customerMatchModal');
         const customerMatchNewButton = document.getElementById('customerMatchNewButton');
         const forceNewCustomerInput = document.getElementById('ForceNewCustomer');
+        const activeTabInput = document.getElementById('ActiveTab');
+        const inspectionTitleInput = document.querySelector('[data-inspection-title-input]');
+        const inspectionTitleSubheader = document.getElementById('inspectionTitleSubheader');
         const showCustomerMatchDialog = @Model.ShowCustomerMatchDialog.ToString().ToLowerInvariant();
         let inspectionHasUnsavedChanges = false;
         let inspectionAllowNavigation = false;
@@ -947,6 +1118,14 @@
 
         function markInspectionDirty() {
             inspectionHasUnsavedChanges = true;
+        }
+
+        function updateInspectionTitleSubheader() {
+            if (!inspectionTitleSubheader || !inspectionTitleInput) {
+                return;
+            }
+
+            inspectionTitleSubheader.textContent = inspectionTitleInput.value.trim();
         }
 
         function continuePendingNavigation() {
@@ -972,10 +1151,23 @@
             if (customerTab) {
                 bootstrap.Tab.getOrCreateInstance(customerTab).show();
             }
+
+            if (activeTabInput) {
+                activeTabInput.value = 'customer';
+            }
         }
+
+        document.querySelectorAll('#inspectionEditTabs [data-bs-toggle="tab"]').forEach(tab => {
+            tab.addEventListener('shown.bs.tab', () => {
+                if (activeTabInput) {
+                    activeTabInput.value = tab.id.replace('-tab', '');
+                }
+            });
+        });
 
         inspectionEditForm?.addEventListener('input', markInspectionDirty);
         inspectionEditForm?.addEventListener('change', markInspectionDirty);
+        inspectionTitleInput?.addEventListener('input', updateInspectionTitleSubheader);
         inspectionEditForm?.addEventListener('submit', () => {
             inspectionAllowNavigation = true;
             inspectionHasUnsavedChanges = false;
@@ -1108,8 +1300,14 @@
         const findCustomerForm = document.getElementById('findCustomerForm');
         const findCustomerSearch = document.getElementById('findCustomerSearch');
         const findCustomerClearButton = document.getElementById('findCustomerClearButton');
+        const findCustomerNewButton = document.getElementById('findCustomerNewButton');
         const findCustomerRows = document.getElementById('findCustomerRows');
         const findCustomerPage = document.getElementById('findCustomerPage');
+        const newCustomerModal = document.getElementById('newCustomerModal');
+        const newCustomerForm = document.getElementById('newCustomerForm');
+        const newCustomerError = document.getElementById('newCustomerError');
+        const newCustomerSaveButton = document.getElementById('newCustomerSaveButton');
+        const customerDetailsFields = document.getElementById('customerDetailsFields');
         const openFindCustomerOnLoad = @Model.CustomerPicker.OpenOnLoad.ToString().ToLowerInvariant();
         let findCustomerSearchTimer;
 
@@ -1162,42 +1360,142 @@
 
         function setCustomerField(id, value) {
             const input = document.getElementById(id);
+            const display = document.getElementById(`${id}_Display`);
+            const displayValue = (value || '').trim();
 
             if (input) {
                 input.value = value || '';
             }
+
+            if (display) {
+                display.textContent = displayValue;
+            }
         }
 
-        document.querySelectorAll('[data-customer-id]').forEach(row => {
-            const selectCustomer = () => {
-                showCustomerTab();
-                setCustomerField('Customer_CustomerId', row.dataset.customerId);
-                setCustomerField('Customer_FirstName', row.dataset.customerFirstName);
-                setCustomerField('Customer_LastName', row.dataset.customerLastName);
-                setCustomerField('Customer_CompanyName', row.dataset.customerCompanyName);
-                setCustomerField('Customer_Phone', row.dataset.customerPhone);
-                setCustomerField('Customer_Email', row.dataset.customerEmail);
-                setCustomerField('Customer_Street1', row.dataset.customerStreet1);
-                setCustomerField('Customer_Street2', row.dataset.customerStreet2);
-                setCustomerField('Customer_City', row.dataset.customerCity);
-                setCustomerField('Customer_State', row.dataset.customerState);
-                setCustomerField('Customer_PostalCode', row.dataset.customerPostalCode);
-                setCustomerField('Customer_Notes', row.dataset.customerNotes);
-                if (forceNewCustomerInput) {
-                    forceNewCustomerInput.value = 'false';
+        function toggleCustomerDetails() {
+            const customerIdInput = document.getElementById('Customer_CustomerId');
+            customerDetailsFields?.classList.toggle('d-none', !customerIdInput?.value);
+        }
+
+        function applyCustomerSelection(customer) {
+            showCustomerTab();
+            setCustomerField('Customer_CustomerId', customer.customerId);
+            setCustomerField('Customer_FirstName', customer.firstName);
+            setCustomerField('Customer_LastName', customer.lastName);
+            setCustomerField('Customer_CompanyName', customer.companyName);
+            setCustomerField('Customer_Phone', customer.phone);
+            setCustomerField('Customer_Email', customer.email);
+            setCustomerField('Customer_Street1', customer.street1);
+            setCustomerField('Customer_Street2', customer.street2);
+            setCustomerField('Customer_City', customer.city);
+            setCustomerField('Customer_State', customer.state);
+            setCustomerField('Customer_PostalCode', customer.postalCode);
+            setCustomerField('Customer_Notes', customer.notes);
+
+            if (forceNewCustomerInput) {
+                forceNewCustomerInput.value = 'false';
+            }
+
+            toggleCustomerDetails();
+            markInspectionDirty();
+        }
+
+        findCustomerNewButton?.addEventListener('click', () => {
+            if (newCustomerError) {
+                newCustomerError.classList.add('d-none');
+                newCustomerError.textContent = '';
+            }
+
+            newCustomerForm?.reset();
+            bootstrap.Modal.getOrCreateInstance(newCustomerModal).show();
+        });
+
+        newCustomerForm?.addEventListener('submit', async event => {
+            event.preventDefault();
+
+            if (!newCustomerForm) {
+                return;
+            }
+
+            if (newCustomerError) {
+                newCustomerError.classList.add('d-none');
+                newCustomerError.textContent = '';
+            }
+
+            if (newCustomerSaveButton) {
+                newCustomerSaveButton.disabled = true;
+            }
+
+            try {
+                const response = await fetch(newCustomerForm.action, {
+                    method: 'POST',
+                    body: new FormData(newCustomerForm)
+                });
+
+                if (!response.ok) {
+                    throw new Error('Unable to save the customer.');
                 }
-                markInspectionDirty();
+
+                const customer = await response.json();
+                applyCustomerSelection(customer);
+                bootstrap.Modal.getOrCreateInstance(newCustomerModal).hide();
+
+                if (findCustomerModal) {
+                    bootstrap.Modal.getOrCreateInstance(findCustomerModal).hide();
+                }
+
+                if (inspectionIsSaved && inspectionEditForm) {
+                    inspectionAllowNavigation = true;
+                    inspectionEditForm.submit();
+                }
+            } catch (error) {
+                if (newCustomerError) {
+                    newCustomerError.textContent = error.message || 'Unable to save the customer.';
+                    newCustomerError.classList.remove('d-none');
+                }
+            } finally {
+                if (newCustomerSaveButton) {
+                    newCustomerSaveButton.disabled = false;
+                }
+            }
+        });
+
+        document.querySelectorAll('[data-customer-id]').forEach(row => {
+            const selectCustomerRow = () => {
+                applyCustomerSelection({
+                    customerId: row.dataset.customerId,
+                    firstName: row.dataset.customerFirstName,
+                    lastName: row.dataset.customerLastName,
+                    companyName: row.dataset.customerCompanyName,
+                    phone: row.dataset.customerPhone,
+                    email: row.dataset.customerEmail,
+                    street1: row.dataset.customerStreet1,
+                    street2: row.dataset.customerStreet2,
+                    city: row.dataset.customerCity,
+                    state: row.dataset.customerState,
+                    postalCode: row.dataset.customerPostalCode,
+                    notes: row.dataset.customerNotes
+                });
+
+                if (inspectionIsSaved && inspectionEditForm) {
+                    inspectionAllowNavigation = true;
+                    if (findCustomerModal) {
+                        bootstrap.Modal.getOrCreateInstance(findCustomerModal).hide();
+                    }
+                    inspectionEditForm.submit();
+                    return;
+                }
 
                 if (findCustomerModal) {
                     bootstrap.Modal.getOrCreateInstance(findCustomerModal).hide();
                 }
             };
 
-            row.addEventListener('click', selectCustomer);
+            row.addEventListener('click', selectCustomerRow);
             row.addEventListener('keydown', event => {
                 if (event.key === 'Enter' || event.key === ' ') {
                     event.preventDefault();
-                    selectCustomer();
+                    selectCustomerRow();
                 }
             });
         });

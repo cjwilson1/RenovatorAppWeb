@@ -882,13 +882,13 @@ public sealed class QuickBooksController : Controller
         TrackAddress(customer.BillAddress);
         if (customer.BillAddress is not null)
         {
-            customer.BillAddressId = customer.BillAddress.Id;
+            customer.BillAddressId = customer.BillAddress.AddressId;
         }
 
         TrackAddress(customer.ShipAddress);
         if (customer.ShipAddress is not null)
         {
-            customer.ShipAddressId = customer.ShipAddress.Id;
+            customer.ShipAddressId = customer.ShipAddress.AddressId;
         }
     }
 
@@ -923,9 +923,9 @@ public sealed class QuickBooksController : Controller
         customer.Website = Clean(update.Website);
         customer.Notes = Clean(update.Notes);
         customer.BillAddress = ApplyCustomerAddress(customer.BillAddress, update.BillAddress);
-        customer.BillAddressId = customer.BillAddress?.Id;
+        customer.BillAddressId = customer.BillAddress?.AddressId;
         customer.ShipAddress = ApplyCustomerAddress(customer.ShipAddress, update.ShipAddress);
-        customer.ShipAddressId = customer.ShipAddress?.Id;
+        customer.ShipAddressId = customer.ShipAddress?.AddressId;
     }
 
     private static Address? ApplyCustomerAddress(Address? address, CustomerAddressUpdateViewModel update)
@@ -1024,7 +1024,7 @@ public sealed class QuickBooksController : Controller
             _dbContext.Addresses.Add(employee.PrimaryAddress);
         }
 
-        employee.PrimaryAddressId = employee.PrimaryAddress.Id;
+        employee.PrimaryAddressId = employee.PrimaryAddress.AddressId;
     }
 
     private Address? UpsertAddress(Address? address, JsonElement source, string propertyName)

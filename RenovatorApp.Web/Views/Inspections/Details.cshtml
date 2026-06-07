@@ -26,7 +26,7 @@
         <a class="btn btn-outline-primary"
            asp-controller="Inspections"
            asp-action="Edit"
-           asp-route-id="@Model.Inspection.Id">
+           asp-route-id="@Model.Inspection.InspectionId">
             Edit Inspection
         </a>
         <button class="btn btn-primary" type="button" data-bs-toggle="modal" data-bs-target="#createReportModal">
@@ -47,7 +47,7 @@
             </div>
             <div class="modal-footer">
                 <button class="btn btn-secondary" type="button" data-bs-dismiss="modal">No</button>
-                <form asp-controller="Inspections" asp-action="Delete" asp-route-id="@Model.Inspection.Id" method="post">
+                <form asp-controller="Inspections" asp-action="Delete" asp-route-id="@Model.Inspection.InspectionId" method="post">
                     @Html.AntiForgeryToken()
                     <button class="btn btn-danger" type="submit">Yes</button>
                 </form>
@@ -64,7 +64,7 @@
                 <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
             </div>
             <div class="modal-body">
-                <form asp-controller="Inspections" asp-action="ReportPdf" asp-route-id="@Model.Inspection.Id" method="post">
+                <form asp-controller="Inspections" asp-action="ReportPdf" asp-route-id="@Model.Inspection.InspectionId" id="createReportForm" method="post">
                     <div class="mb-3">
                         <label class="form-label" for="reportName">Report Name</label>
                         <input class="form-control" id="reportName" name="reportName" value="@Model.DefaultReportName" />
@@ -120,6 +120,144 @@
     <section class="detail-section">
         <h2>Property</h2>
         <p>@(string.IsNullOrWhiteSpace(Model.PropertyAddress) ? "No property address" : Model.PropertyAddress)</p>
+    </section>
+
+    <section class="detail-section detail-section-wide">
+        <h2>Documents</h2>
+        @if (Model.Documents.Count == 0)
+        {
+            <p class="text-muted">No documents.</p>
+        }
+        else
+        {
+            <div class="table-responsive">
+                <table class="table table-sm align-middle mb-0">
+                    <thead>
+                        <tr>
+                            <th scope="col">Document Name</th>
+                            <th scope="col">Document Type</th>
+                            <th scope="col">Create Date</th>
+                            <th scope="col" class="text-end">Edit</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        @foreach (var document in Model.Documents)
+                        {
+                            <tr>
+                                <td>
+                                    <a asp-controller="Documents"
+                                       asp-action="Open"
+                                       asp-route-id="@document.DocumentId"
+                                       target="_blank"
+                                       rel="noopener noreferrer">
+                                        @document.DocumentName
+                                    </a>
+                                </td>
+                                <td>@document.DocumentType</td>
+                                <td>@FormatDateTime(document.CreateDate)</td>
+                                <td class="text-end">
+                                    <button class="btn btn-sm btn-outline-primary"
+                                            type="button"
+                                            data-bs-toggle="modal"
+                                            data-bs-target="#editInspectionDocumentModal-@document.DocumentId">
+                                        Edit
+                                    </button>
+                                </td>
+                            </tr>
+                        }
+                    </tbody>
+                </table>
+            </div>
+
+            @foreach (var document in Model.Documents)
+            {
+                <div class="modal fade" id="editInspectionDocumentModal-@document.DocumentId" tabindex="-1" aria-labelledby="editInspectionDocumentModalLabel-@document.DocumentId" aria-hidden="true">
+                    <div class="modal-dialog modal-dialog-centered">
+                        <div class="modal-content">
+                            <form asp-controller="Inspections"
+                                  asp-action="UpdateDocument"
+                                  asp-route-id="@Model.Inspection.InspectionId"
+                                  asp-route-documentId="@document.DocumentId"
+                                  method="post">
+                                @Html.AntiForgeryToken()
+                                <div class="modal-header">
+                                    <h2 class="modal-title fs-5" id="editInspectionDocumentModalLabel-@document.DocumentId">Edit Inspection Document</h2>
+                                    <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+                                </div>
+                                <div class="modal-body">
+                                    <div class="mb-3">
+                                        <label class="form-label" for="documentName-@document.DocumentId">Document Name</label>
+                                        <input class="form-control" id="documentName-@document.DocumentId" name="documentName" value="@document.DocumentName" />
+                                    </div>
+                                    <div class="mb-0">
+                                        <label class="form-label">Document Type</label>
+                                        <div class="form-control-plaintext border rounded bg-light px-3 py-2">@document.DocumentType</div>
+                                    </div>
+                                </div>
+                                <div class="modal-footer">
+                                    <button class="btn btn-danger me-auto"
+                                            type="button"
+                                            data-inspection-document-confirm="#deleteInspectionDocumentModal-@document.DocumentId"
+                                            data-inspection-document-edit="#editInspectionDocumentModal-@document.DocumentId">
+                                        Delete
+                                    </button>
+                                    <button class="btn btn-outline-danger"
+                                            type="button"
+                                            data-inspection-document-confirm="#detachInspectionDocumentModal-@document.DocumentId"
+                                            data-inspection-document-edit="#editInspectionDocumentModal-@document.DocumentId">
+                                        Detach
+                                    </button>
+                                    <button class="btn btn-secondary" type="button" data-bs-dismiss="modal">Cancel</button>
+                                    <button class="btn btn-primary" type="submit">Save</button>
+                                </div>
+                            </form>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="modal fade" id="detachInspectionDocumentModal-@document.DocumentId" tabindex="-1" aria-labelledby="detachInspectionDocumentModalLabel-@document.DocumentId" aria-hidden="true">
+                    <div class="modal-dialog modal-dialog-centered">
+                        <div class="modal-content">
+                            <div class="modal-header">
+                                <h2 class="modal-title fs-5" id="detachInspectionDocumentModalLabel-@document.DocumentId">Detach Document from Inspection</h2>
+                                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+                            </div>
+                            <div class="modal-body">
+                                This will detach the document from the Inspection but will not delete the document. The document will still be available in the Doucments page and can then be reattached to any inspection or customer. Are you sure you want to detach this document?
+                            </div>
+                            <div class="modal-footer">
+                                <button class="btn btn-secondary" type="button" data-bs-dismiss="modal">No</button>
+                                <form asp-controller="Inspections" asp-action="DetachDocument" asp-route-id="@Model.Inspection.InspectionId" asp-route-documentId="@document.DocumentId" method="post">
+                                    @Html.AntiForgeryToken()
+                                    <button class="btn btn-primary" type="submit">Yes</button>
+                                </form>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="modal fade" id="deleteInspectionDocumentModal-@document.DocumentId" tabindex="-1" aria-labelledby="deleteInspectionDocumentModalLabel-@document.DocumentId" aria-hidden="true">
+                    <div class="modal-dialog modal-dialog-centered">
+                        <div class="modal-content">
+                            <div class="modal-header">
+                                <h2 class="modal-title fs-5" id="deleteInspectionDocumentModalLabel-@document.DocumentId">Delete Document</h2>
+                                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+                            </div>
+                            <div class="modal-body">
+                                This will permanently delete this document. It will no longer be attached to this inspection nor will it be available to assign to other inspections or customers. Once deleted it cannot be recovered. Are you sure you want to delete? If you want to remove the document from this inspection but not permanently delete it, choose Detach instead.
+                            </div>
+                            <div class="modal-footer">
+                                <button class="btn btn-secondary" type="button" data-bs-dismiss="modal">No</button>
+                                <form asp-controller="Inspections" asp-action="DeleteDocument" asp-route-id="@Model.Inspection.InspectionId" asp-route-documentId="@document.DocumentId" method="post">
+                                    @Html.AntiForgeryToken()
+                                    <button class="btn btn-danger" type="submit">Yes</button>
+                                </form>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            }
+        }
     </section>
 
     <section class="detail-section detail-section-wide">
@@ -243,7 +381,7 @@
                 </div>
                 <div class="modal-footer">
                     <button class="btn btn-secondary" type="button" data-bs-dismiss="modal">No</button>
-                    <form asp-controller="Inspections" asp-action="AttachMileage" asp-route-id="@Model.Inspection.Id" method="post">
+                    <form asp-controller="Inspections" asp-action="AttachMileage" asp-route-id="@Model.Inspection.InspectionId" method="post">
                         @Html.AntiForgeryToken()
                         <input id="attachMileageTripId" name="tripId" type="hidden" />
                         <button class="btn btn-primary" type="submit">Yes</button>
@@ -369,7 +507,7 @@
                     </div>
                     <div class="modal-footer">
                         <button class="btn btn-secondary" type="button" data-bs-dismiss="modal">No</button>
-                        <form asp-controller="Inspections" asp-action="DetachMileage" asp-route-id="@Model.Inspection.Id" method="post">
+                        <form asp-controller="Inspections" asp-action="DetachMileage" asp-route-id="@Model.Inspection.InspectionId" method="post">
                             @Html.AntiForgeryToken()
                             <input name="tripId" type="hidden" value="@trip.UniqueId" />
                             <button class="btn btn-danger" type="submit">Yes</button>
@@ -517,6 +655,57 @@
         const attachTripEmptyRow = document.getElementById('attachTripEmptyRow');
         const attachMileageTripId = document.getElementById('attachMileageTripId');
         const confirmAttachTripModal = document.getElementById('confirmAttachTripModal');
+        const createReportModal = document.getElementById('createReportModal');
+        const createReportForm = document.getElementById('createReportForm');
+
+        function getDownloadFileName(response) {
+            const disposition = response.headers.get('content-disposition') || '';
+            const utf8Match = disposition.match(/filename\*=UTF-8''([^;]+)/i);
+            const fileNameMatch = disposition.match(/filename="?([^"]+)"?/i);
+
+            if (utf8Match) {
+                return decodeURIComponent(utf8Match[1]);
+            }
+
+            if (fileNameMatch) {
+                return fileNameMatch[1];
+            }
+
+            return 'InspectionReport.pdf';
+        }
+
+        function downloadBlob(blob, fileName) {
+            const url = URL.createObjectURL(blob);
+            const link = document.createElement('a');
+
+            link.href = url;
+            link.download = fileName;
+            document.body.appendChild(link);
+            link.click();
+            link.remove();
+            URL.revokeObjectURL(url);
+        }
+
+        createReportForm?.addEventListener('submit', async event => {
+            event.preventDefault();
+            bootstrap.Modal.getOrCreateInstance(createReportModal).hide();
+
+            try {
+                const response = await fetch(createReportForm.action, {
+                    method: 'POST',
+                    body: new FormData(createReportForm)
+                });
+
+                if (!response.ok) {
+                    throw new Error('Unable to create the inspection report.');
+                }
+
+                downloadBlob(await response.blob(), getDownloadFileName(response));
+                window.location.reload();
+            } catch (error) {
+                window.alert(error.message || 'Unable to create the inspection report.');
+            }
+        });
 
         function updateAttachTripRows() {
             const showAttached = showAttachedTrips?.checked || false;
@@ -569,6 +758,21 @@
                 }
             });
         });
+
+        document.querySelectorAll('[data-inspection-document-confirm]').forEach(button => {
+            button.addEventListener('click', () => {
+                const editModal = document.querySelector(button.dataset.inspectionDocumentEdit || '');
+                const confirmModal = document.querySelector(button.dataset.inspectionDocumentConfirm || '');
+
+                if (editModal) {
+                    bootstrap.Modal.getOrCreateInstance(editModal).hide();
+                }
+
+                if (confirmModal) {
+                    bootstrap.Modal.getOrCreateInstance(confirmModal).show();
+                }
+            });
+        });
     </script>
 }
 
@@ -583,7 +787,7 @@
     private IEnumerable<InspectionArea> GetAreas(Building building)
     {
         return Model.Inspection.Property.Areas
-            .Where(area => area.BuildingId == building.Id)
+            .Where(area => area.BuildingId == building.BuildingId)
             .OrderBy(area => area.SortOrder)
             .ThenBy(area => area.DisplayName);
     }

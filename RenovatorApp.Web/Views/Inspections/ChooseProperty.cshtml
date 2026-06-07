@@ -1,0 +1,333 @@
+@model RenovatorApp.Web.ViewModels.InspectionPropertyPickerViewModel
+@{
+    ViewData["Title"] = "Choose Property";
+    var previousPage = Math.Max(1, Model.Page - 1);
+    var nextPage = Math.Min(Model.TotalPages, Model.Page + 1);
+    var rowOptions = new[] { 5, 10, 15, 25, 50, 100 };
+    var isEmbedded = string.Equals(Context.Request.Query["embedded"], "true", StringComparison.OrdinalIgnoreCase);
+    var closeTarget = isEmbedded ? "_top" : "_self";
+
+    if (isEmbedded)
+    {
+        Layout = null;
+    }
+}
+
+@if (isEmbedded)
+{
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <link rel="stylesheet" href="~/lib/bootstrap/dist/css/bootstrap.min.css" />
+    <link rel="stylesheet" href="~/css/site.css" asp-append-version="true" />
+    <link rel="stylesheet" href="~/RenovatorApp.Web.styles.css" asp-append-version="true" />
+}
+
+<style>
+    .choose-property-shell {
+        display: flex;
+        min-height: 100vh;
+        width: 100%;
+    }
+
+    .choose-property-dialog {
+        height: 100vh;
+        margin: 0;
+        max-width: none;
+        width: 100%;
+    }
+
+    .choose-property-content {
+        border: 0;
+        border-radius: 0;
+        display: flex;
+        flex-direction: column;
+        height: 100%;
+        overflow: hidden;
+    }
+
+    .choose-property-body {
+        flex: 1 1 auto;
+        overflow: auto;
+    }
+
+    @@media (max-width: 768px) {
+        .choose-property-body {
+            padding: 1rem;
+        }
+    }
+</style>
+
+<div class="choose-property-shell @(isEmbedded ? "embedded" : string.Empty)">
+    <div class="modal-dialog modal-fullscreen choose-property-dialog">
+        <div class="modal-content choose-property-content">
+            <div class="modal-header">
+                <h1 class="modal-title fs-5">Choose Property</h1>
+                <a class="btn btn-outline-secondary"
+                   asp-controller="Inspections"
+                   asp-action="Edit"
+                   asp-route-id="@Model.InspectionId"
+                   asp-route-activeTab="property"
+                   target="@closeTarget">
+                    Close
+                </a>
+            </div>
+            <div class="modal-body choose-property-body">
+                <section class="detail-section mb-0">
+                    <form asp-controller="Inspections"
+                          asp-action="ChooseProperty"
+                          asp-route-id="@Model.InspectionId"
+                          asp-route-embedded="@isEmbedded.ToString().ToLowerInvariant()"
+                          class="mb-3"
+                          id="choosePropertySearchForm"
+                          method="get">
+                        <input id="choosePropertyPage" name="propertyPage" type="hidden" value="@Model.Page" />
+
+                        <div class="d-flex flex-wrap align-items-center justify-content-between gap-3">
+                            <div class="d-flex align-items-center gap-2 flex-grow-1">
+                                <input class="form-control"
+                                       id="choosePropertySearch"
+                                       name="propertySearch"
+                                       placeholder="search properties"
+                                       type="search"
+                                       value="@Model.Search"
+                                       style="max-width: 44rem;" />
+                                <button class="btn btn-outline-secondary" id="choosePropertyClearButton" type="button">Clear</button>
+                            </div>
+                            <div class="d-flex flex-wrap justify-content-end gap-2">
+                                <button class="btn btn-primary"
+                                        data-bs-toggle="modal"
+                                        data-bs-target="#addPropertyModal"
+                                        type="button">
+                                    Add Property
+                                </button>
+                            </div>
+                        </div>
+
+                        <div class="d-flex justify-content-end mt-3">
+                            <label class="form-label d-flex align-items-center gap-2 mb-0" for="choosePropertyRows">
+                                Rows
+                                <select class="form-select"
+                                        id="choosePropertyRows"
+                                        name="propertyRows"
+                                        style="width: auto;">
+                                    @foreach (var rows in rowOptions)
+                                    {
+                                        if (Model.PageSize == rows)
+                                        {
+                                            <option value="@rows" selected>@rows</option>
+                                        }
+                                        else
+                                        {
+                                            <option value="@rows">@rows</option>
+                                        }
+                                    }
+                                </select>
+                            </label>
+                        </div>
+                    </form>
+
+                    <div class="table-responsive">
+                        <table class="table table-striped table-hover align-middle">
+                            <thead>
+                                <tr>
+                                    <th scope="col">Street 1</th>
+                                    <th scope="col">Street 2</th>
+                                    <th scope="col">City</th>
+                                    <th scope="col">State</th>
+                                    <th scope="col">Postal Code</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                @if (Model.Properties.Count == 0)
+                                {
+                                    <tr>
+                                        <td class="text-muted" colspan="5">No properties found.</td>
+                                    </tr>
+                                }
+                                else
+                                {
+                                    @foreach (var property in Model.Properties)
+                                    {
+                                        var isSelected = property.PropertyId == Model.SelectedPropertyId;
+
+                                        <tr class="clickable-table-row"
+                                            data-property-id="@property.PropertyId"
+                                            role="button"
+                                            tabindex="0"
+                                            onclick="document.getElementById('selectPropertyId').value='@property.PropertyId'; document.getElementById('selectPropertyForm').submit();"
+                                            onkeydown="if (event.key === 'Enter' || event.key === ' ') { event.preventDefault(); document.getElementById('selectPropertyId').value='@property.PropertyId'; document.getElementById('selectPropertyForm').submit(); }"
+                                            aria-label="Select property @property.AddressLine">
+                                            <td>
+                                                @property.Street1
+                                                @if (isSelected)
+                                                {
+                                                    <span class="badge text-bg-secondary ms-2">Selected</span>
+                                                }
+                                            </td>
+                                            <td>@property.Street2</td>
+                                            <td>@property.City</td>
+                                            <td>@property.State</td>
+                                            <td>@property.PostalCode</td>
+                                        </tr>
+
+                                    }
+                                }
+                            </tbody>
+                        </table>
+                    </div>
+
+                    <form asp-controller="Inspections"
+                          asp-action="SelectProperty"
+                          asp-route-id="@Model.InspectionId"
+                          id="selectPropertyForm"
+                          method="post"
+                          target="@closeTarget">
+                        <input id="selectPropertyId" name="propertyId" type="hidden" />
+                    </form>
+
+                    <div class="d-flex align-items-center justify-content-between gap-3">
+                        <div class="btn-group" role="group" aria-label="Property picker pages">
+                            <a class="btn btn-outline-secondary @(Model.Page == 1 ? "disabled" : string.Empty)"
+                               asp-controller="Inspections"
+                               asp-action="ChooseProperty"
+                               asp-route-id="@Model.InspectionId"
+                              asp-route-propertySearch="@Model.Search"
+                              asp-route-propertyRows="@Model.PageSize"
+                               asp-route-propertyPage="1"
+                               asp-route-embedded="@isEmbedded.ToString().ToLowerInvariant()">
+                                First
+                            </a>
+                            <a class="btn btn-outline-secondary @(Model.Page == 1 ? "disabled" : string.Empty)"
+                               asp-controller="Inspections"
+                               asp-action="ChooseProperty"
+                               asp-route-id="@Model.InspectionId"
+                              asp-route-propertySearch="@Model.Search"
+                              asp-route-propertyRows="@Model.PageSize"
+                               asp-route-propertyPage="@previousPage"
+                               asp-route-embedded="@isEmbedded.ToString().ToLowerInvariant()">
+                                Previous
+                            </a>
+                            <a class="btn btn-outline-secondary @(Model.Page == Model.TotalPages ? "disabled" : string.Empty)"
+                               asp-controller="Inspections"
+                               asp-action="ChooseProperty"
+                               asp-route-id="@Model.InspectionId"
+                              asp-route-propertySearch="@Model.Search"
+                              asp-route-propertyRows="@Model.PageSize"
+                               asp-route-propertyPage="@nextPage"
+                               asp-route-embedded="@isEmbedded.ToString().ToLowerInvariant()">
+                                Next
+                            </a>
+                            <a class="btn btn-outline-secondary @(Model.Page == Model.TotalPages ? "disabled" : string.Empty)"
+                               asp-controller="Inspections"
+                               asp-action="ChooseProperty"
+                               asp-route-id="@Model.InspectionId"
+                              asp-route-propertySearch="@Model.Search"
+                              asp-route-propertyRows="@Model.PageSize"
+                               asp-route-propertyPage="@Model.TotalPages"
+                               asp-route-embedded="@isEmbedded.ToString().ToLowerInvariant()">
+                                Last
+                            </a>
+                        </div>
+                        <span class="text-muted">Page @Model.Page of @Model.TotalPages</span>
+                    </div>
+                </section>
+            </div>
+        </div>
+    </div>
+</div>
+
+<div class="modal fade" id="addPropertyModal" tabindex="-1" aria-labelledby="addPropertyModalLabel" aria-hidden="true">
+    <div class="modal-dialog">
+        <div class="modal-content">
+            <form asp-controller="Inspections"
+                  asp-action="AddProperty"
+                  asp-route-id="@Model.InspectionId"
+                  method="post">
+                <input name="propertySearch" type="hidden" value="@Model.Search" />
+                <input name="propertyPage" type="hidden" value="@Model.Page" />
+                <input name="propertyRows" type="hidden" value="@Model.PageSize" />
+                <input name="embedded" type="hidden" value="@isEmbedded.ToString().ToLowerInvariant()" />
+
+                <div class="modal-header">
+                    <h2 class="modal-title fs-5" id="addPropertyModalLabel">Add Property</h2>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+                </div>
+                <div class="modal-body">
+                    <div class="mb-3">
+                        <label class="form-label" asp-for="NewProperty.Street1">Street 1</label>
+                        <input class="form-control" asp-for="NewProperty.Street1" name="Street1" type="text" />
+                    </div>
+
+                    <div class="mb-3">
+                        <label class="form-label" asp-for="NewProperty.Street2">Street 2</label>
+                        <input class="form-control" asp-for="NewProperty.Street2" name="Street2" type="text" />
+                    </div>
+
+                    <div class="row">
+                        <div class="col-md-5 mb-3">
+                            <label class="form-label" asp-for="NewProperty.City">City</label>
+                            <input class="form-control" asp-for="NewProperty.City" name="City" type="text" />
+                        </div>
+                        <div class="col-md-3 mb-3">
+                            <label class="form-label" asp-for="NewProperty.State"></label>
+                            <input class="form-control" asp-for="NewProperty.State" name="State" type="text" />
+                        </div>
+                        <div class="col-md-4 mb-0">
+                            <label class="form-label" asp-for="NewProperty.PostalCode">Postal Code</label>
+                            <input class="form-control" asp-for="NewProperty.PostalCode" name="PostalCode" type="text" />
+                        </div>
+                    </div>
+                </div>
+                <div class="modal-footer">
+                    <button class="btn btn-secondary" type="button" data-bs-dismiss="modal">Cancel</button>
+                    <button class="btn btn-primary" type="submit">Save</button>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
+
+<script>
+    const choosePropertyForm = document.getElementById('choosePropertySearchForm');
+    const choosePropertySearch = document.getElementById('choosePropertySearch');
+    const choosePropertyClearButton = document.getElementById('choosePropertyClearButton');
+    const choosePropertyRows = document.getElementById('choosePropertyRows');
+    const choosePropertyPage = document.getElementById('choosePropertyPage');
+    let choosePropertySearchTimer;
+
+    choosePropertySearch?.addEventListener('input', () => {
+        window.clearTimeout(choosePropertySearchTimer);
+        choosePropertySearchTimer = window.setTimeout(() => {
+            if (choosePropertyPage) {
+                choosePropertyPage.value = '1';
+            }
+
+            choosePropertyForm?.submit();
+        }, 350);
+    });
+
+    choosePropertyClearButton?.addEventListener('click', () => {
+        if (choosePropertySearch) {
+            choosePropertySearch.value = '';
+        }
+
+        if (choosePropertyPage) {
+            choosePropertyPage.value = '1';
+        }
+
+        choosePropertyForm?.submit();
+    });
+
+    choosePropertyRows?.addEventListener('change', () => {
+        if (choosePropertyPage) {
+            choosePropertyPage.value = '1';
+        }
+
+        choosePropertyForm?.submit();
+    });
+</script>
+
+@if (isEmbedded)
+{
+    <script src="~/lib/bootstrap/dist/js/bootstrap.bundle.min.js"></script>
+}

@@ -23,7 +23,7 @@
         <h2>General</h2>
         <dl>
             <dt>Inspection ID</dt>
-            <dd class="readonly-id text-start">@Model.Inspection.Id</dd>
+            <dd class="readonly-id text-start">@Model.Inspection.InspectionId</dd>
             <dt>Date</dt>
             <dd>@Model.Inspection.InspectionDate.ToString("d")</dd>
             <dt>Inspector</dt>
@@ -100,7 +100,7 @@
 
                         <dl class="superadmin-building-summary">
                             <dt>Building ID</dt>
-                            <dd class="readonly-id text-start">@building.Id</dd>
+                            <dd class="readonly-id text-start">@building.BuildingId</dd>
                             <dt>Sort Order</dt>
                             <dd>@building.SortOrder</dd>
                         </dl>

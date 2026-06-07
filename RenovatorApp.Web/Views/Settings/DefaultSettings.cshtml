@@ -1,0 +1,46 @@
+@model RenovatorApp.Web.ViewModels.DefaultSettingsViewModel
+
+@{
+    ViewData["Title"] = "Default Settings";
+}
+
+<div class="page-header-row">
+    <div>
+        <h1>Default Settings</h1>
+        <p class="text-muted">Manage application default values.</p>
+    </div>
+</div>
+
+@if (!string.IsNullOrWhiteSpace(Model.StatusMessage))
+{
+    <div class="alert alert-success" role="status">@Model.StatusMessage</div>
+}
+
+<form asp-controller="Settings" asp-action="DefaultSettings" method="post">
+    @Html.AntiForgeryToken()
+
+    <section class="detail-section">
+        <div asp-validation-summary="ModelOnly" class="text-danger mb-3"></div>
+
+        <div class="mb-3">
+            <label class="form-label" asp-for="DefaultState">Default State</label>
+            <select class="form-select" asp-for="DefaultState" style="max-width: 28rem;">
+                <option value="">Choose a state</option>
+                @foreach (var state in Model.States)
+                {
+                    <option value="@state.Abbreviation">@state.Name</option>
+                }
+            </select>
+            <span class="text-danger" asp-validation-for="DefaultState"></span>
+        </div>
+
+        <div class="d-flex gap-2">
+            <button class="btn btn-primary" type="submit">Save</button>
+            <a class="btn btn-secondary" asp-controller="Settings" asp-action="Index">Cancel</a>
+        </div>
+    </section>
+</form>
+
+@section Scripts {
+    <partial name="_ValidationScriptsPartial" />
+}

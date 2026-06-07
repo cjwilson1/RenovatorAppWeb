@@ -2,7 +2,7 @@ namespace RenovatorApp.Infrastructure.Models;
 
 public sealed class InspectionAreaType : IRenoCompanyEntity
 {
-    public Guid AreaTypeId { get; set; } = Guid.NewGuid();
+    public Guid InspectionAreaTypeId { get; set; } = Guid.NewGuid();
     public Guid RenoCompanyID { get; set; }
     public Guid CategoryId { get; set; }
     public string Name { get; set; } = string.Empty;

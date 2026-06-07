@@ -15,6 +15,7 @@ public sealed class RenovatorAppDbContext : DbContext
     public DbSet<BuildingType> BuildingTypes => Set<BuildingType>();
     public DbSet<Customer> Customers => Set<Customer>();
     public DbSet<Document> Documents => Set<Document>();
+    public DbSet<DocumentType> DocumentTypes => Set<DocumentType>();
     public DbSet<Employee> Employees => Set<Employee>();
     public DbSet<Inspection> Inspections => Set<Inspection>();
     public DbSet<InspectionArea> InspectionAreas => Set<InspectionArea>();
@@ -51,6 +52,7 @@ public sealed class RenovatorAppDbContext : DbContext
         modelBuilder.Entity<BuildingType>().ToTable("BuildingType");
         modelBuilder.Entity<Customer>().ToTable("Customer");
         modelBuilder.Entity<Document>().ToTable("Documents");
+        modelBuilder.Entity<DocumentType>().ToTable("DocumentType");
         modelBuilder.Entity<Employee>().ToTable("Employee");
         modelBuilder.Entity<Inspection>().ToTable("Inspection");
         modelBuilder.Entity<InspectionArea>().ToTable("InspectionArea");
@@ -73,26 +75,27 @@ public sealed class RenovatorAppDbContext : DbContext
 
     private static void ConfigureKeys(ModelBuilder modelBuilder)
     {
-        modelBuilder.Entity<Address>().HasKey(address => address.Id);
-        modelBuilder.Entity<AppSetting>().HasKey(setting => setting.Id);
-        modelBuilder.Entity<Building>().HasKey(building => building.Id);
-        modelBuilder.Entity<BuildingType>().HasKey(buildingType => buildingType.Id);
+        modelBuilder.Entity<Address>().HasKey(address => address.AddressId);
+        modelBuilder.Entity<AppSetting>().HasKey(setting => setting.AppSettingId);
+        modelBuilder.Entity<Building>().HasKey(building => building.BuildingId);
+        modelBuilder.Entity<BuildingType>().HasKey(buildingType => buildingType.BuildingTypeId);
         modelBuilder.Entity<Customer>().HasKey(customer => customer.CustomerId);
         modelBuilder.Entity<Document>().HasKey(document => document.DocumentId);
+        modelBuilder.Entity<DocumentType>().HasKey(documentType => documentType.DocumentTypeId);
         modelBuilder.Entity<Employee>().HasKey(employee => employee.EmployeeId);
-        modelBuilder.Entity<Inspection>().HasKey(inspection => inspection.Id);
-        modelBuilder.Entity<InspectionArea>().HasKey(area => area.Id);
-        modelBuilder.Entity<InspectionAreaCategory>().HasKey(category => category.Id);
-        modelBuilder.Entity<InspectionAreaNote>().HasKey(note => note.Id);
-        modelBuilder.Entity<InspectionAreaNoteEstimateItem>().HasKey(item => item.Id);
-        modelBuilder.Entity<InspectionAreaNotePhoto>().HasKey(photo => photo.Id);
-        modelBuilder.Entity<InspectionAreaType>().HasKey(areaType => areaType.AreaTypeId);
-        modelBuilder.Entity<Inspector>().HasKey(inspector => inspector.Id);
-        modelBuilder.Entity<MileageTracking>().HasKey(session => session.UniqueId);
-        modelBuilder.Entity<MileageTrackingWaypoint>().HasKey(waypoint => waypoint.UniqueId);
+        modelBuilder.Entity<Inspection>().HasKey(inspection => inspection.InspectionId);
+        modelBuilder.Entity<InspectionArea>().HasKey(area => area.InspectionAreaId);
+        modelBuilder.Entity<InspectionAreaCategory>().HasKey(category => category.InspectionAreaCategoryId);
+        modelBuilder.Entity<InspectionAreaNote>().HasKey(note => note.InspectionAreaNoteId);
+        modelBuilder.Entity<InspectionAreaNoteEstimateItem>().HasKey(item => item.InspectionAreaNoteEstimateItemId);
+        modelBuilder.Entity<InspectionAreaNotePhoto>().HasKey(photo => photo.InspectionAreaNotePhotoId);
+        modelBuilder.Entity<InspectionAreaType>().HasKey(areaType => areaType.InspectionAreaTypeId);
+        modelBuilder.Entity<Inspector>().HasKey(inspector => inspector.InspectorId);
+        modelBuilder.Entity<MileageTracking>().HasKey(session => session.MileageTrackingID);
+        modelBuilder.Entity<MileageTrackingWaypoint>().HasKey(waypoint => waypoint.MileageTrackingWaypointId);
         modelBuilder.Entity<Part>().HasKey(part => part.PartId);
         modelBuilder.Entity<PartSource>().HasKey(source => source.PartSourceId);
-        modelBuilder.Entity<Property>().HasKey(property => property.Id);
+        modelBuilder.Entity<Property>().HasKey(property => property.PropertyId);
         modelBuilder.Entity<RenoCompany>().HasKey(company => company.RenoCompanyID);
         modelBuilder.Entity<RenoUser>().HasKey(user => user.UserID);
         modelBuilder.Entity<Role>().HasKey(role => role.RoleID);
@@ -126,10 +129,44 @@ public sealed class RenovatorAppDbContext : DbContext
             .OnDelete(DeleteBehavior.SetNull);
 
         modelBuilder.Entity<Document>()
+            .HasOne(document => document.DocumentType)
+            .WithMany(documentType => documentType.Documents)
+            .HasForeignKey(document => document.DocumentTypeId)
+            .OnDelete(DeleteBehavior.Restrict);
+
+        modelBuilder.Entity<Document>()
             .HasOne(document => document.Customer)
             .WithMany(customer => customer.Documents)
             .HasForeignKey(document => document.CustomerId)
             .OnDelete(DeleteBehavior.SetNull);
+
+        modelBuilder.Entity<Document>()
+            .HasOne(document => document.Inspection)
+            .WithMany(inspection => inspection.Documents)
+            .HasForeignKey(document => document.InspectionId)
+            .OnDelete(DeleteBehavior.SetNull);
+
+        modelBuilder.Entity<Customer>()
+            .HasMany(customer => customer.Properties)
+            .WithMany(property => property.Customers)
+            .UsingEntity<Dictionary<string, object>>(
+                "CustomerProperty",
+                right => right
+                    .HasOne<Property>()
+                    .WithMany()
+                    .HasForeignKey("PropertyId")
+                    .OnDelete(DeleteBehavior.Cascade),
+                left => left
+                    .HasOne<Customer>()
+                    .WithMany()
+                    .HasForeignKey("CustomerId")
+                    .OnDelete(DeleteBehavior.Cascade),
+                join =>
+                {
+                    join.ToTable("CustomerProperty");
+                    join.HasKey("CustomerId", "PropertyId");
+                    join.HasIndex("PropertyId");
+                });
 
         modelBuilder.Entity<Inspection>()
             .HasOne(inspection => inspection.Property)
@@ -244,9 +281,11 @@ public sealed class RenovatorAppDbContext : DbContext
         modelBuilder.Entity<Customer>().HasIndex(customer => customer.FamilyName);
         modelBuilder.Entity<Customer>().HasIndex(customer => customer.RenoCompanyID);
         modelBuilder.Entity<Document>().HasIndex(document => document.CustomerId);
+        modelBuilder.Entity<Document>().HasIndex(document => document.InspectionId);
+        modelBuilder.Entity<Document>().HasIndex(document => document.DocumentTypeId);
         modelBuilder.Entity<Document>().HasIndex(document => document.RenoCompanyID);
         modelBuilder.Entity<Document>().HasIndex(document => document.CreateDate);
-        modelBuilder.Entity<Document>().HasIndex(document => document.DocumentType);
+        modelBuilder.Entity<DocumentType>().HasIndex(documentType => documentType.Name).IsUnique();
         modelBuilder.Entity<Employee>().HasIndex(employee => new { employee.RenoCompanyID, employee.QuickBooksEmployeeId }).IsUnique();
         modelBuilder.Entity<Employee>().HasIndex(employee => employee.DisplayName);
         modelBuilder.Entity<Employee>().HasIndex(employee => employee.FamilyName);

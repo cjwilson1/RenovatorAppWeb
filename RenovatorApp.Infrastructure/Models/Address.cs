@@ -2,7 +2,7 @@ namespace RenovatorApp.Infrastructure.Models;
 
 public sealed class Address : IRenoCompanyEntity
 {
-    public Guid Id { get; set; } = Guid.NewGuid();
+    public Guid AddressId { get; set; } = Guid.NewGuid();
     public Guid RenoCompanyID { get; set; }
     public Guid? PropertyId { get; set; }
     public string Street1 { get; set; } = string.Empty;

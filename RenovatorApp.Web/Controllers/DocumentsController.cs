@@ -28,6 +28,8 @@ public sealed class DocumentsController : Controller
             .AsNoTracking()
             .ForCompany(_currentUserSession.RenoCompanyID)
             .Include(document => document.Customer)
+            .Include(document => document.DocumentType)
+            .Include(document => document.Inspection)
             .AsQueryable();
 
         if (normalizedSearch.Length >= 2)
@@ -35,10 +37,14 @@ public sealed class DocumentsController : Controller
             var pattern = $"%{normalizedSearch}%";
             query = query.Where(document =>
                 EF.Functions.ILike(document.DocumentName, pattern)
-                || EF.Functions.ILike(document.DocumentType, pattern)
+                || (document.DocumentType != null && EF.Functions.ILike(document.DocumentType.Name, pattern))
                 || EF.Functions.ILike(document.Filename, pattern)
+                || (document.Inspection != null
+                    && EF.Functions.ILike(document.Inspection.Title, pattern))
                 || (document.Customer != null
                     && (EF.Functions.ILike(document.Customer.GivenName, pattern)
+                        || EF.Functions.ILike(document.Customer.DisplayName, pattern)
+                        || EF.Functions.ILike(document.Customer.CompanyName, pattern)
                         || EF.Functions.ILike(document.Customer.FamilyName, pattern))));
         }
 
@@ -57,12 +63,61 @@ public sealed class DocumentsController : Controller
         return View(new DocumentsIndexViewModel
         {
             Documents = documents,
+            Customers = await GetCustomerAssignmentOptionsAsync(cancellationToken),
+            Inspections = await GetInspectionAssignmentOptionsAsync(cancellationToken),
             Page = page,
             PageSize = PageSize,
             TotalDocuments = totalDocuments,
             TotalPages = totalPages,
             Search = normalizedSearch
         });
+    }
+
+    [HttpPost]
+    [ValidateAntiForgeryToken]
+    public async Task<IActionResult> Assign(Guid id, Guid? customerId, Guid? inspectionId, string? search, int page = 1, CancellationToken cancellationToken = default)
+    {
+        var renoCompanyId = _currentUserSession.RenoCompanyID;
+        var document = await _dbContext.Documents
+            .ForCompany(renoCompanyId)
+            .FirstOrDefaultAsync(item => item.DocumentId == id, cancellationToken);
+
+        if (document is null)
+        {
+            return NotFound();
+        }
+
+        if (customerId.HasValue)
+        {
+            var customerExists = await _dbContext.Customers
+                .AsNoTracking()
+                .ForCompany(renoCompanyId)
+                .AnyAsync(customer => customer.CustomerId == customerId.Value, cancellationToken);
+
+            if (!customerExists)
+            {
+                return NotFound();
+            }
+        }
+
+        if (inspectionId.HasValue)
+        {
+            var inspectionExists = await _dbContext.Inspections
+                .AsNoTracking()
+                .ForCompany(renoCompanyId)
+                .AnyAsync(inspection => inspection.InspectionId == inspectionId.Value, cancellationToken);
+
+            if (!inspectionExists)
+            {
+                return NotFound();
+            }
+        }
+
+        document.CustomerId = customerId;
+        document.InspectionId = inspectionId;
+        await _dbContext.SaveChangesAsync(cancellationToken);
+
+        return RedirectToAction(nameof(Index), new { search, page });
     }
 
     public async Task<IActionResult> Open(Guid id, CancellationToken cancellationToken)
@@ -112,11 +167,49 @@ public sealed class DocumentsController : Controller
         {
             DocumentId = document.DocumentId,
             DocumentName = document.DocumentName,
+            CustomerId = document.CustomerId,
             CustomerName = GetCustomerName(document.Customer),
-            DocumentType = document.DocumentType,
+            InspectionId = document.InspectionId,
+            InspectionTitle = document.Inspection?.Title ?? string.Empty,
+            DocumentType = document.DocumentType?.Name ?? string.Empty,
             Filename = document.Filename,
             CreateDate = document.CreateDate
         };
+    }
+
+    private async Task<IReadOnlyList<DocumentAssignmentOptionViewModel>> GetCustomerAssignmentOptionsAsync(CancellationToken cancellationToken)
+    {
+        var customers = await _dbContext.Customers
+            .AsNoTracking()
+            .ForCompany(_currentUserSession.RenoCompanyID)
+            .OrderBy(customer => customer.DisplayName)
+            .ThenBy(customer => customer.FamilyName)
+            .ToListAsync(cancellationToken);
+
+        return customers
+            .Select(customer => new DocumentAssignmentOptionViewModel
+            {
+                Id = customer.CustomerId,
+                Name = string.IsNullOrWhiteSpace(customer.DisplayName)
+                    ? GetCustomerName(customer)
+                    : customer.DisplayName
+            })
+            .ToList();
+    }
+
+    private async Task<IReadOnlyList<DocumentAssignmentOptionViewModel>> GetInspectionAssignmentOptionsAsync(CancellationToken cancellationToken)
+    {
+        return await _dbContext.Inspections
+            .AsNoTracking()
+            .ForCompany(_currentUserSession.RenoCompanyID)
+            .OrderByDescending(inspection => inspection.InspectionDate)
+            .ThenBy(inspection => inspection.Title)
+            .Select(inspection => new DocumentAssignmentOptionViewModel
+            {
+                Id = inspection.InspectionId,
+                Name = inspection.Title
+            })
+            .ToListAsync(cancellationToken);
     }
 
     private static string GetCustomerName(Customer? customer)

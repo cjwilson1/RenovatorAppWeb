@@ -62,7 +62,7 @@ public sealed class InspectionsController : Controller
         var mileageTrackingViewModels = mileageTrackingRecords
             .Select(trip => new InspectionMileageTrackingViewModel
             {
-                UniqueId = trip.UniqueId,
+                UniqueId = trip.MileageTrackingID,
                 TrackingStartedAtUtc = trip.TrackingStartedAtUtc,
                 TotalTime = trip.TotalTime,
                 TotalMileage = trip.TotalMileage,
@@ -86,7 +86,7 @@ public sealed class InspectionsController : Controller
             .OrderBy(trip => trip.TrackingStartedAtUtc)
             .Select(trip => new InspectionMileageTrackingAttachViewModel
             {
-                UniqueId = trip.UniqueId,
+                UniqueId = trip.MileageTrackingID,
                 TrackingStartedAtUtc = trip.TrackingStartedAtUtc,
                 TotalTime = trip.TotalTime,
                 TotalMileage = trip.TotalMileage,
@@ -101,6 +101,18 @@ public sealed class InspectionsController : Controller
             PropertyAddress = GetPropertyAddress(inspection.Property),
             CustomerName = GetCustomerName(inspection.Customer),
             DefaultReportName = BuildDefaultReportName(inspection.Title, DateTime.Now),
+            Documents = inspection.Documents
+                .OrderByDescending(document => document.CreateDate)
+                .ThenBy(document => document.DocumentName)
+                .Select(document => new InspectionDocumentViewModel
+                {
+                    DocumentId = document.DocumentId,
+                    DocumentName = document.DocumentName,
+                    DocumentType = document.DocumentType?.Name ?? string.Empty,
+                    Filename = document.Filename,
+                    CreateDate = document.CreateDate
+                })
+                .ToList(),
             MileageTrackingRecords = mileageTrackingViewModels,
             MileageTrackingAttachRecords = mileageTrackingAttachRecords
         });
@@ -111,7 +123,7 @@ public sealed class InspectionsController : Controller
     public async Task<IActionResult> Delete(Guid id, CancellationToken cancellationToken)
     {
         await _dbContext.Inspections
-            .Where(inspection => inspection.Id == id && inspection.RenoCompanyID == _currentUserSession.RenoCompanyID)
+            .Where(inspection => inspection.InspectionId == id && inspection.RenoCompanyID == _currentUserSession.RenoCompanyID)
             .ExecuteDeleteAsync(cancellationToken);
 
         return RedirectToAction(nameof(Index));
@@ -123,7 +135,7 @@ public sealed class InspectionsController : Controller
     {
         var trip = await _dbContext.MileageTracking
             .ForCompany(_currentUserSession.RenoCompanyID)
-            .FirstOrDefaultAsync(item => item.UniqueId == tripId && item.InspectionId == id, cancellationToken);
+            .FirstOrDefaultAsync(item => item.MileageTrackingID == tripId && item.InspectionId == id, cancellationToken);
 
         if (trip is not null)
         {
@@ -136,12 +148,69 @@ public sealed class InspectionsController : Controller
 
     [HttpPost]
     [ValidateAntiForgeryToken]
+    public async Task<IActionResult> UpdateDocument(Guid id, Guid documentId, string documentName, CancellationToken cancellationToken)
+    {
+        var document = await _dbContext.Documents
+            .ForCompany(_currentUserSession.RenoCompanyID)
+            .FirstOrDefaultAsync(item => item.DocumentId == documentId && item.InspectionId == id, cancellationToken);
+
+        if (document is null)
+        {
+            return NotFound();
+        }
+
+        document.DocumentName = Clean(documentName);
+        await _dbContext.SaveChangesAsync(cancellationToken);
+
+        return RedirectToAction(nameof(Details), new { id });
+    }
+
+    [HttpPost]
+    [ValidateAntiForgeryToken]
+    public async Task<IActionResult> DetachDocument(Guid id, Guid documentId, CancellationToken cancellationToken)
+    {
+        var document = await _dbContext.Documents
+            .ForCompany(_currentUserSession.RenoCompanyID)
+            .FirstOrDefaultAsync(item => item.DocumentId == documentId && item.InspectionId == id, cancellationToken);
+
+        if (document is null)
+        {
+            return NotFound();
+        }
+
+        document.InspectionId = null;
+        await _dbContext.SaveChangesAsync(cancellationToken);
+
+        return RedirectToAction(nameof(Details), new { id });
+    }
+
+    [HttpPost]
+    [ValidateAntiForgeryToken]
+    public async Task<IActionResult> DeleteDocument(Guid id, Guid documentId, CancellationToken cancellationToken)
+    {
+        var document = await _dbContext.Documents
+            .ForCompany(_currentUserSession.RenoCompanyID)
+            .FirstOrDefaultAsync(item => item.DocumentId == documentId && item.InspectionId == id, cancellationToken);
+
+        if (document is null)
+        {
+            return NotFound();
+        }
+
+        _dbContext.Documents.Remove(document);
+        await _dbContext.SaveChangesAsync(cancellationToken);
+
+        return RedirectToAction(nameof(Details), new { id });
+    }
+
+    [HttpPost]
+    [ValidateAntiForgeryToken]
     public async Task<IActionResult> AttachMileage(Guid id, Guid tripId, CancellationToken cancellationToken)
     {
         var inspectionExists = await _dbContext.Inspections
             .AsNoTracking()
             .ForCompany(_currentUserSession.RenoCompanyID)
-            .AnyAsync(inspection => inspection.Id == id, cancellationToken);
+            .AnyAsync(inspection => inspection.InspectionId == id, cancellationToken);
 
         if (!inspectionExists)
         {
@@ -150,7 +219,7 @@ public sealed class InspectionsController : Controller
 
         var trip = await _dbContext.MileageTracking
             .ForCompany(_currentUserSession.RenoCompanyID)
-            .FirstOrDefaultAsync(item => item.UniqueId == tripId, cancellationToken);
+            .FirstOrDefaultAsync(item => item.MileageTrackingID == tripId, cancellationToken);
 
         if (trip is null)
         {
@@ -179,11 +248,12 @@ public sealed class InspectionsController : Controller
             InspectorName = inspectors.FirstOrDefault(inspector => inspector.IsDefault)?.FullName ?? string.Empty,
             Inspectors = inspectors,
             Parts = await GetPartPickerItemsAsync(cancellationToken),
-            CustomerPicker = await GetCustomerPickerAsync(customerSearch, customerPage, customerRows, showCustomerPicker, cancellationToken)
+            CustomerPicker = await GetCustomerPickerAsync(customerSearch, customerPage, customerRows, showCustomerPicker, cancellationToken),
+            ActiveTab = showCustomerPicker ? "customer" : "general"
         });
     }
 
-    public async Task<IActionResult> Edit(Guid id, CancellationToken cancellationToken)
+    public async Task<IActionResult> Edit(Guid id, string? activeTab = null, CancellationToken cancellationToken = default)
     {
         var inspection = await _inspectionDataService.GetInspectionDetailAsync(_currentUserSession.RenoCompanyID, id, cancellationToken);
 
@@ -194,17 +264,19 @@ public sealed class InspectionsController : Controller
 
         return View(new InspectionEditViewModel
         {
-            Id = inspection.Id,
+            Id = inspection.InspectionId,
             Title = inspection.Title,
             InspectionDate = inspection.InspectionDate,
             InspectorName = inspection.InspectorName,
             GeneralNotes = inspection.GeneralNotes,
+            PropertyId = inspection.PropertyId,
             PropertyAddress = ToPropertyAddressEditViewModel(inspection.Property.Address),
             Customer = ToCustomerEditViewModel(inspection.Customer),
             Buildings = ToBuildingEditViewModels(inspection.Property),
             Inspectors = await GetInspectorPickerItemsAsync(cancellationToken),
             Parts = await GetPartPickerItemsAsync(cancellationToken),
-            CustomerPicker = await GetCustomerPickerAsync(null, 1, 15, false, cancellationToken)
+            CustomerPicker = await GetCustomerPickerAsync(null, 1, 15, false, cancellationToken),
+            ActiveTab = NormalizeInspectionEditTab(activeTab)
         });
     }
 
@@ -225,17 +297,175 @@ public sealed class InspectionsController : Controller
 
         return View("Edit", new InspectionEditViewModel
         {
-            Id = inspection.Id,
+            Id = inspection.InspectionId,
             Title = inspection.Title,
             InspectionDate = inspection.InspectionDate,
             InspectorName = inspection.InspectorName,
             GeneralNotes = inspection.GeneralNotes,
+            PropertyId = inspection.PropertyId,
             PropertyAddress = ToPropertyAddressEditViewModel(inspection.Property.Address),
             Customer = ToCustomerEditViewModel(inspection.Customer),
             Buildings = ToBuildingEditViewModels(inspection.Property),
             Inspectors = await GetInspectorPickerItemsAsync(cancellationToken),
             Parts = await GetPartPickerItemsAsync(cancellationToken),
-            CustomerPicker = await GetCustomerPickerAsync(customerSearch, customerPage, customerRows, true, cancellationToken)
+            CustomerPicker = await GetCustomerPickerAsync(customerSearch, customerPage, customerRows, true, cancellationToken),
+            ActiveTab = "customer"
+        });
+    }
+
+    [HttpGet("Inspections/Edit/{id:guid}/ChooseProperty")]
+    public async Task<IActionResult> ChooseProperty(
+        Guid id,
+        string? propertySearch,
+        int propertyPage = 1,
+        int propertyRows = 15,
+        CancellationToken cancellationToken = default)
+    {
+        var model = await GetPropertyPickerAsync(id, propertySearch, propertyPage, propertyRows, cancellationToken);
+
+        return model is null ? NotFound() : View(model);
+    }
+
+    [HttpPost("Inspections/CreateCustomer")]
+    [ValidateAntiForgeryToken]
+    public async Task<IActionResult> CreateCustomer(InspectionNewCustomerViewModel update, CancellationToken cancellationToken)
+    {
+        var renoCompanyId = _currentUserSession.RenoCompanyID;
+        var customer = new Customer
+        {
+            RenoCompanyID = renoCompanyId,
+            Active = true,
+            CreatedDate = DateTime.UtcNow,
+            LastEditDate = DateTime.UtcNow,
+            GivenName = Clean(update.GivenName),
+            FamilyName = Clean(update.FamilyName),
+            PrimaryEmailAddress = Clean(update.PrimaryEmailAddress),
+            PrimaryPhone = Clean(update.PrimaryPhone),
+            MobilePhone = Clean(update.MobilePhone),
+            Fax = Clean(update.Fax),
+            CompanyName = Clean(update.CompanyName),
+            Website = Clean(update.Website)
+        };
+
+        customer.DisplayName = BuildCustomerDisplayName(customer);
+        customer.FullyQualifiedName = customer.DisplayName;
+
+        var billAddress = BuildNewCustomerBillAddress(update.BillAddress, renoCompanyId);
+        if (billAddress is not null)
+        {
+            customer.BillAddress = billAddress;
+            customer.BillAddressId = billAddress.AddressId;
+        }
+
+        _dbContext.Customers.Add(customer);
+        await _dbContext.SaveChangesAsync(cancellationToken);
+
+        return Json(new
+        {
+            customerId = customer.CustomerId,
+            firstName = customer.GivenName,
+            lastName = customer.FamilyName,
+            companyName = customer.CompanyName,
+            phone = customer.PrimaryPhone,
+            email = customer.PrimaryEmailAddress,
+            street1 = customer.BillAddress?.Street1 ?? string.Empty,
+            street2 = customer.BillAddress?.Street2 ?? string.Empty,
+            city = customer.BillAddress?.City ?? string.Empty,
+            state = customer.BillAddress?.State ?? string.Empty,
+            postalCode = customer.BillAddress?.PostalCode ?? string.Empty,
+            notes = customer.Notes
+        });
+    }
+
+    [HttpPost("Inspections/Edit/{id:guid}/ChooseProperty")]
+    [ValidateAntiForgeryToken]
+    public async Task<IActionResult> SelectProperty(Guid id, Guid propertyId, CancellationToken cancellationToken)
+    {
+        var renoCompanyId = _currentUserSession.RenoCompanyID;
+        var inspection = await _dbContext.Inspections
+            .ForCompany(renoCompanyId)
+            .FirstOrDefaultAsync(item => item.InspectionId == id, cancellationToken);
+
+        if (inspection?.CustomerId is null)
+        {
+            return NotFound();
+        }
+
+        var isLinkedToCustomer = await _dbContext.Properties
+            .AsNoTracking()
+            .ForCompany(renoCompanyId)
+            .AnyAsync(property => property.PropertyId == propertyId
+                && property.Customers.Any(customer => customer.CustomerId == inspection.CustomerId.Value), cancellationToken);
+
+        if (!isLinkedToCustomer)
+        {
+            return NotFound();
+        }
+
+        inspection.PropertyId = propertyId;
+        inspection.UpdatedAtUtc = DateTime.UtcNow;
+        await _dbContext.SaveChangesAsync(cancellationToken);
+
+        return RedirectToAction(nameof(Edit), new { id, activeTab = "property" });
+    }
+
+    [HttpPost("Inspections/Edit/{id:guid}/ChooseProperty/Add")]
+    [ValidateAntiForgeryToken]
+    public async Task<IActionResult> AddProperty(
+        Guid id,
+        InspectionPropertyAddressEditViewModel newProperty,
+        string? propertySearch,
+        int propertyPage = 1,
+        int propertyRows = 15,
+        bool embedded = false,
+        CancellationToken cancellationToken = default)
+    {
+        var renoCompanyId = _currentUserSession.RenoCompanyID;
+        var inspection = await _dbContext.Inspections
+            .AsNoTracking()
+            .ForCompany(renoCompanyId)
+            .FirstOrDefaultAsync(item => item.InspectionId == id, cancellationToken);
+
+        if (inspection?.CustomerId is null)
+        {
+            return NotFound();
+        }
+
+        var customer = await _dbContext.Customers
+            .ForCompany(renoCompanyId)
+            .Include(item => item.Properties)
+            .FirstOrDefaultAsync(item => item.CustomerId == inspection.CustomerId.Value, cancellationToken);
+
+        if (customer is null)
+        {
+            return NotFound();
+        }
+
+        var property = new Property
+        {
+            RenoCompanyID = renoCompanyId,
+            Address = new Address
+            {
+                RenoCompanyID = renoCompanyId,
+                Street1 = Clean(newProperty.Street1),
+                Street2 = Clean(newProperty.Street2),
+                City = Clean(newProperty.City),
+                State = Clean(newProperty.State),
+                PostalCode = Clean(newProperty.PostalCode)
+            }
+        };
+
+        customer.Properties.Add(property);
+        _dbContext.Properties.Add(property);
+        await _dbContext.SaveChangesAsync(cancellationToken);
+
+        return RedirectToAction(nameof(ChooseProperty), new
+        {
+            id,
+            propertySearch,
+            propertyPage,
+            propertyRows,
+            embedded
         });
     }
 
@@ -265,7 +495,7 @@ public sealed class InspectionsController : Controller
                 return NotFound();
             }
 
-            return RedirectToAction(nameof(Edit), new { id = id.Value });
+            return RedirectToAction(nameof(Edit), new { id = id.Value, activeTab = NormalizeInspectionEditTab(update.ActiveTab) });
         }
 
         if (string.IsNullOrWhiteSpace(update.Title))
@@ -307,15 +537,16 @@ public sealed class InspectionsController : Controller
             InspectionDate = NormalizeDate(update.InspectionDate),
             InspectorName = Clean(update.InspectorName),
             GeneralNotes = Clean(update.GeneralNotes),
-            PropertyId = property.Id,
+            PropertyId = property.PropertyId,
             Property = property,
             CustomerId = customerId
         };
 
         _dbContext.Inspections.Add(inspection);
         await _dbContext.SaveChangesAsync(cancellationToken);
+        await LinkCustomerPropertyAsync(customerId, property.PropertyId, renoCompanyId, cancellationToken);
 
-        return RedirectToAction(nameof(Edit), new { id = inspection.Id });
+        return RedirectToAction(nameof(Edit), new { id = inspection.InspectionId });
     }
 
     [HttpPost]
@@ -403,8 +634,9 @@ public sealed class InspectionsController : Controller
         {
             DocumentName = documentName,
             CustomerId = inspection.CustomerId,
+            InspectionId = inspection.InspectionId,
             CreateDate = DateTime.UtcNow,
-            DocumentType = "inspection",
+            DocumentTypeId = DocumentType.InspectionId,
             Filename = fileName,
             Extension = extension,
             Path = documentPath
@@ -535,7 +767,7 @@ public sealed class InspectionsController : Controller
             foreach (var building in buildings)
             {
                 var areas = inspection.Property.Areas
-                    .Where(area => area.BuildingId == building.Id)
+                    .Where(area => area.BuildingId == building.BuildingId)
                     .OrderBy(area => area.SortOrder)
                     .ThenBy(area => area.DisplayName)
                     .ToList();
@@ -741,7 +973,7 @@ public sealed class InspectionsController : Controller
     private static InspectionListItemViewModel ToListItem(Inspection inspection)
     {
         return new InspectionListItemViewModel(
-            inspection.Id,
+            inspection.InspectionId,
             inspection.Title,
             inspection.InspectionDate,
             inspection.InspectorName,
@@ -894,7 +1126,7 @@ public sealed class InspectionsController : Controller
         return inspectors
             .Select(inspector => new InspectorPickerItemViewModel
             {
-                Id = inspector.Id,
+                Id = inspector.InspectorId,
                 FullName = GetInspectorFullName(inspector),
                 Email = inspector.Email,
                 Phone = inspector.Phone,
@@ -989,6 +1221,146 @@ public sealed class InspectionsController : Controller
             TotalPages = totalPages,
             Search = normalizedSearch,
             OpenOnLoad = openOnLoad
+        };
+    }
+
+    private async Task<InspectionPropertyPickerViewModel?> GetPropertyPickerAsync(
+        Guid inspectionId,
+        string? search,
+        int page,
+        int rows,
+        CancellationToken cancellationToken)
+    {
+        var renoCompanyId = _currentUserSession.RenoCompanyID;
+        var inspection = await _dbContext.Inspections
+            .AsNoTracking()
+            .ForCompany(renoCompanyId)
+            .FirstOrDefaultAsync(item => item.InspectionId == inspectionId, cancellationToken);
+
+        if (inspection?.CustomerId is null)
+        {
+            return null;
+        }
+
+        var customerExists = await _dbContext.Customers
+            .AsNoTracking()
+            .ForCompany(renoCompanyId)
+            .AnyAsync(customer => customer.CustomerId == inspection.CustomerId.Value, cancellationToken);
+
+        if (!customerExists)
+        {
+            return null;
+        }
+
+        var allowedRows = new[] { 5, 10, 15, 25, 50, 100 };
+        var pageSize = allowedRows.Contains(rows) ? rows : 15;
+        var normalizedSearch = (search ?? string.Empty).Trim();
+        var query = _dbContext.Properties
+            .AsNoTracking()
+            .ForCompany(renoCompanyId)
+            .Include(property => property.Address)
+            .Where(property => property.Customers.Any(customer => customer.CustomerId == inspection.CustomerId.Value));
+
+        if (!string.IsNullOrWhiteSpace(normalizedSearch))
+        {
+            var pattern = $"%{normalizedSearch}%";
+            query = query.Where(property =>
+                EF.Functions.ILike(property.Address.Street1, pattern)
+                || EF.Functions.ILike(property.Address.Street2, pattern)
+                || EF.Functions.ILike(property.Address.City, pattern)
+                || EF.Functions.ILike(property.Address.State, pattern)
+                || EF.Functions.ILike(property.Address.PostalCode, pattern));
+        }
+
+        var totalProperties = await query.CountAsync(cancellationToken);
+        var totalPages = Math.Max(1, (int)Math.Ceiling(totalProperties / (double)pageSize));
+        page = Math.Clamp(page, 1, totalPages);
+
+        var properties = await query
+            .OrderBy(property => property.Address.Street1)
+            .ThenBy(property => property.Address.City)
+            .Skip((page - 1) * pageSize)
+            .Take(pageSize)
+            .Select(property => new InspectionPropertyPickerItemViewModel
+            {
+                PropertyId = property.PropertyId,
+                Street1 = property.Address.Street1,
+                Street2 = property.Address.Street2,
+                City = property.Address.City,
+                State = property.Address.State,
+                PostalCode = property.Address.PostalCode
+            })
+            .ToListAsync(cancellationToken);
+
+        return new InspectionPropertyPickerViewModel
+        {
+            InspectionId = inspection.InspectionId,
+            CustomerId = inspection.CustomerId.Value,
+            SelectedPropertyId = inspection.PropertyId,
+            Properties = properties,
+            Page = page,
+            PageSize = pageSize,
+            TotalProperties = totalProperties,
+            TotalPages = totalPages,
+            Search = normalizedSearch
+        };
+    }
+
+    private async Task LinkCustomerPropertyAsync(Guid? customerId, Guid propertyId, Guid renoCompanyId, CancellationToken cancellationToken)
+    {
+        if (!customerId.HasValue)
+        {
+            return;
+        }
+
+        var customer = await _dbContext.Customers
+            .ForCompany(renoCompanyId)
+            .Include(item => item.Properties)
+            .FirstOrDefaultAsync(item => item.CustomerId == customerId.Value, cancellationToken);
+
+        if (customer is null || customer.Properties.Any(property => property.PropertyId == propertyId))
+        {
+            return;
+        }
+
+        var property = await _dbContext.Properties
+            .ForCompany(renoCompanyId)
+            .FirstOrDefaultAsync(item => item.PropertyId == propertyId, cancellationToken);
+
+        if (property is null)
+        {
+            return;
+        }
+
+        customer.Properties.Add(property);
+        await _dbContext.SaveChangesAsync(cancellationToken);
+    }
+
+    private static Address? BuildNewCustomerBillAddress(InspectionNewCustomerAddressViewModel? update, Guid renoCompanyId)
+    {
+        update ??= new InspectionNewCustomerAddressViewModel();
+
+        if (string.IsNullOrWhiteSpace(update.Street1)
+            && string.IsNullOrWhiteSpace(update.Street2)
+            && string.IsNullOrWhiteSpace(update.Street3)
+            && string.IsNullOrWhiteSpace(update.City)
+            && string.IsNullOrWhiteSpace(update.State)
+            && string.IsNullOrWhiteSpace(update.PostalCode)
+            && string.IsNullOrWhiteSpace(update.Country))
+        {
+            return null;
+        }
+
+        return new Address
+        {
+            RenoCompanyID = renoCompanyId,
+            Street1 = Clean(update.Street1),
+            Street2 = Clean(update.Street2),
+            Street3 = Clean(update.Street3),
+            City = Clean(update.City),
+            State = Clean(update.State),
+            PostalCode = Clean(update.PostalCode),
+            Country = Clean(update.Country)
         };
     }
 
@@ -1174,7 +1546,16 @@ public sealed class InspectionsController : Controller
 
     private static void ApplyCustomerUpdate(Customer customer, InspectionCustomerEditViewModel update, Guid renoCompanyId)
     {
-        ApplyCustomerUpdate(customer, update, renoCompanyId);
+        customer.GivenName = Clean(update.FirstName);
+        customer.FamilyName = Clean(update.LastName);
+        customer.CompanyName = Clean(update.CompanyName);
+        customer.PrimaryPhone = Clean(update.Phone);
+        customer.PrimaryEmailAddress = Clean(update.Email);
+        customer.Notes = Clean(update.Notes);
+        customer.DisplayName = BuildCustomerDisplayName(customer);
+        customer.FullyQualifiedName = customer.DisplayName;
+        customer.LastEditDate = DateTime.UtcNow;
+        UpdateCustomerBillAddress(customer, update, renoCompanyId);
     }
 
     private async Task<bool> SaveInspectionEditAsync(Guid id, InspectionEditViewModel update, CancellationToken cancellationToken)
@@ -1194,7 +1575,7 @@ public sealed class InspectionsController : Controller
                 .ThenInclude(property => property.Areas)
                     .ThenInclude(area => area.AreaNotes)
                         .ThenInclude(note => note.Photos)
-            .FirstOrDefaultAsync(item => item.Id == id, cancellationToken);
+            .FirstOrDefaultAsync(item => item.InspectionId == id, cancellationToken);
 
         if (inspection is null)
         {
@@ -1213,6 +1594,7 @@ public sealed class InspectionsController : Controller
         UpdateInspectionAreas(inspection.Property.Areas, update.Buildings, renoCompanyId, now);
 
         await _dbContext.SaveChangesAsync(cancellationToken);
+        await LinkCustomerPropertyAsync(inspection.CustomerId, inspection.PropertyId, renoCompanyId, cancellationToken);
         return true;
     }
 
@@ -1222,11 +1604,11 @@ public sealed class InspectionsController : Controller
         property.Address ??= new Address
         {
             RenoCompanyID = renoCompanyId,
-            PropertyId = property.Id
+            PropertyId = property.PropertyId
         };
 
         property.Address.RenoCompanyID = renoCompanyId;
-        property.Address.PropertyId = property.Id;
+        property.Address.PropertyId = property.PropertyId;
         property.Address.Street1 = Clean(update.Street1);
         property.Address.Street2 = Clean(update.Street2);
         property.Address.City = Clean(update.City);
@@ -1324,7 +1706,7 @@ public sealed class InspectionsController : Controller
 
         foreach (var area in areas)
         {
-            if (!postedAreas.TryGetValue(area.Id, out var postedArea))
+            if (!postedAreas.TryGetValue(area.InspectionAreaId, out var postedArea))
             {
                 continue;
             }
@@ -1337,7 +1719,7 @@ public sealed class InspectionsController : Controller
 
             foreach (var note in area.AreaNotes)
             {
-                if (!postedNotes.TryGetValue(note.Id, out var postedNote))
+                if (!postedNotes.TryGetValue(note.InspectionAreaNoteId, out var postedNote))
                 {
                     continue;
                 }
@@ -1360,25 +1742,25 @@ public sealed class InspectionsController : Controller
             .ToDictionary(group => group.Key, group => group.First());
 
         var removedItems = note.EstimateItems
-            .Where(item => !postedById.ContainsKey(item.Id))
+            .Where(item => !postedById.ContainsKey(item.InspectionAreaNoteEstimateItemId))
             .ToList();
 
         _dbContext.InspectionAreaNoteEstimateItems.RemoveRange(removedItems);
 
         foreach (var postedItem in postedItems.Where(item => !string.IsNullOrWhiteSpace(item.Name)))
         {
-            var item = note.EstimateItems.FirstOrDefault(existing => existing.Id == postedItem.Id);
+            var item = note.EstimateItems.FirstOrDefault(existing => existing.InspectionAreaNoteEstimateItemId == postedItem.Id);
 
             if (item is null)
             {
                 item = new InspectionAreaNoteEstimateItem
                 {
-                    Id = postedItem.Id == Guid.Empty ? Guid.NewGuid() : postedItem.Id,
+                    InspectionAreaNoteEstimateItemId = postedItem.Id == Guid.Empty ? Guid.NewGuid() : postedItem.Id,
                     RenoCompanyID = renoCompanyId,
                     PropertyId = note.PropertyId,
                     BuildingId = note.BuildingId,
                     AreaId = note.AreaId,
-                    AreaNoteId = note.Id,
+                    AreaNoteId = note.InspectionAreaNoteId,
                     CreatedAtUtc = now
                 };
                 note.EstimateItems.Add(item);
@@ -1403,7 +1785,7 @@ public sealed class InspectionsController : Controller
 
         foreach (var photo in note.Photos)
         {
-            if (!postedById.TryGetValue(photo.Id, out var postedPhoto)
+            if (!postedById.TryGetValue(photo.InspectionAreaNotePhotoId, out var postedPhoto)
                 || !TryParseDataUrl(postedPhoto.CroppedDataUrl, out var contentType, out var data))
             {
                 continue;
@@ -1498,6 +1880,7 @@ public sealed class InspectionsController : Controller
             InspectionDate = update.InspectionDate,
             InspectorName = update.InspectorName,
             GeneralNotes = update.GeneralNotes,
+            PropertyId = update.PropertyId,
             PropertyAddress = update.PropertyAddress,
             Customer = update.Customer,
             Buildings = update.Buildings,
@@ -1506,7 +1889,8 @@ public sealed class InspectionsController : Controller
             CustomerPicker = await GetCustomerPickerAsync(null, 1, 15, false, cancellationToken),
             ForceNewCustomer = update.ForceNewCustomer,
             ShowCustomerMatchDialog = showCustomerMatchDialog,
-            CustomerMatches = customerMatches ?? []
+            CustomerMatches = customerMatches ?? [],
+            ActiveTab = NormalizeInspectionEditTab(update.ActiveTab)
         };
     }
 
@@ -1524,6 +1908,7 @@ public sealed class InspectionsController : Controller
             InspectionDate = update.InspectionDate,
             InspectorName = update.InspectorName,
             GeneralNotes = update.GeneralNotes,
+            PropertyId = update.PropertyId,
             PropertyAddress = update.PropertyAddress ?? new InspectionPropertyAddressEditViewModel(),
             Customer = update.Customer ?? new InspectionCustomerEditViewModel(),
             Buildings = update.Buildings,
@@ -1532,8 +1917,14 @@ public sealed class InspectionsController : Controller
             CustomerPicker = await GetCustomerPickerAsync(null, 1, 15, false, cancellationToken),
             ForceNewCustomer = update.ForceNewCustomer,
             ShowCustomerMatchDialog = showCustomerMatchDialog,
-            CustomerMatches = customerMatches ?? []
+            CustomerMatches = customerMatches ?? [],
+            ActiveTab = NormalizeInspectionEditTab(update.ActiveTab)
         };
+    }
+
+    private static string NormalizeInspectionEditTab(string? activeTab)
+    {
+        return activeTab is "customer" or "property" or "buildings" ? activeTab : "general";
     }
 
     private static InspectionCustomerEditViewModel ToCustomerEditViewModel(Customer? customer)
@@ -1572,18 +1963,18 @@ public sealed class InspectionsController : Controller
             .ThenBy(building => building.Name)
             .Select(building => new InspectionBuildingEditViewModel
             {
-                Id = building.Id,
+                Id = building.BuildingId,
                 Name = building.Name,
                 BuildingTypeName = string.IsNullOrWhiteSpace(building.BuildingType?.Name)
                     ? "No building type"
                     : building.BuildingType.Name,
                 Areas = property.Areas
-                    .Where(area => area.BuildingId == building.Id)
+                    .Where(area => area.BuildingId == building.BuildingId)
                     .OrderBy(area => area.SortOrder)
                     .ThenBy(area => area.DisplayName)
                     .Select(area => new InspectionAreaEditViewModel
                     {
-                        Id = area.Id,
+                        Id = area.InspectionAreaId,
                         DisplayName = area.DisplayName,
                         AreaTypeName = string.IsNullOrWhiteSpace(area.AreaType?.Name)
                             ? "No area type"
@@ -1593,7 +1984,7 @@ public sealed class InspectionsController : Controller
                             .OrderBy(note => note.CreatedAtUtc)
                             .Select(note => new InspectionAreaNoteEditViewModel
                             {
-                                Id = note.Id,
+                                Id = note.InspectionAreaNoteId,
                                 Text = note.Text,
                                 EstimateCost = note.EstimateItems.Sum(item => item.Cost),
                                 EstimateHours = note.EstimateItems.Sum(item => item.Hours),
@@ -1601,7 +1992,7 @@ public sealed class InspectionsController : Controller
                                     .OrderBy(item => item.Name)
                                     .Select(item => new InspectionAreaNoteEstimateItemEditViewModel
                                     {
-                                        Id = item.Id,
+                                        Id = item.InspectionAreaNoteEstimateItemId,
                                         Name = item.Name,
                                         Cost = item.Cost,
                                         Hours = item.Hours,
@@ -1627,7 +2018,7 @@ public sealed class InspectionsController : Controller
 
         return new InspectionAreaNotePhotoEditViewModel
         {
-            Id = photo.Id,
+            Id = photo.InspectionAreaNotePhotoId,
             FileName = photo.FileName,
             ContentType = photo.ContentType,
             ImageType = GetImageType(photo.FileName, photo.ContentType, photo.Data),

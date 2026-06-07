@@ -46,6 +46,7 @@ public sealed class Customer : IRenoCompanyEntity
     public DateTime? LastEditDate { get; set; }
     public Address? BillAddress { get; set; }
     public Address? ShipAddress { get; set; }
+    public List<Property> Properties { get; set; } = [];
     public List<Inspection> Inspections { get; set; } = [];
     public List<Document> Documents { get; set; } = [];
 }

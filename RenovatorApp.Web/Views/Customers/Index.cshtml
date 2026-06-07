@@ -11,11 +11,13 @@
         <p class="text-muted">@Model.TotalCustomers customer@(Model.TotalCustomers == 1 ? string.Empty : "s")</p>
     </div>
     <div class="customer-sync-actions">
-        <span class="text-muted">QuickBooks sync: @FormatDate(Model.LastQuickBooksSyncDateUtc)</span>
-        <form asp-controller="QuickBooks" asp-action="SyncCustomers" method="post">
-            @Html.AntiForgeryToken()
-            <button class="btn btn-primary" type="submit">Sync QuickBooks</button>
-        </form>
+        <button class="btn btn-primary"
+                id="newCustomerButton"
+                type="button"
+                data-bs-toggle="modal"
+                data-bs-target="#newCustomerModal">
+            New Customer
+        </button>
     </div>
 </div>
 
@@ -107,6 +109,19 @@
     <span class="text-muted">Page @Model.Page of @Model.TotalPages</span>
 </div>
 
+<div class="modal fade" id="newCustomerModal" tabindex="-1" aria-label="New Customer" aria-hidden="true">
+    <div class="modal-dialog modal-dialog-centered" style="max-width: 80vw;">
+        <div class="modal-content" style="height: 80vh;">
+            <div class="modal-body p-0" style="height: 100%;">
+                <iframe id="newCustomerFrame"
+                        title="New Customer"
+                        src="@Url.Action("New", "Customers", new { embedded = true })"
+                        style="border: 0; display: block; height: 100%; width: 100%;"></iframe>
+            </div>
+        </div>
+    </div>
+</div>
+
 @section Scripts {
     <script>
         const searchForm = document.getElementById('customerSearchForm');
@@ -114,6 +129,10 @@
         const pageInput = document.getElementById('customerPage');
         const clearSearchButton = document.getElementById('clearCustomerSearch');
         const showInactiveInput = document.getElementById('showInactive');
+        const newCustomerModal = document.getElementById('newCustomerModal');
+        const newCustomerFrame = document.getElementById('newCustomerFrame');
+        const newCustomerUrl = '@Url.Action("New", "Customers", new { embedded = true })';
+        let refreshCustomersOnModalClose = false;
         let searchTimer;
 
         document.querySelectorAll('.clickable-table-row').forEach((row) => {
@@ -154,12 +173,29 @@
             pageInput.value = '1';
             searchForm.submit();
         });
-    </script>
-}
 
-@functions {
-    private static string FormatDate(DateTime? value)
-    {
-        return value is null ? "Never" : value.Value.ToLocalTime().ToString("g");
-    }
+        newCustomerModal?.addEventListener('show.bs.modal', () => {
+            refreshCustomersOnModalClose = false;
+            if (newCustomerFrame) {
+                newCustomerFrame.src = newCustomerUrl;
+            }
+        });
+
+        newCustomerModal?.addEventListener('hidden.bs.modal', () => {
+            if (refreshCustomersOnModalClose) {
+                window.location.reload();
+            }
+        });
+
+        window.addEventListener('message', event => {
+            if (event.data?.type === 'customerSaved') {
+                refreshCustomersOnModalClose = true;
+                bootstrap.Modal.getOrCreateInstance(newCustomerModal).hide();
+            }
+
+            if (event.data?.type === 'customerModalClose') {
+                bootstrap.Modal.getOrCreateInstance(newCustomerModal).hide();
+            }
+        });
+    </script>
 }

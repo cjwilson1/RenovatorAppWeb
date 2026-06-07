@@ -16,8 +16,18 @@ public sealed class InspectionDetailViewModel
     public string PropertyAddress { get; init; } = string.Empty;
     public string CustomerName { get; init; } = string.Empty;
     public string DefaultReportName { get; init; } = string.Empty;
+    public IReadOnlyList<InspectionDocumentViewModel> Documents { get; init; } = [];
     public IReadOnlyList<InspectionMileageTrackingViewModel> MileageTrackingRecords { get; init; } = [];
     public IReadOnlyList<InspectionMileageTrackingAttachViewModel> MileageTrackingAttachRecords { get; init; } = [];
+}
+
+public sealed class InspectionDocumentViewModel
+{
+    public Guid DocumentId { get; init; }
+    public string DocumentName { get; init; } = string.Empty;
+    public string DocumentType { get; init; } = string.Empty;
+    public string Filename { get; init; } = string.Empty;
+    public DateTime CreateDate { get; init; }
 }
 
 public sealed class InspectionMileageTrackingViewModel
@@ -53,10 +63,12 @@ public sealed class InspectionMileageTrackingAttachViewModel
 public sealed class InspectionEditViewModel
 {
     public Guid? Id { get; init; }
+    public string ActiveTab { get; set; } = "general";
     public string Title { get; init; } = string.Empty;
     public DateTime InspectionDate { get; init; } = DateTime.Today;
     public string InspectorName { get; init; } = string.Empty;
     public string GeneralNotes { get; init; } = string.Empty;
+    public Guid? PropertyId { get; init; }
     public InspectionPropertyAddressEditViewModel PropertyAddress { get; init; } = new();
     public InspectionCustomerEditViewModel Customer { get; init; } = new();
     public IReadOnlyList<InspectionBuildingEditViewModel> Buildings { get; init; } = [];
@@ -109,6 +121,63 @@ public sealed class InspectionCustomerPickerItemViewModel
     public string State { get; init; } = string.Empty;
     public string PostalCode { get; init; } = string.Empty;
     public string Notes { get; init; } = string.Empty;
+}
+
+public sealed class InspectionNewCustomerViewModel
+{
+    public string GivenName { get; set; } = string.Empty;
+    public string FamilyName { get; set; } = string.Empty;
+    public string PrimaryEmailAddress { get; set; } = string.Empty;
+    public string PrimaryPhone { get; set; } = string.Empty;
+    public string MobilePhone { get; set; } = string.Empty;
+    public string Fax { get; set; } = string.Empty;
+    public string CompanyName { get; set; } = string.Empty;
+    public string Website { get; set; } = string.Empty;
+    public InspectionNewCustomerAddressViewModel BillAddress { get; set; } = new();
+}
+
+public sealed class InspectionNewCustomerAddressViewModel
+{
+    public string Street1 { get; set; } = string.Empty;
+    public string Street2 { get; set; } = string.Empty;
+    public string Street3 { get; set; } = string.Empty;
+    public string City { get; set; } = string.Empty;
+    public string State { get; set; } = string.Empty;
+    public string PostalCode { get; set; } = string.Empty;
+    public string Country { get; set; } = string.Empty;
+}
+
+public sealed class InspectionPropertyPickerViewModel
+{
+    public Guid InspectionId { get; init; }
+    public Guid CustomerId { get; init; }
+    public Guid? SelectedPropertyId { get; init; }
+    public IReadOnlyList<InspectionPropertyPickerItemViewModel> Properties { get; init; } = [];
+    public int Page { get; init; } = 1;
+    public int PageSize { get; init; } = 15;
+    public int TotalProperties { get; init; }
+    public int TotalPages { get; init; } = 1;
+    public string Search { get; init; } = string.Empty;
+    public InspectionPropertyAddressEditViewModel NewProperty { get; init; } = new();
+}
+
+public sealed class InspectionPropertyPickerItemViewModel
+{
+    public Guid PropertyId { get; init; }
+    public string Street1 { get; init; } = string.Empty;
+    public string Street2 { get; init; } = string.Empty;
+    public string City { get; init; } = string.Empty;
+    public string State { get; init; } = string.Empty;
+    public string PostalCode { get; init; } = string.Empty;
+    public string AddressLine => string.Join(" - ", new[]
+    {
+        string.Join(" ", new[] { Street1, Street2 }.Where(value => !string.IsNullOrWhiteSpace(value))),
+        string.Join(" ", new[]
+        {
+            string.Join(", ", new[] { City, State }.Where(value => !string.IsNullOrWhiteSpace(value))),
+            PostalCode
+        }.Where(value => !string.IsNullOrWhiteSpace(value)))
+    }.Where(value => !string.IsNullOrWhiteSpace(value)));
 }
 
 public sealed class InspectorPickerItemViewModel

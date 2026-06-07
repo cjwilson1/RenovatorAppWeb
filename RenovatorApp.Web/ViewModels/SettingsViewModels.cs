@@ -15,6 +15,15 @@ public sealed class QuickBooksConnectionViewModel
     public string StatusMessage { get; init; } = string.Empty;
 }
 
+public sealed class DefaultSettingsViewModel
+{
+    public string DefaultState { get; set; } = string.Empty;
+    public IReadOnlyList<StateOptionViewModel> States { get; init; } = [];
+    public string StatusMessage { get; init; } = string.Empty;
+}
+
+public sealed record StateOptionViewModel(string Abbreviation, string Name);
+
 public sealed class QuickBooksCustomersViewModel
 {
     public bool IsConnected { get; init; }

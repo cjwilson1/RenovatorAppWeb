@@ -3,6 +3,10 @@
 
 @{
     ViewData["Title"] = "Customer";
+    var customerName = string.Join(" ", new[] { Model.GivenName, Model.FamilyName }
+        .Where(value => !string.IsNullOrWhiteSpace(value)));
+    var dataSheetTimestamp = DateTime.Now.ToString("yyyyMMdd_HHmm");
+    var defaultDataSheetName = $"Customer_{Model.GivenName}_{Model.FamilyName}_{dataSheetTimestamp}";
 }
 
 <form asp-action="Details" asp-route-id="@Model.CustomerId" method="post">
@@ -10,17 +14,17 @@
 
     <div class="page-header-row">
         <div>
-            <h1>@Model.DisplayName</h1>
-            <p class="text-muted">@Model.CompanyName</p>
+            <h1>Customer</h1>
+            <p class="text-muted">@customerName</p>
         </div>
         <div class="customer-sync-actions">
             <button class="btn btn-danger" type="button" data-bs-toggle="modal" data-bs-target="#deleteCustomerModal">
                 Delete
             </button>
-            <button class="btn btn-primary" type="submit">Save</button>
-            <button class="btn btn-warning" type="submit" formaction="@Url.Action("SyncCustomer", "QuickBooks", new { id = Model.CustomerId })">
-                QB Sync
+            <button class="btn btn-primary" type="button" data-bs-toggle="modal" data-bs-target="#createCustomerDataSheetModal">
+                Create Customer DataSheet
             </button>
+            <button class="btn btn-primary" type="submit">Save</button>
             <a class="btn btn-secondary" asp-controller="Customers" asp-action="Index">Close</a>
         </div>
     </div>
@@ -55,7 +59,7 @@
                 <input asp-for="Title" class="form-control" />
                 <span asp-validation-for="Title" class="text-danger"></span>
             </dd>
-            <dt>Given Name</dt>
+            <dt>First Name</dt>
             <dd>
                 <input asp-for="GivenName" class="form-control" />
                 <span asp-validation-for="GivenName" class="text-danger"></span>
@@ -65,7 +69,7 @@
                 <input asp-for="MiddleName" class="form-control" />
                 <span asp-validation-for="MiddleName" class="text-danger"></span>
             </dd>
-            <dt>Family Name</dt>
+            <dt>Last Name</dt>
             <dd>
                 <input asp-for="FamilyName" class="form-control" />
                 <span asp-validation-for="FamilyName" class="text-danger"></span>
@@ -144,6 +148,63 @@
             <dt>Country</dt>
             <dd><input asp-for="BillAddress.Country" class="form-control" /></dd>
         </dl>
+    </section>
+
+    <section class="detail-section detail-section-full">
+        <div class="d-flex align-items-center justify-content-between gap-3 mb-3">
+            <h2 class="mb-0">Properties</h2>
+            <div class="d-flex flex-wrap justify-content-end gap-2">
+                @if (Model.CanAddBillingAddressProperty)
+                {
+                    <button class="btn btn-outline-primary"
+                            form="addBillingAddressPropertyForm"
+                            type="submit">
+                        Add Billing Address
+                    </button>
+                }
+                <button class="btn btn-primary" id="addPropertyButton" type="button" data-bs-toggle="modal" data-bs-target="#addPropertyModal">
+                    Add Property
+                </button>
+            </div>
+        </div>
+        @if (Model.Properties.Count == 0)
+        {
+            <p class="text-muted mb-0">No properties.</p>
+        }
+        else
+        {
+            <div class="table-responsive">
+                <table class="table table-sm align-middle mb-0">
+                    <thead>
+                        <tr>
+                            <th scope="col">Property Name</th>
+                            <th scope="col">Address</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        @foreach (var property in Model.Properties)
+                        {
+                            <tr class="clickable-table-row"
+                                data-property-row
+                                data-property-id="@property.PropertyId"
+                                data-property-name="@property.Name"
+                                data-property-street1="@property.Street1"
+                                data-property-street2="@property.Street2"
+                                data-property-street3="@property.Street3"
+                                data-property-city="@property.City"
+                                data-property-state="@property.State"
+                                data-property-postal-code="@property.PostalCode"
+                                data-property-country="@property.Country"
+                                tabindex="0"
+                                aria-label="Edit @(string.IsNullOrWhiteSpace(property.Name) ? "Unnamed Property" : property.Name)">
+                                <td>@(string.IsNullOrWhiteSpace(property.Name) ? "Unnamed Property" : property.Name)</td>
+                                <td>@property.StreetAddress</td>
+                            </tr>
+                        }
+                    </tbody>
+                </table>
+            </div>
+        }
     </section>
 
     <section class="detail-section detail-section-full">
@@ -230,22 +291,6 @@
     </section>
 
     <section class="detail-section">
-        <h2>Dates</h2>
-        <dl>
-            <dt>QuickBooks Created</dt>
-            <dd>@FormatDate(Model.QuickBooksCreateTime)</dd>
-            <dt>QuickBooks Updated</dt>
-            <dd>@FormatDate(Model.QuickBooksLastUpdatedTime)</dd>
-            <dt>Created Date</dt>
-            <dd>@FormatDate(Model.CreatedDate)</dd>
-            <dt>Last Sync Date</dt>
-            <dd>@FormatDate(Model.LastSyncDate)</dd>
-            <dt>Last Edit Date</dt>
-            <dd>@FormatDate(Model.LastEditDate)</dd>
-        </dl>
-    </section>
-
-    <section class="detail-section">
         <h2>Status</h2>
         <dl>
             <dt>Active</dt>
@@ -258,22 +303,124 @@
             <dd>@Model.BillWithParent</dd>
         </dl>
     </section>
-
-    <section class="detail-section">
-        <h2>Identity</h2>
-        <dl>
-            <dt>Customer ID</dt>
-            <dd>@Model.CustomerId</dd>
-            <dt>QuickBooks ID</dt>
-            <dd>@Model.QuickBooksCustomerId</dd>
-            <dt>Sync Token</dt>
-            <dd>@Model.SyncToken</dd>
-            <dt>Fully Qualified Name</dt>
-            <dd>@Model.FullyQualifiedName</dd>
-        </dl>
-    </section>
     </div>
 </form>
+
+<form asp-controller="Customers"
+      asp-action="AddBillingAddressProperty"
+      asp-route-id="@Model.CustomerId"
+      id="addBillingAddressPropertyForm"
+      method="post">
+    @Html.AntiForgeryToken()
+</form>
+
+<div class="modal fade" id="createCustomerDataSheetModal" tabindex="-1" aria-labelledby="createCustomerDataSheetModalLabel" aria-hidden="true">
+    <div class="modal-dialog">
+        <div class="modal-content">
+            <form asp-controller="Customers" asp-action="DataSheetPdf" asp-route-id="@Model.CustomerId" method="post">
+                @Html.AntiForgeryToken()
+                <div class="modal-header">
+                    <h2 class="modal-title fs-5" id="createCustomerDataSheetModalLabel">Create Customer DataSheet</h2>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+                </div>
+                <div class="modal-body">
+                    <div class="mb-3">
+                        <label class="form-label" for="customerDataSheetName">Report Name</label>
+                        <input class="form-control" id="customerDataSheetName" name="reportName" value="@defaultDataSheetName" />
+                    </div>
+                    <p class="mb-3">Choose a document format.</p>
+                    <div class="d-grid gap-2">
+                        <button class="btn btn-primary" type="submit">PDF</button>
+                        <button class="btn btn-outline-secondary" type="button" disabled>Word</button>
+                    </div>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Close</button>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
+
+<div class="modal fade" id="addPropertyModal" tabindex="-1" aria-labelledby="addPropertyModalLabel" aria-hidden="true">
+    <div class="modal-dialog modal-dialog-centered modal-lg">
+        <div class="modal-content">
+            <form asp-controller="Customers" asp-action="AddProperty" asp-route-id="@Model.CustomerId" id="propertyForm" method="post">
+                @Html.AntiForgeryToken()
+                <input id="AddProperty_PropertyId" name="PropertyId" type="hidden" />
+                <div class="modal-header">
+                    <h2 class="modal-title fs-5" id="addPropertyModalLabel">Add Property</h2>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+                </div>
+                <div class="modal-body">
+                    <div class="mb-3">
+                        <label class="form-label" for="AddProperty_Name">Property Name (optional)</label>
+                        <input class="form-control" id="AddProperty_Name" name="Name" type="text" />
+                    </div>
+
+                    <div class="mb-3">
+                        <label class="form-label" for="AddProperty_Address_Street1">Address1</label>
+                        <input class="form-control" id="AddProperty_Address_Street1" name="Address.Street1" type="text" required />
+                    </div>
+                    <div class="mb-3">
+                        <label class="form-label" for="AddProperty_Address_Street2">Address2</label>
+                        <input class="form-control" id="AddProperty_Address_Street2" name="Address.Street2" type="text" />
+                    </div>
+                    <div class="mb-3">
+                        <label class="form-label" for="AddProperty_Address_Street3">Address3</label>
+                        <input class="form-control" id="AddProperty_Address_Street3" name="Address.Street3" type="text" />
+                    </div>
+
+                    <div class="row">
+                        <div class="col-md-4 mb-3">
+                            <label class="form-label" for="AddProperty_Address_City">City</label>
+                            <input class="form-control" id="AddProperty_Address_City" name="Address.City" type="text" required />
+                        </div>
+                        <div class="col-md-2 mb-3">
+                            <label class="form-label" for="AddProperty_Address_State">State</label>
+                            <input class="form-control" id="AddProperty_Address_State" name="Address.State" type="text" />
+                        </div>
+                        <div class="col-md-3 mb-3">
+                            <label class="form-label" for="AddProperty_Address_PostalCode">zip</label>
+                            <input class="form-control" id="AddProperty_Address_PostalCode" name="Address.PostalCode" type="text" />
+                        </div>
+                        <div class="col-md-3 mb-3">
+                            <label class="form-label" for="AddProperty_Address_Country">Country</label>
+                            <input class="form-control" id="AddProperty_Address_Country" name="Address.Country" type="text" />
+                        </div>
+                    </div>
+                </div>
+                <div class="modal-footer">
+                    <button class="btn btn-danger me-auto d-none" id="deletePropertyButton" type="button">Delete Property</button>
+                    <button class="btn btn-secondary" type="button" data-bs-dismiss="modal">Cancel</button>
+                    <button class="btn btn-primary" type="submit">Save</button>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
+
+<div class="modal" id="deletePropertyModal" tabindex="-1" aria-labelledby="deletePropertyModalLabel" aria-hidden="true">
+    <div class="modal-dialog modal-dialog-centered">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h2 class="modal-title fs-5" id="deletePropertyModalLabel">Delete Property</h2>
+                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+            </div>
+            <div class="modal-body">
+                <p class="mb-0">If you delete this property it will remove any related property data and cannot be recoved. Are you sure?</p>
+            </div>
+            <div class="modal-footer">
+                <button class="btn btn-secondary" type="button" data-bs-dismiss="modal">No</button>
+                <form asp-controller="Customers" asp-action="DeleteProperty" asp-route-id="@Model.CustomerId" id="deletePropertyForm" method="post">
+                    @Html.AntiForgeryToken()
+                    <input id="DeleteProperty_PropertyId" name="propertyId" type="hidden" />
+                    <button class="btn btn-danger" type="submit">Yes</button>
+                </form>
+            </div>
+        </div>
+    </div>
+</div>
 
 <partial name="_ConfirmationDialog"
          model="@(new ConfirmationDialogViewModel
@@ -288,6 +435,71 @@
 
 @section Scripts {
     <partial name="_ValidationScriptsPartial" />
+    <script>
+        const addPropertyButton = document.getElementById('addPropertyButton');
+        const addPropertyModal = document.getElementById('addPropertyModal');
+        const addPropertyModalLabel = document.getElementById('addPropertyModalLabel');
+        const propertyForm = document.getElementById('propertyForm');
+        const deletePropertyButton = document.getElementById('deletePropertyButton');
+        const deletePropertyModal = document.getElementById('deletePropertyModal');
+        const deletePropertyIdInput = document.getElementById('DeleteProperty_PropertyId');
+
+        function setPropertyFormValue(id, value) {
+            const input = document.getElementById(id);
+
+            if (input) {
+                input.value = value || '';
+            }
+        }
+
+        function openAddPropertyModal() {
+            propertyForm?.reset();
+            setPropertyFormValue('AddProperty_PropertyId', '');
+            if (addPropertyModalLabel) {
+                addPropertyModalLabel.textContent = 'Add Property';
+            }
+            deletePropertyButton?.classList.add('d-none');
+        }
+
+        function openEditPropertyModal(row) {
+            propertyForm?.reset();
+            setPropertyFormValue('AddProperty_PropertyId', row.dataset.propertyId);
+            setPropertyFormValue('AddProperty_Name', row.dataset.propertyName);
+            setPropertyFormValue('AddProperty_Address_Street1', row.dataset.propertyStreet1);
+            setPropertyFormValue('AddProperty_Address_Street2', row.dataset.propertyStreet2);
+            setPropertyFormValue('AddProperty_Address_Street3', row.dataset.propertyStreet3);
+            setPropertyFormValue('AddProperty_Address_City', row.dataset.propertyCity);
+            setPropertyFormValue('AddProperty_Address_State', row.dataset.propertyState);
+            setPropertyFormValue('AddProperty_Address_PostalCode', row.dataset.propertyPostalCode);
+            setPropertyFormValue('AddProperty_Address_Country', row.dataset.propertyCountry);
+            if (addPropertyModalLabel) {
+                addPropertyModalLabel.textContent = 'Edit Property';
+            }
+            deletePropertyButton?.classList.remove('d-none');
+            bootstrap.Modal.getOrCreateInstance(addPropertyModal).show();
+        }
+
+        addPropertyButton?.addEventListener('click', openAddPropertyModal);
+
+        document.querySelectorAll('[data-property-row]').forEach(row => {
+            row.addEventListener('click', () => openEditPropertyModal(row));
+            row.addEventListener('keydown', event => {
+                if (event.key === 'Enter' || event.key === ' ') {
+                    event.preventDefault();
+                    openEditPropertyModal(row);
+                }
+            });
+        });
+
+        deletePropertyButton?.addEventListener('click', () => {
+            const propertyId = document.getElementById('AddProperty_PropertyId')?.value || '';
+            if (deletePropertyIdInput) {
+                deletePropertyIdInput.value = propertyId;
+            }
+            bootstrap.Modal.getOrCreateInstance(addPropertyModal).hide();
+            bootstrap.Modal.getOrCreateInstance(deletePropertyModal).show();
+        });
+    </script>
 }
 
 @functions {

@@ -2,7 +2,7 @@ namespace RenovatorApp.Infrastructure.Models;
 
 public sealed class MileageTracking : IRenoCompanyEntity
 {
-    public Guid UniqueId { get; set; } = Guid.NewGuid();
+    public Guid MileageTrackingID { get; set; } = Guid.NewGuid();
     public Guid RenoCompanyID { get; set; }
     public DateTime TrackingStartedAtUtc { get; set; }
     public double TotalMileage { get; set; }

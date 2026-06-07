@@ -1,0 +1,220 @@
+@model RenovatorApp.Web.ViewModels.CustomerDetailViewModel
+
+@{
+    ViewData["Title"] = "New Customer";
+    var isEmbedded = string.Equals(Context.Request.Query["embedded"], "true", StringComparison.OrdinalIgnoreCase);
+    var customerSaved = ViewData["CustomerSaved"] as bool? == true;
+
+    if (isEmbedded)
+    {
+        Layout = null;
+    }
+}
+
+@if (isEmbedded)
+{
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <link rel="stylesheet" href="~/lib/bootstrap/dist/css/bootstrap.min.css" />
+    <link rel="stylesheet" href="~/css/site.css" asp-append-version="true" />
+    <link rel="stylesheet" href="~/RenovatorApp.Web.styles.css" asp-append-version="true" />
+}
+
+<style>
+    .customer-modal-shell {
+        height: @(isEmbedded ? "100vh" : "auto");
+        overflow: auto;
+        padding: @(isEmbedded ? "1rem" : "0");
+    }
+</style>
+
+<div class="customer-modal-shell">
+    <form asp-controller="Customers" asp-action="New" asp-route-embedded="@isEmbedded" method="post">
+        @Html.AntiForgeryToken()
+        <input asp-for="CustomerId" type="hidden" />
+
+        <div class="page-header-row">
+            <div>
+                <h1>New Customer</h1>
+                <p class="text-muted">Add customer details</p>
+            </div>
+            <div class="customer-sync-actions">
+                <button class="btn btn-primary" type="submit">Save</button>
+                @if (isEmbedded)
+                {
+                    <button class="btn btn-secondary" id="cancelNewCustomerButton" type="button">Cancel</button>
+                }
+                else
+                {
+                    <a class="btn btn-secondary" asp-controller="Customers" asp-action="Index">Close</a>
+                }
+            </div>
+        </div>
+
+        <div asp-validation-summary="ModelOnly" class="text-danger mb-3"></div>
+
+        <div class="detail-grid">
+            <section class="detail-section">
+                <h2>Name</h2>
+                <dl>
+                    <dt>Display Name</dt>
+                    <dd>
+                        <input asp-for="DisplayName" class="form-control" />
+                        <span asp-validation-for="DisplayName" class="text-danger"></span>
+                    </dd>
+                    <dt>Company Name</dt>
+                    <dd>
+                        <input asp-for="CompanyName" class="form-control" />
+                        <span asp-validation-for="CompanyName" class="text-danger"></span>
+                    </dd>
+                    <dt>Title</dt>
+                    <dd>
+                        <input asp-for="Title" class="form-control" />
+                        <span asp-validation-for="Title" class="text-danger"></span>
+                    </dd>
+                    <dt>First Name</dt>
+                    <dd>
+                        <input asp-for="GivenName" class="form-control" />
+                        <span asp-validation-for="GivenName" class="text-danger"></span>
+                    </dd>
+                    <dt>Middle Name</dt>
+                    <dd>
+                        <input asp-for="MiddleName" class="form-control" />
+                        <span asp-validation-for="MiddleName" class="text-danger"></span>
+                    </dd>
+                    <dt>Last Name</dt>
+                    <dd>
+                        <input asp-for="FamilyName" class="form-control" />
+                        <span asp-validation-for="FamilyName" class="text-danger"></span>
+                    </dd>
+                    <dt>Suffix</dt>
+                    <dd>
+                        <input asp-for="Suffix" class="form-control" />
+                        <span asp-validation-for="Suffix" class="text-danger"></span>
+                    </dd>
+                    <dt>Print On Check Name</dt>
+                    <dd>
+                        <input asp-for="PrintOnCheckName" class="form-control" />
+                        <span asp-validation-for="PrintOnCheckName" class="text-danger"></span>
+                    </dd>
+                </dl>
+            </section>
+
+            <section class="detail-section">
+                <h2>Contact</h2>
+                <dl>
+                    <dt>Email</dt>
+                    <dd>
+                        <input asp-for="PrimaryEmailAddress" class="form-control" />
+                        <span asp-validation-for="PrimaryEmailAddress" class="text-danger"></span>
+                    </dd>
+                    <dt>Primary Phone</dt>
+                    <dd>
+                        <input asp-for="PrimaryPhone" class="form-control" />
+                        <span asp-validation-for="PrimaryPhone" class="text-danger"></span>
+                    </dd>
+                    <dt>Alternate Phone</dt>
+                    <dd>
+                        <input asp-for="AlternatePhone" class="form-control" />
+                        <span asp-validation-for="AlternatePhone" class="text-danger"></span>
+                    </dd>
+                    <dt>Mobile</dt>
+                    <dd>
+                        <input asp-for="MobilePhone" class="form-control" />
+                        <span asp-validation-for="MobilePhone" class="text-danger"></span>
+                    </dd>
+                    <dt>Fax</dt>
+                    <dd>
+                        <input asp-for="Fax" class="form-control" />
+                        <span asp-validation-for="Fax" class="text-danger"></span>
+                    </dd>
+                    <dt>Website</dt>
+                    <dd>
+                        <input asp-for="Website" class="form-control" />
+                        <span asp-validation-for="Website" class="text-danger"></span>
+                    </dd>
+                    <dt>Notes</dt>
+                    <dd>
+                        <textarea asp-for="Notes" class="form-control" rows="3"></textarea>
+                        <span asp-validation-for="Notes" class="text-danger"></span>
+                    </dd>
+                </dl>
+            </section>
+
+            <section class="detail-section">
+                <h2>Bill Address</h2>
+                <dl>
+                    <dt>Street 1</dt>
+                    <dd><input asp-for="BillAddress.Street1" class="form-control" /></dd>
+                    <dt>Street 2</dt>
+                    <dd><input asp-for="BillAddress.Street2" class="form-control" /></dd>
+                    <dt>Street 3</dt>
+                    <dd><input asp-for="BillAddress.Street3" class="form-control" /></dd>
+                    <dt>City</dt>
+                    <dd><input asp-for="BillAddress.City" class="form-control" /></dd>
+                    <dt>State</dt>
+                    <dd>
+                        <select asp-for="BillAddress.State" class="form-select">
+                            <option value="">Choose a state</option>
+                            @foreach (var state in Model.StateOptions)
+                            {
+                                <option value="@state.Abbreviation">@state.Name</option>
+                            }
+                        </select>
+                    </dd>
+                    <dt>Country Subdivision</dt>
+                    <dd><input asp-for="BillAddress.CountrySubDivisionCode" class="form-control" /></dd>
+                    <dt>Postal Code</dt>
+                    <dd><input asp-for="BillAddress.PostalCode" class="form-control" /></dd>
+                    <dt>Country</dt>
+                    <dd><input asp-for="BillAddress.Country" class="form-control" /></dd>
+                </dl>
+            </section>
+
+            <section class="detail-section">
+                <h2>Ship Address</h2>
+                <dl>
+                    <dt>Street 1</dt>
+                    <dd><input asp-for="ShipAddress.Street1" class="form-control" /></dd>
+                    <dt>Street 2</dt>
+                    <dd><input asp-for="ShipAddress.Street2" class="form-control" /></dd>
+                    <dt>Street 3</dt>
+                    <dd><input asp-for="ShipAddress.Street3" class="form-control" /></dd>
+                    <dt>City</dt>
+                    <dd><input asp-for="ShipAddress.City" class="form-control" /></dd>
+                    <dt>State</dt>
+                    <dd>
+                        <select asp-for="ShipAddress.State" class="form-select">
+                            <option value="">Choose a state</option>
+                            @foreach (var state in Model.StateOptions)
+                            {
+                                <option value="@state.Abbreviation">@state.Name</option>
+                            }
+                        </select>
+                    </dd>
+                    <dt>Country Subdivision</dt>
+                    <dd><input asp-for="ShipAddress.CountrySubDivisionCode" class="form-control" /></dd>
+                    <dt>Postal Code</dt>
+                    <dd><input asp-for="ShipAddress.PostalCode" class="form-control" /></dd>
+                    <dt>Country</dt>
+                    <dd><input asp-for="ShipAddress.Country" class="form-control" /></dd>
+                </dl>
+            </section>
+        </div>
+    </form>
+</div>
+
+@if (isEmbedded)
+{
+    <script src="~/lib/bootstrap/dist/js/bootstrap.bundle.min.js"></script>
+}
+
+<script>
+    if (@customerSaved.ToString().ToLowerInvariant()) {
+        window.parent?.postMessage({ type: 'customerSaved' }, window.location.origin);
+    }
+
+    document.getElementById('cancelNewCustomerButton')?.addEventListener('click', () => {
+        window.parent?.postMessage({ type: 'customerModalClose' }, window.location.origin);
+    });
+</script>

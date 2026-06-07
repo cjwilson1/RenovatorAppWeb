@@ -108,6 +108,12 @@ if (databaseStartupException is not null)
     return;
 }
 
+if (args.Contains("seed-startup-data", StringComparer.OrdinalIgnoreCase))
+{
+    Console.WriteLine("Startup seed data complete.");
+    return;
+}
+
 app.UseHttpsRedirection();
 app.UseStaticFiles();
 app.UseRouting();

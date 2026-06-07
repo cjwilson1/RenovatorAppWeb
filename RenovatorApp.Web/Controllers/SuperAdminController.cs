@@ -500,7 +500,7 @@ public sealed class SuperAdminController : Controller
             .Include(item => item.Property)
                 .ThenInclude(property => property.Areas)
                     .ThenInclude(area => area.AreaType)
-            .FirstOrDefaultAsync(item => item.Id == inspectionId, cancellationToken);
+            .FirstOrDefaultAsync(item => item.InspectionId == inspectionId, cancellationToken);
 
         if (inspection is null)
         {
@@ -830,7 +830,7 @@ public sealed class SuperAdminController : Controller
         {
             _dbContext.BuildingTypes.Add(new BuildingType
             {
-                Id = Guid.NewGuid(),
+                BuildingTypeId = Guid.NewGuid(),
                 RenoCompanyID = newRenoCompanyID,
                 Name = buildingType.Name
             });
@@ -847,11 +847,11 @@ public sealed class SuperAdminController : Controller
         foreach (var category in templateCategories)
         {
             var newCategoryId = Guid.NewGuid();
-            categoryIdMap[category.Id] = newCategoryId;
+            categoryIdMap[category.InspectionAreaCategoryId] = newCategoryId;
 
             _dbContext.InspectionAreaCategories.Add(new InspectionAreaCategory
             {
-                Id = newCategoryId,
+                InspectionAreaCategoryId = newCategoryId,
                 RenoCompanyID = newRenoCompanyID,
                 Name = category.Name,
                 SortOrder = category.SortOrder
@@ -874,7 +874,7 @@ public sealed class SuperAdminController : Controller
 
             _dbContext.InspectionAreaTypes.Add(new InspectionAreaType
             {
-                AreaTypeId = Guid.NewGuid(),
+                InspectionAreaTypeId = Guid.NewGuid(),
                 RenoCompanyID = newRenoCompanyID,
                 CategoryId = newCategoryId,
                 Name = areaType.Name,
