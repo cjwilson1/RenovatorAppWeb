@@ -242,15 +242,12 @@
 
         document.querySelectorAll('[data-property-delete-confirm]').forEach((button) => {
             button.addEventListener('click', () => {
-                const editModal = document.getElementById(button.dataset.propertyModalId);
                 const confirmModal = document.getElementById(button.dataset.propertyConfirmModalId);
-                if (!editModal || !confirmModal) {
+                if (!confirmModal) {
                     return;
                 }
 
-                const confirmInstance = bootstrap.Modal.getOrCreateInstance(confirmModal);
-                editModal.addEventListener('hidden.bs.modal', () => confirmInstance.show(), { once: true });
-                bootstrap.Modal.getOrCreateInstance(editModal).hide();
+                bootstrap.Modal.getOrCreateInstance(confirmModal).show();
             });
         });
     </script>

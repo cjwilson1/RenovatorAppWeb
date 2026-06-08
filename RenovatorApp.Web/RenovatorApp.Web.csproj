@@ -15,6 +15,7 @@
   </ItemGroup>
 
   <ItemGroup>
+    <Folder Include="Documents\Customers\" />
     <Folder Include="wwwroot\downloads\" />
   </ItemGroup>
 
