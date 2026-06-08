@@ -22,6 +22,50 @@ public sealed class DefaultSettingsViewModel
     public string StatusMessage { get; init; } = string.Empty;
 }
 
+public sealed class BuildingTypesViewModel
+{
+    public IReadOnlyList<BuildingTypeRowViewModel> BuildingTypes { get; init; } = [];
+    public string StatusMessage { get; init; } = string.Empty;
+    public string StatusClass { get; init; } = "alert-info";
+    public int Page { get; init; }
+    public int PageSize { get; init; }
+    public int TotalBuildingTypes { get; init; }
+    public int TotalPages { get; init; }
+}
+
+public sealed class BuildingTypeRowViewModel
+{
+    public Guid BuildingTypeId { get; init; }
+    public string Name { get; init; } = string.Empty;
+}
+
+public sealed class AddBuildingTypeViewModel
+{
+    public string Name { get; set; } = string.Empty;
+}
+
+public sealed class InspectionAreasViewModel
+{
+    public IReadOnlyList<InspectionAreaRowViewModel> InspectionAreas { get; init; } = [];
+    public string StatusMessage { get; init; } = string.Empty;
+    public string StatusClass { get; init; } = "alert-info";
+    public int Page { get; init; }
+    public int PageSize { get; init; }
+    public int TotalInspectionAreas { get; init; }
+    public int TotalPages { get; init; }
+}
+
+public sealed class InspectionAreaRowViewModel
+{
+    public Guid InspectionAreaTypeId { get; init; }
+    public string Name { get; init; } = string.Empty;
+}
+
+public sealed class AddInspectionAreaViewModel
+{
+    public string Name { get; set; } = string.Empty;
+}
+
 public sealed record StateOptionViewModel(string Abbreviation, string Name);
 
 public sealed class QuickBooksCustomersViewModel

@@ -7,7 +7,7 @@
 <div class="page-header-row">
     <div>
         <h1>@(Model.IsEditMode ? "Edit Company" : "Add Company")</h1>
-        <p class="text-muted">@(Model.IsEditMode ? "Update an existing RenovatorWeb company." : "Create a new RenovatorWeb company.")</p>
+        <p class="text-muted">@(Model.IsEditMode ? $"Update Company - {Model.Name}" : "Create a new RenovatorWeb company.")</p>
     </div>
     <a class="btn btn-outline-secondary" asp-controller="SuperAdmin" asp-action="Index">Back</a>
 </div>
@@ -30,6 +30,9 @@
             @if (Model.IsEditMode && Model.RenoCompanyID is Guid tabCompanyId)
             {
                 <ul class="nav nav-tabs company-table-tabs mb-3">
+                    <li class="nav-item">
+                        <a class="nav-link" asp-controller="SuperAdmin" asp-action="CompanyAreas" asp-route-companyId="@tabCompanyId">Areas</a>
+                    </li>
                     <li class="nav-item">
                         <a class="nav-link" asp-controller="SuperAdmin" asp-action="CompanyBuildingTypes" asp-route-companyId="@tabCompanyId">Building Type</a>
                     </li>

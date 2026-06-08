@@ -5,26 +5,151 @@
     var previousPage = Math.Max(1, Model.Page - 1);
     var nextPage = Math.Min(Model.TotalPages, Model.Page + 1);
     var isInspectionTable = string.Equals(Model.SelectedTableName, "Inspection", StringComparison.OrdinalIgnoreCase);
+    var isCompanyEmployeeTable = string.Equals(Model.SelectedTableName, "Employee", StringComparison.OrdinalIgnoreCase);
+    var isCompanyCustomerTable = string.Equals(Model.SelectedTableName, "Customer", StringComparison.OrdinalIgnoreCase);
+    var isCompanyInspectorsTable = string.Equals(Model.SelectedTableName, "Inspectors", StringComparison.OrdinalIgnoreCase);
+    var isCompanyMileageTable = string.Equals(Model.SelectedTableName, "MileageTracking", StringComparison.OrdinalIgnoreCase);
+    var isCompanyBuildingTypeTable = string.Equals(Model.SelectedTableName, "BuildingType", StringComparison.OrdinalIgnoreCase);
+    var isCompanyAreaTypeTable = string.Equals(Model.SelectedTableName, "InspectionAreaType", StringComparison.OrdinalIgnoreCase);
     var idColumnIndex = isInspectionTable
-        ? Model.Columns.ToList().FindIndex(column => string.Equals(column, "Id", StringComparison.OrdinalIgnoreCase))
+        ? GetColumnIndex(Model.Columns, "InspectionId")
         : -1;
+    var isCompanyUsersTable = string.Equals(Model.SelectedTableName, "RenoUser", StringComparison.OrdinalIgnoreCase);
+    var hiddenCompanyUserColumns = new HashSet<string>(StringComparer.OrdinalIgnoreCase)
+    {
+        "UserID",
+        "RenoCompanyID",
+        "PhoneSecondary",
+        "Password"
+    };
+    var visibleColumnIndexes = Model.Columns
+        .Select((column, index) => new { column, index })
+        .Where(item => !isCompanyUsersTable || !hiddenCompanyUserColumns.Contains(item.column))
+        .Select(item => item.index)
+        .ToList();
+    if (isCompanyEmployeeTable)
+    {
+        visibleColumnIndexes = new[]
+            {
+                "GivenName",
+                "FamilyName",
+                "PrimaryEmailAddress",
+                "PrimaryPhone",
+                "Active"
+            }
+            .Select(column => GetColumnIndex(Model.Columns, column))
+            .Where(index => index >= 0)
+            .ToList();
+    }
+    else if (isCompanyCustomerTable)
+    {
+        visibleColumnIndexes = new[]
+            {
+                "GivenName",
+                "FamilyName",
+                "CompanyName",
+                "PrimaryPhone",
+                "Active"
+            }
+            .Select(column => GetColumnIndex(Model.Columns, column))
+            .Where(index => index >= 0)
+            .ToList();
+    }
+    else if (isCompanyInspectorsTable)
+    {
+        visibleColumnIndexes = Model.Columns
+            .Select((column, index) => new { column, index })
+            .Where(item => !string.Equals(item.column, "Id", StringComparison.OrdinalIgnoreCase)
+                && !string.Equals(item.column, "RenoCompanyID", StringComparison.OrdinalIgnoreCase))
+            .Select(item => item.index)
+            .ToList();
+    }
+    else if (isInspectionTable)
+    {
+        visibleColumnIndexes = Model.Columns
+            .Select((column, index) => new { column, index })
+            .Where(item => !string.Equals(item.column, "InspectionId", StringComparison.OrdinalIgnoreCase)
+                && !string.Equals(item.column, "GeneralNotes", StringComparison.OrdinalIgnoreCase)
+                && !string.Equals(item.column, "RenoCompanyID", StringComparison.OrdinalIgnoreCase)
+                && !string.Equals(item.column, "UpdatedAtUtc", StringComparison.OrdinalIgnoreCase))
+            .Select(item => item.index)
+            .ToList();
+    }
+    else if (isCompanyMileageTable)
+    {
+        visibleColumnIndexes = Model.Columns
+            .Select((column, index) => new { column, index })
+            .Where(item => !string.Equals(item.column, "MileageTrackingID", StringComparison.OrdinalIgnoreCase)
+                && !string.Equals(item.column, "RenoCompanyID", StringComparison.OrdinalIgnoreCase))
+            .Select(item => item.index)
+            .ToList();
+    }
+    else if (isCompanyBuildingTypeTable || isCompanyAreaTypeTable)
+    {
+        visibleColumnIndexes = new[] { "Name" }
+            .Select(column => GetColumnIndex(Model.Columns, column))
+            .Where(index => index >= 0)
+            .ToList();
+    }
+    var companyLabel = string.IsNullOrWhiteSpace(Model.CompanyName) ? Model.RenoCompanyID.ToString() : Model.CompanyName;
+    var userIdColumnIndex = GetColumnIndex(Model.Columns, "UserID");
+    var loginColumnIndex = GetColumnIndex(Model.Columns, "Login");
+    var firstNameColumnIndex = GetColumnIndex(Model.Columns, "FirstName");
+    var lastNameColumnIndex = GetColumnIndex(Model.Columns, "LastName");
+    var emailColumnIndex = GetColumnIndex(Model.Columns, "Email");
+    var phonePrimaryColumnIndex = GetColumnIndex(Model.Columns, "PhonePrimary");
+    var phoneSecondaryColumnIndex = GetColumnIndex(Model.Columns, "PhoneSecondary");
+    var activeColumnIndex = GetColumnIndex(Model.Columns, "Active");
 }
 
 <div class="page-header-row">
     <div>
         <h1>@Model.Title</h1>
-        <p class="text-muted">@Model.TotalRows row@(Model.TotalRows == 1 ? string.Empty : "s") for company @Model.RenoCompanyID</p>
+        <p class="text-muted">@Model.TotalRows row@(Model.TotalRows == 1 ? string.Empty : "s") for Company - @companyLabel</p>
     </div>
-    <a class="btn btn-outline-secondary" asp-controller="SuperAdmin" asp-action="EditCompany" asp-route-id="@Model.RenoCompanyID">Back</a>
+    <div class="d-flex gap-2">
+        @if (isCompanyUsersTable)
+        {
+            <button class="btn btn-primary" type="button" data-bs-toggle="modal" data-bs-target="#newCompanyUserModal">
+                New User
+            </button>
+        }
+        @if (isCompanyBuildingTypeTable)
+        {
+            <form asp-controller="SuperAdmin"
+                  asp-action="AddDefaultBuildingTypes"
+                  asp-route-companyId="@Model.RenoCompanyID"
+                  method="post">
+                @Html.AntiForgeryToken()
+                <button class="btn btn-primary" type="submit">Add Default Building Types</button>
+            </form>
+        }
+        @if (isCompanyAreaTypeTable)
+        {
+            <form asp-controller="SuperAdmin"
+                  asp-action="AddDefaultAreas"
+                  asp-route-companyId="@Model.RenoCompanyID"
+                  method="post">
+                @Html.AntiForgeryToken()
+                <button class="btn btn-primary" type="submit">Add Default Areas</button>
+            </form>
+        }
+        <a class="btn btn-outline-secondary" asp-controller="SuperAdmin" asp-action="EditCompany" asp-route-id="@Model.RenoCompanyID">Back</a>
+    </div>
 </div>
+
+@if (TempData["SuperAdminUsersMessage"] is string usersMessage && !string.IsNullOrWhiteSpace(usersMessage))
+{
+    <div class="alert alert-warning" role="alert">@usersMessage</div>
+}
 
 <div class="table-responsive">
     <table class="table table-striped table-hover table-sm align-middle">
         <thead>
         <tr>
-            @foreach (var column in Model.Columns)
+            @foreach (var columnIndex in visibleColumnIndexes)
             {
-                <th scope="col">@column</th>
+                <th scope="col">@FormatColumnName(Model.Columns[columnIndex])</th>
             }
         </tr>
         </thead>
@@ -32,7 +157,7 @@
         @if (Model.Rows.Count == 0)
         {
             <tr>
-                <td colspan="@(Math.Max(Model.Columns.Count, 1))" class="text-muted">No rows found.</td>
+                <td colspan="@(Math.Max(visibleColumnIndexes.Count, 1))" class="text-muted">No rows found.</td>
             </tr>
         }
         else
@@ -50,13 +175,23 @@
                         new { companyId = Model.RenoCompanyID, inspectionId }) ?? string.Empty;
                 }
 
-                <tr class="@(string.IsNullOrWhiteSpace(detailUrl) ? string.Empty : "clickable-table-row company-table-clickable-row")"
-                    tabindex="@(string.IsNullOrWhiteSpace(detailUrl) ? null : "0")"
-                    onclick="@(string.IsNullOrWhiteSpace(detailUrl) ? null : $"window.location.href='{detailUrl}'")"
-                    onkeydown="@(string.IsNullOrWhiteSpace(detailUrl) ? null : $"if(event.key==='Enter'||event.key===' '){{event.preventDefault(); window.location.href='{detailUrl}';}}")">
-                    @foreach (var value in row)
+                var rowUserId = isCompanyUsersTable ? GetRowValue(row, userIdColumnIndex) : string.Empty;
+                var editUserModalId = $"editCompanyUserModal-{rowUserId}";
+                var rowClass = isCompanyUsersTable || !string.IsNullOrWhiteSpace(detailUrl)
+                    ? "clickable-table-row company-table-clickable-row"
+                    : string.Empty;
+
+                <tr class="@rowClass"
+                    tabindex="@(isCompanyUsersTable || !string.IsNullOrWhiteSpace(detailUrl) ? "0" : null)"
+                    data-bs-toggle="@(isCompanyUsersTable ? "modal" : null)"
+                    data-bs-target="@(isCompanyUsersTable ? $"#{editUserModalId}" : null)"
+                    onclick="@(!isCompanyUsersTable && !string.IsNullOrWhiteSpace(detailUrl) ? $"window.location.href='{detailUrl}'" : null)"
+                    onkeydown="@(isCompanyUsersTable
+                        ? $"if(event.key==='Enter'||event.key===' '){{event.preventDefault(); bootstrap.Modal.getOrCreateInstance(document.getElementById('{editUserModalId}')).show();}}"
+                        : (!string.IsNullOrWhiteSpace(detailUrl) ? $"if(event.key==='Enter'||event.key===' '){{event.preventDefault(); window.location.href='{detailUrl}';}}" : null))">
+                    @foreach (var columnIndex in visibleColumnIndexes)
                     {
-                        <td>@value</td>
+                        <td>@FormatCellValue(Model.Columns[columnIndex], GetRowValue(row, columnIndex), isInspectionTable, Model.PropertyNames)</td>
                     }
                 </tr>
             }
@@ -64,6 +199,188 @@
         </tbody>
     </table>
 </div>
+
+@if (isCompanyUsersTable)
+{
+    <div class="modal fade" id="newCompanyUserModal" tabindex="-1" aria-labelledby="newCompanyUserModalLabel" aria-hidden="true">
+        <div class="modal-dialog modal-dialog-centered">
+            <div class="modal-content">
+                <form asp-controller="SuperAdmin"
+                      asp-action="AddCompanyUserFromTable"
+                      asp-route-companyId="@Model.RenoCompanyID"
+                      method="post">
+                    @Html.AntiForgeryToken()
+                    <div class="modal-header">
+                        <h2 class="modal-title fs-5" id="newCompanyUserModalLabel">New User - @Model.CompanyName</h2>
+                        <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+                    </div>
+                    <div class="modal-body">
+                        <div class="mb-3">
+                            <label class="form-label" for="newUserLogin">Login</label>
+                            <input class="form-control" id="newUserLogin" name="Login" required />
+                        </div>
+                        <div class="mb-3">
+                            <label class="form-label" for="newUserPassword">Password</label>
+                            <input class="form-control" id="newUserPassword" name="Password" type="password" autocomplete="new-password" required />
+                        </div>
+                        <div class="row">
+                            <div class="col-md-6 mb-3">
+                                <label class="form-label" for="newUserFirstName">FirstName</label>
+                                <input class="form-control" id="newUserFirstName" name="FirstName" required />
+                            </div>
+                            <div class="col-md-6 mb-3">
+                                <label class="form-label" for="newUserLastName">LastName</label>
+                                <input class="form-control" id="newUserLastName" name="LastName" required />
+                            </div>
+                        </div>
+                        <div class="mb-3">
+                            <label class="form-label" for="newUserEmail">Email</label>
+                            <input class="form-control" id="newUserEmail" name="Email" type="email" />
+                        </div>
+                        <div class="row">
+                            <div class="col-md-6 mb-3">
+                                <label class="form-label" for="newUserPhonePrimary">Primary Phone</label>
+                                <input class="form-control" id="newUserPhonePrimary" name="PhonePrimary" />
+                            </div>
+                            <div class="col-md-6 mb-3">
+                                <label class="form-label" for="newUserPhoneSecondary">Secondary Phone</label>
+                                <input class="form-control" id="newUserPhoneSecondary" name="PhoneSecondary" />
+                            </div>
+                        </div>
+                        <div class="form-check">
+                            <input class="form-check-input" id="newUserActive" name="Active" type="checkbox" value="true" checked />
+                            <label class="form-check-label" for="newUserActive">Active</label>
+                        </div>
+                        <div class="mt-3">
+                            <label class="form-label">Roles</label>
+                            <div class="d-grid gap-2">
+                                @foreach (var role in Model.RoleOptions)
+                                {
+                                    <div class="form-check">
+                                        <input class="form-check-input"
+                                               id="newUserRole-@role.RoleID"
+                                               name="SelectedRoleIDs"
+                                               type="checkbox"
+                                               value="@role.RoleID" />
+                                        <label class="form-check-label" for="newUserRole-@role.RoleID">@role.Name</label>
+                                    </div>
+                                }
+                            </div>
+                        </div>
+                    </div>
+                    <div class="modal-footer">
+                        <button class="btn btn-secondary" type="button" data-bs-dismiss="modal">Cancel</button>
+                        <button class="btn btn-primary" type="submit">Save</button>
+                    </div>
+                </form>
+            </div>
+        </div>
+    </div>
+}
+
+@if (isCompanyUsersTable)
+{
+    @foreach (var row in Model.Rows)
+    {
+        var userId = GetRowValue(row, userIdColumnIndex);
+        if (!Guid.TryParse(userId, out var parsedUserId))
+        {
+            continue;
+        }
+
+        var login = GetRowValue(row, loginColumnIndex);
+        var firstName = GetRowValue(row, firstNameColumnIndex);
+        var lastName = GetRowValue(row, lastNameColumnIndex);
+        var email = GetRowValue(row, emailColumnIndex);
+        var phonePrimary = GetRowValue(row, phonePrimaryColumnIndex);
+        var phoneSecondary = GetRowValue(row, phoneSecondaryColumnIndex);
+        var activeValue = GetRowValue(row, activeColumnIndex);
+        var isActive = string.Equals(activeValue, "True", StringComparison.OrdinalIgnoreCase)
+            || string.Equals(activeValue, "true", StringComparison.OrdinalIgnoreCase)
+            || string.Equals(activeValue, "1", StringComparison.OrdinalIgnoreCase);
+        var selectedRoleIds = Model.UserRoleIds.TryGetValue(parsedUserId, out var roleIds)
+            ? roleIds
+            : [];
+        var editUserModalId = $"editCompanyUserModal-{parsedUserId}";
+
+        <div class="modal fade" id="@editUserModalId" tabindex="-1" aria-labelledby="@(editUserModalId)Label" aria-hidden="true">
+            <div class="modal-dialog modal-dialog-centered">
+                <div class="modal-content">
+                    <form asp-controller="SuperAdmin"
+                          asp-action="UpdateCompanyUserFromTable"
+                          asp-route-companyId="@Model.RenoCompanyID"
+                          asp-route-userId="@parsedUserId"
+                          method="post">
+                        @Html.AntiForgeryToken()
+                        <div class="modal-header">
+                            <h2 class="modal-title fs-5" id="@(editUserModalId)Label">Edit User - @Model.CompanyName</h2>
+                            <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+                        </div>
+                        <div class="modal-body">
+                            <div class="mb-3">
+                                <label class="form-label" for="editUserLogin-@parsedUserId">Login</label>
+                                <input class="form-control" id="editUserLogin-@parsedUserId" name="Login" value="@login" required />
+                            </div>
+                            <div class="mb-3">
+                                <label class="form-label" for="editUserPassword-@parsedUserId">Password</label>
+                                <input class="form-control" id="editUserPassword-@parsedUserId" name="Password" type="password" autocomplete="new-password" placeholder="Leave blank to keep current password" />
+                            </div>
+                            <div class="row">
+                                <div class="col-md-6 mb-3">
+                                    <label class="form-label" for="editUserFirstName-@parsedUserId">FirstName</label>
+                                    <input class="form-control" id="editUserFirstName-@parsedUserId" name="FirstName" value="@firstName" required />
+                                </div>
+                                <div class="col-md-6 mb-3">
+                                    <label class="form-label" for="editUserLastName-@parsedUserId">LastName</label>
+                                    <input class="form-control" id="editUserLastName-@parsedUserId" name="LastName" value="@lastName" required />
+                                </div>
+                            </div>
+                            <div class="mb-3">
+                                <label class="form-label" for="editUserEmail-@parsedUserId">Email</label>
+                                <input class="form-control" id="editUserEmail-@parsedUserId" name="Email" type="email" value="@email" />
+                            </div>
+                            <div class="row">
+                                <div class="col-md-6 mb-3">
+                                    <label class="form-label" for="editUserPhonePrimary-@parsedUserId">Primary Phone</label>
+                                    <input class="form-control" id="editUserPhonePrimary-@parsedUserId" name="PhonePrimary" value="@phonePrimary" />
+                                </div>
+                                <div class="col-md-6 mb-3">
+                                    <label class="form-label" for="editUserPhoneSecondary-@parsedUserId">Secondary Phone</label>
+                                    <input class="form-control" id="editUserPhoneSecondary-@parsedUserId" name="PhoneSecondary" value="@phoneSecondary" />
+                                </div>
+                            </div>
+                            <div class="form-check">
+                                <input class="form-check-input" id="editUserActive-@parsedUserId" name="Active" type="checkbox" value="true" checked="@isActive" />
+                                <label class="form-check-label" for="editUserActive-@parsedUserId">Active</label>
+                            </div>
+                            <div class="mt-3">
+                                <label class="form-label">Roles</label>
+                                <div class="d-grid gap-2">
+                                    @foreach (var role in Model.RoleOptions)
+                                    {
+                                        <div class="form-check">
+                                            <input class="form-check-input"
+                                                   id="editUserRole-@parsedUserId-@role.RoleID"
+                                                   name="SelectedRoleIDs"
+                                                   type="checkbox"
+                                                   value="@role.RoleID"
+                                                   checked="@selectedRoleIds.Contains(role.RoleID)" />
+                                            <label class="form-check-label" for="editUserRole-@parsedUserId-@role.RoleID">@role.Name</label>
+                                        </div>
+                                    }
+                                </div>
+                            </div>
+                        </div>
+                        <div class="modal-footer">
+                            <button class="btn btn-secondary" type="button" data-bs-dismiss="modal">Cancel</button>
+                            <button class="btn btn-primary" type="submit">Save</button>
+                        </div>
+                    </form>
+                </div>
+            </div>
+        </div>
+    }
+}
 
 <div class="d-flex align-items-center justify-content-between gap-3">
     <div class="btn-group" role="group" aria-label="@Model.Title pages">
@@ -84,3 +401,50 @@
     </div>
     <span class="text-muted">Page @Model.Page of @Model.TotalPages</span>
 </div>
+
+@functions {
+    private static int GetColumnIndex(IReadOnlyList<string> columns, string name)
+    {
+        return columns.ToList().FindIndex(column => string.Equals(column, name, StringComparison.OrdinalIgnoreCase));
+    }
+
+    private static string GetRowValue(IReadOnlyList<string> row, int index)
+    {
+        return index >= 0 && index < row.Count ? row[index] : string.Empty;
+    }
+
+    private static string FormatColumnName(string column)
+    {
+        return column switch
+        {
+            "GivenName" => "First Name",
+            "FamilyName" => "Last Name",
+            "CompanyName" => "Company Name",
+            "PrimaryEmailAddress" => "Email",
+            "PrimaryPhone" => "Phone",
+            "CreatedAtUtc" => "Date Created",
+            "PropertyId" => "Property",
+            "InspectorName" => "Inspector",
+            "InspectionDate" => "Inspection Date",
+            "TrackingStartedAtUtc" => "Start Time",
+            _ => column
+        };
+    }
+
+    private static string FormatCellValue(
+        string column,
+        string value,
+        bool isInspectionTable,
+        IReadOnlyDictionary<Guid, string> propertyNames)
+    {
+        if (isInspectionTable
+            && string.Equals(column, "PropertyId", StringComparison.OrdinalIgnoreCase)
+            && Guid.TryParse(value, out var propertyId)
+            && propertyNames.TryGetValue(propertyId, out var propertyName))
+        {
+            return propertyName;
+        }
+
+        return value;
+    }
+}

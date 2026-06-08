@@ -18,6 +18,10 @@ public sealed class DatabaseTablePageViewModel
 public sealed class CompanyTablePageViewModel
 {
     public Guid RenoCompanyID { get; init; }
+    public string CompanyName { get; init; } = string.Empty;
+    public IReadOnlyList<SuperAdminRoleOptionViewModel> RoleOptions { get; init; } = [];
+    public IReadOnlyDictionary<Guid, IReadOnlyList<Guid>> UserRoleIds { get; init; } = new Dictionary<Guid, IReadOnlyList<Guid>>();
+    public IReadOnlyDictionary<Guid, string> PropertyNames { get; init; } = new Dictionary<Guid, string>();
     public string Title { get; init; } = string.Empty;
     public string RouteAction { get; init; } = string.Empty;
     public string? SelectedTableName { get; init; }

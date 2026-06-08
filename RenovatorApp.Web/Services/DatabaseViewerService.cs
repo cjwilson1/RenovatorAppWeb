@@ -98,10 +98,41 @@ public sealed class DatabaseViewerService
         page = Math.Min(page, totalPages);
 
         var rows = await GetCompanyRowsAsync(quotedTableName, renoCompanyID, page, pageSize, cancellationToken);
+        var companyName = await _dbContext.RenoCompanies
+            .AsNoTracking()
+            .Where(company => company.RenoCompanyID == renoCompanyID)
+            .Select(company => company.Name)
+            .FirstOrDefaultAsync(cancellationToken);
+        var isUsersTable = string.Equals(matchedTableName, "RenoUser", StringComparison.OrdinalIgnoreCase);
+        var isInspectionTable = string.Equals(matchedTableName, "Inspection", StringComparison.OrdinalIgnoreCase);
+        var roleOptions = isUsersTable
+            ? await _dbContext.Roles
+                .AsNoTracking()
+                .OrderBy(role => role.Name)
+                .Select(role => new SuperAdminRoleOptionViewModel
+                {
+                    RoleID = role.RoleID,
+                    Name = role.Name
+                })
+                .ToListAsync(cancellationToken)
+            : [];
+        var userRoleIds = isUsersTable
+            ? await GetCompanyUserRoleIdsAsync(renoCompanyID, cancellationToken)
+            : new Dictionary<Guid, IReadOnlyList<Guid>>();
+        var propertyNames = isInspectionTable
+            ? await _dbContext.Properties
+                .AsNoTracking()
+                .Where(property => property.RenoCompanyID == renoCompanyID)
+                .ToDictionaryAsync(property => property.PropertyId, property => property.Name, cancellationToken)
+            : new Dictionary<Guid, string>();
 
         return new CompanyTablePageViewModel
         {
             RenoCompanyID = renoCompanyID,
+            CompanyName = companyName ?? string.Empty,
+            RoleOptions = roleOptions,
+            UserRoleIds = userRoleIds,
+            PropertyNames = propertyNames,
             Title = title,
             RouteAction = routeAction,
             SelectedTableName = matchedTableName,
@@ -247,6 +278,25 @@ public sealed class DatabaseViewerService
         }
 
         return (columns, rows);
+    }
+
+    private async Task<IReadOnlyDictionary<Guid, IReadOnlyList<Guid>>> GetCompanyUserRoleIdsAsync(
+        Guid renoCompanyID,
+        CancellationToken cancellationToken)
+    {
+        var userRoles = await _dbContext.UserRoles
+            .AsNoTracking()
+            .Where(userRole => _dbContext.RenoUsers.Any(user =>
+                user.UserID == userRole.UserID
+                && user.RenoCompanyID == renoCompanyID))
+            .OrderBy(userRole => userRole.RoleID)
+            .ToListAsync(cancellationToken);
+
+        return userRoles
+            .GroupBy(userRole => userRole.UserID)
+            .ToDictionary(
+                group => group.Key,
+                group => (IReadOnlyList<Guid>)group.Select(userRole => userRole.RoleID).ToList());
     }
 
     private static async Task EnsureOpenAsync(DbConnection connection, CancellationToken cancellationToken)

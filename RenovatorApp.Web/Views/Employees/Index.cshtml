@@ -10,13 +10,6 @@
         <h1>Employees</h1>
         <p class="text-muted">@Model.TotalEmployees employee@(Model.TotalEmployees == 1 ? string.Empty : "s")</p>
     </div>
-    <div class="customer-sync-actions">
-        <span class="text-muted">QuickBooks sync: @FormatDate(Model.LastQuickBooksSyncDateUtc)</span>
-        <form asp-controller="QuickBooks" asp-action="SyncEmployees" method="post">
-            @Html.AntiForgeryToken()
-            <button class="btn btn-primary" type="submit">Sync QuickBooks</button>
-        </form>
-    </div>
 </div>
 
 @if (!string.IsNullOrWhiteSpace(Model.StatusMessage))

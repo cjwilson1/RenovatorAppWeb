@@ -94,6 +94,40 @@ public sealed class InspectionsController : Controller
                 InspectionTitle = trip.Inspection == null ? string.Empty : trip.Inspection.Title
             })
             .ToListAsync(cancellationToken);
+        var attachDocumentRows = await _dbContext.Documents
+            .AsNoTracking()
+            .ForCompany(_currentUserSession.RenoCompanyID)
+            .Include(document => document.Customer)
+            .Include(document => document.Inspection)
+            .Include(document => document.DocumentType)
+            .OrderByDescending(document => document.CreateDate)
+            .ThenBy(document => document.DocumentName)
+            .Select(document => new
+            {
+                document.DocumentId,
+                document.DocumentName,
+                document.CustomerId,
+                document.InspectionId,
+                CustomerGivenName = document.Customer == null ? string.Empty : document.Customer.GivenName,
+                CustomerFamilyName = document.Customer == null ? string.Empty : document.Customer.FamilyName,
+                InspectionTitle = document.Inspection == null ? string.Empty : document.Inspection.Title,
+                DocumentType = document.DocumentType == null ? string.Empty : document.DocumentType.Name,
+                document.CreateDate
+            })
+            .ToListAsync(cancellationToken);
+        var attachDocuments = attachDocumentRows
+            .Select(document => new InspectionAttachDocumentViewModel
+            {
+                DocumentId = document.DocumentId,
+                DocumentName = document.DocumentName,
+                CustomerName = string.Join(" ", new[] { document.CustomerGivenName, document.CustomerFamilyName }
+                    .Where(value => !string.IsNullOrWhiteSpace(value))),
+                InspectionTitle = document.InspectionTitle,
+                DocumentType = document.DocumentType,
+                CreateDate = document.CreateDate,
+                IsAttached = document.CustomerId.HasValue || document.InspectionId.HasValue
+            })
+            .ToList();
 
         return View(new InspectionDetailViewModel
         {
@@ -113,6 +147,7 @@ public sealed class InspectionsController : Controller
                     CreateDate = document.CreateDate
                 })
                 .ToList(),
+            AttachDocuments = attachDocuments,
             MileageTrackingRecords = mileageTrackingViewModels,
             MileageTrackingAttachRecords = mileageTrackingAttachRecords
         });
@@ -198,6 +233,36 @@ public sealed class InspectionsController : Controller
         }
 
         _dbContext.Documents.Remove(document);
+        await _dbContext.SaveChangesAsync(cancellationToken);
+
+        return RedirectToAction(nameof(Details), new { id });
+    }
+
+    [HttpPost]
+    [ValidateAntiForgeryToken]
+    public async Task<IActionResult> AttachDocument(Guid id, Guid documentId, CancellationToken cancellationToken)
+    {
+        var inspectionExists = await _dbContext.Inspections
+            .AsNoTracking()
+            .ForCompany(_currentUserSession.RenoCompanyID)
+            .AnyAsync(inspection => inspection.InspectionId == id, cancellationToken);
+
+        if (!inspectionExists)
+        {
+            return NotFound();
+        }
+
+        var document = await _dbContext.Documents
+            .ForCompany(_currentUserSession.RenoCompanyID)
+            .FirstOrDefaultAsync(item => item.DocumentId == documentId, cancellationToken);
+
+        if (document is null)
+        {
+            return NotFound();
+        }
+
+        document.CustomerId = null;
+        document.InspectionId = id;
         await _dbContext.SaveChangesAsync(cancellationToken);
 
         return RedirectToAction(nameof(Details), new { id });
@@ -1265,7 +1330,8 @@ public sealed class InspectionsController : Controller
         {
             var pattern = $"%{normalizedSearch}%";
             query = query.Where(property =>
-                EF.Functions.ILike(property.Address.Street1, pattern)
+                EF.Functions.ILike(property.Name, pattern)
+                || EF.Functions.ILike(property.Address.Street1, pattern)
                 || EF.Functions.ILike(property.Address.Street2, pattern)
                 || EF.Functions.ILike(property.Address.City, pattern)
                 || EF.Functions.ILike(property.Address.State, pattern)
@@ -1284,6 +1350,7 @@ public sealed class InspectionsController : Controller
             .Select(property => new InspectionPropertyPickerItemViewModel
             {
                 PropertyId = property.PropertyId,
+                PropertyName = property.Name,
                 Street1 = property.Address.Street1,
                 Street2 = property.Address.Street2,
                 City = property.Address.City,

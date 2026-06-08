@@ -14,9 +14,6 @@
         </div>
         <div class="customer-sync-actions">
             <button class="btn btn-primary" type="submit">Save</button>
-            <button class="btn btn-warning" type="submit" formaction="@Url.Action("SyncEmployee", "QuickBooks", new { id = Model.EmployeeId })">
-                QB Sync
-            </button>
             <a class="btn btn-secondary" asp-controller="Employees" asp-action="Index">Close</a>
         </div>
     </div>
@@ -64,7 +61,7 @@
                     <input asp-for="Title" class="form-control" />
                     <span asp-validation-for="Title" class="text-danger"></span>
                 </dd>
-                <dt>Given Name</dt>
+                <dt>First Name</dt>
                 <dd>
                     <input asp-for="GivenName" class="form-control" />
                     <span asp-validation-for="GivenName" class="text-danger"></span>
@@ -74,7 +71,7 @@
                     <input asp-for="MiddleName" class="form-control" />
                     <span asp-validation-for="MiddleName" class="text-danger"></span>
                 </dd>
-                <dt>Family Name</dt>
+                <dt>Last Name</dt>
                 <dd>
                     <input asp-for="FamilyName" class="form-control" />
                     <span asp-validation-for="FamilyName" class="text-danger"></span>

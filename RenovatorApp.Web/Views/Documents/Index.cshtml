@@ -32,7 +32,7 @@
                 <th scope="col">Inspection</th>
                 <th scope="col">Document Type</th>
                 <th scope="col">Create Date</th>
-                <th scope="col" class="text-end">Actions</th>
+                <th scope="col">View</th>
             </tr>
         </thead>
         <tbody>
@@ -46,68 +46,27 @@
             {
                 @foreach (var document in Model.Documents)
                 {
-                    var assignmentFormId = $"assignDocument-{document.DocumentId}";
-
-                    <tr>
-                        <td>
-                            <a asp-controller="Documents"
-                               asp-action="Open"
-                               asp-route-id="@document.DocumentId"
-                               target="_blank"
-                               rel="noopener noreferrer">
-                                <strong>@document.DocumentName</strong>
-                            </a>
-                        </td>
-                        <td>
-                            <select class="form-select form-select-sm"
-                                    form="@assignmentFormId"
-                                    name="customerId"
-                                    aria-label="Assign customer for @document.DocumentName">
-                                <option value="">None</option>
-                                @foreach (var customer in Model.Customers)
-                                {
-                                    <option value="@customer.Id" selected="@(document.CustomerId == customer.Id)">
-                                        @customer.Name
-                                    </option>
-                                }
-                            </select>
-                        </td>
-                        <td>
-                            <select class="form-select form-select-sm"
-                                    form="@assignmentFormId"
-                                    name="inspectionId"
-                                    aria-label="Assign inspection for @document.DocumentName">
-                                <option value="">None</option>
-                                @foreach (var inspection in Model.Inspections)
-                                {
-                                    <option value="@inspection.Id" selected="@(document.InspectionId == inspection.Id)">
-                                        @inspection.Name
-                                    </option>
-                                }
-                            </select>
-                        </td>
+                    <tr class="clickable-table-row"
+                        data-document-row
+                        data-document-modal-id="documentModal-@document.DocumentId"
+                        role="button"
+                        tabindex="0"
+                        aria-label="Open document @document.DocumentName">
+                        <td><strong>@document.DocumentName</strong></td>
+                        <td>@document.CustomerName</td>
+                        <td>@document.InspectionTitle</td>
                         <td>@document.DocumentType</td>
                         <td>@FormatDate(document.CreateDate)</td>
-                        <td class="text-end">
-                            <form asp-controller="Documents"
-                                  asp-action="Assign"
-                                  asp-route-id="@document.DocumentId"
-                                  id="@assignmentFormId"
-                                  method="post"
-                                  class="d-inline">
-                                @Html.AntiForgeryToken()
-                                <input name="search" type="hidden" value="@Model.Search" />
-                                <input name="page" type="hidden" value="@Model.Page" />
-                                <button class="btn btn-primary btn-sm" type="submit">Save</button>
-                            </form>
-                            <button class="btn btn-danger btn-sm"
-                                    type="button"
-                                    data-bs-toggle="modal"
-                                    data-bs-target="#deleteDocumentModal"
-                                    data-document-id="@document.DocumentId"
-                                    data-document-name="@document.DocumentName">
-                                Delete
-                            </button>
+                        <td>
+                            <a class="btn btn-outline-primary btn-sm"
+                               asp-controller="Documents"
+                               asp-action="Open"
+                               asp-route-id="@document.DocumentId"
+                               data-document-view
+                               target="_blank"
+                               rel="noopener">
+                                View
+                            </a>
                         </td>
                     </tr>
                 }
@@ -116,29 +75,76 @@
     </table>
 </div>
 
-<div class="modal fade" id="deleteDocumentModal" tabindex="-1" aria-labelledby="deleteDocumentModalLabel" aria-hidden="true">
-    <div class="modal-dialog">
-        <div class="modal-content">
-            <div class="modal-header">
-                <h2 class="modal-title fs-5" id="deleteDocumentModalLabel">Delete Document</h2>
-                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
-            </div>
-            <div class="modal-body">
-                <p class="mb-0">Are you sure?</p>
-            </div>
-            <div class="modal-footer">
-                <button class="btn btn-secondary" type="button" data-bs-dismiss="modal">No</button>
-                <form asp-controller="Documents" asp-action="Delete" method="post">
+@foreach (var document in Model.Documents)
+{
+    <div class="modal fade" id="documentModal-@document.DocumentId" tabindex="-1" aria-labelledby="documentModalTitle-@document.DocumentId" aria-hidden="true">
+        <div class="modal-dialog modal-dialog-centered">
+            <div class="modal-content">
+                <form asp-controller="Documents" asp-action="Update" asp-route-id="@document.DocumentId" method="post">
                     @Html.AntiForgeryToken()
-                    <input id="deleteDocumentId" name="id" type="hidden" />
                     <input name="search" type="hidden" value="@Model.Search" />
                     <input name="page" type="hidden" value="@Model.Page" />
-                    <button class="btn btn-danger" type="submit">Yes</button>
+                    <div class="modal-header">
+                        <h2 class="modal-title fs-5" id="documentModalTitle-@document.DocumentId">Document</h2>
+                        <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+                    </div>
+                    <div class="modal-body">
+                        <div class="mb-3">
+                            <label class="form-label" for="documentName-@document.DocumentId">Document Name</label>
+                            <input class="form-control" id="documentName-@document.DocumentId" name="documentName" value="@document.DocumentName" />
+                        </div>
+                        <dl class="row mb-0">
+                            <dt class="col-sm-4">Customer</dt>
+                            <dd class="col-sm-8">@document.CustomerName</dd>
+                            <dt class="col-sm-4">Inspection</dt>
+                            <dd class="col-sm-8">@document.InspectionTitle</dd>
+                            <dt class="col-sm-4">Document Type</dt>
+                            <dd class="col-sm-8">@document.DocumentType</dd>
+                            <dt class="col-sm-4">Create Date</dt>
+                            <dd class="col-sm-8">@FormatDate(document.CreateDate)</dd>
+                        </dl>
+                    </div>
+                    <div class="modal-footer justify-content-between">
+                        <button class="btn btn-danger"
+                                data-document-delete-confirm
+                                data-document-modal-id="documentModal-@document.DocumentId"
+                                data-document-confirm-modal-id="deleteDocumentModal-@document.DocumentId"
+                                type="button">
+                            Delete
+                        </button>
+                        <div class="d-flex gap-2">
+                            <button class="btn btn-secondary" type="button" data-bs-dismiss="modal">Cancel</button>
+                            <button class="btn btn-primary" type="submit">Save</button>
+                        </div>
+                    </div>
                 </form>
             </div>
         </div>
     </div>
-</div>
+
+    <div class="modal" id="deleteDocumentModal-@document.DocumentId" tabindex="-1" aria-labelledby="deleteDocumentModalLabel-@document.DocumentId" aria-hidden="true">
+        <div class="modal-dialog modal-dialog-centered">
+            <div class="modal-content">
+                <div class="modal-header">
+                    <h2 class="modal-title fs-5" id="deleteDocumentModalLabel-@document.DocumentId">Delete Document</h2>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+                </div>
+                <div class="modal-body">
+                    <p class="mb-0">If you delete this document it cannot be recovered. Are you sure?</p>
+                </div>
+                <div class="modal-footer">
+                    <button class="btn btn-secondary" type="button" data-bs-dismiss="modal">No</button>
+                    <form asp-controller="Documents" asp-action="Delete" asp-route-id="@document.DocumentId" method="post">
+                    @Html.AntiForgeryToken()
+                        <input name="search" type="hidden" value="@Model.Search" />
+                        <input name="page" type="hidden" value="@Model.Page" />
+                        <button class="btn btn-danger" type="submit">Yes</button>
+                    </form>
+                </div>
+            </div>
+        </div>
+    </div>
+}
 
 <div class="d-flex align-items-center justify-content-between gap-3">
     <div class="btn-group" role="group" aria-label="Document pages">
@@ -166,8 +172,6 @@
         const searchInput = document.getElementById('documentSearch');
         const pageInput = document.getElementById('documentPage');
         const clearSearchButton = document.getElementById('clearDocumentSearch');
-        const deleteDocumentModal = document.getElementById('deleteDocumentModal');
-        const deleteDocumentIdInput = document.getElementById('deleteDocumentId');
         let searchTimer;
 
         searchInput?.addEventListener('input', () => {
@@ -187,9 +191,41 @@
             searchForm.submit();
         });
 
-        deleteDocumentModal?.addEventListener('show.bs.modal', (event) => {
-            const button = event.relatedTarget;
-            deleteDocumentIdInput.value = button?.getAttribute('data-document-id') || '';
+        document.querySelectorAll('[data-document-row]').forEach((row) => {
+            const openDocumentModal = (event) => {
+                if (event?.target?.closest('[data-document-view], a, button, form')) {
+                    return;
+                }
+
+                const modal = document.getElementById(row.dataset.documentModalId);
+                if (!modal) {
+                    return;
+                }
+
+                bootstrap.Modal.getOrCreateInstance(modal).show();
+            };
+
+            row.addEventListener('click', openDocumentModal);
+            row.addEventListener('keydown', (event) => {
+                if (event.key === 'Enter' || event.key === ' ') {
+                    event.preventDefault();
+                    openDocumentModal(event);
+                }
+            });
+        });
+
+        document.querySelectorAll('[data-document-delete-confirm]').forEach((button) => {
+            button.addEventListener('click', () => {
+                const editModal = document.getElementById(button.dataset.documentModalId);
+                const confirmModal = document.getElementById(button.dataset.documentConfirmModalId);
+                if (!editModal || !confirmModal) {
+                    return;
+                }
+
+                const confirmInstance = bootstrap.Modal.getOrCreateInstance(confirmModal);
+                editModal.addEventListener('hidden.bs.modal', () => confirmInstance.show(), { once: true });
+                bootstrap.Modal.getOrCreateInstance(editModal).hide();
+            });
         });
     </script>
 }

@@ -17,6 +17,7 @@ public sealed class InspectionDetailViewModel
     public string CustomerName { get; init; } = string.Empty;
     public string DefaultReportName { get; init; } = string.Empty;
     public IReadOnlyList<InspectionDocumentViewModel> Documents { get; init; } = [];
+    public IReadOnlyList<InspectionAttachDocumentViewModel> AttachDocuments { get; init; } = [];
     public IReadOnlyList<InspectionMileageTrackingViewModel> MileageTrackingRecords { get; init; } = [];
     public IReadOnlyList<InspectionMileageTrackingAttachViewModel> MileageTrackingAttachRecords { get; init; } = [];
 }
@@ -28,6 +29,17 @@ public sealed class InspectionDocumentViewModel
     public string DocumentType { get; init; } = string.Empty;
     public string Filename { get; init; } = string.Empty;
     public DateTime CreateDate { get; init; }
+}
+
+public sealed class InspectionAttachDocumentViewModel
+{
+    public Guid DocumentId { get; init; }
+    public string DocumentName { get; init; } = string.Empty;
+    public string CustomerName { get; init; } = string.Empty;
+    public string InspectionTitle { get; init; } = string.Empty;
+    public string DocumentType { get; init; } = string.Empty;
+    public DateTime CreateDate { get; init; }
+    public bool IsAttached { get; init; }
 }
 
 public sealed class InspectionMileageTrackingViewModel
@@ -164,6 +176,7 @@ public sealed class InspectionPropertyPickerViewModel
 public sealed class InspectionPropertyPickerItemViewModel
 {
     public Guid PropertyId { get; init; }
+    public string PropertyName { get; init; } = string.Empty;
     public string Street1 { get; init; } = string.Empty;
     public string Street2 { get; init; } = string.Empty;
     public string City { get; init; } = string.Empty;

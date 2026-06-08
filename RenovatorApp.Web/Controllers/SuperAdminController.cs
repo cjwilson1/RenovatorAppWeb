@@ -452,6 +452,69 @@ public sealed class SuperAdminController : Controller
         return CompanyTable(companyId, "Building Type", "BuildingType", nameof(CompanyBuildingTypes), page, cancellationToken);
     }
 
+    [HttpGet("SuperAdmin/Companies/{companyId:guid}/Areas")]
+    public Task<IActionResult> CompanyAreas(Guid companyId, int page = 1, CancellationToken cancellationToken = default)
+    {
+        return CompanyTable(companyId, "Inspection Areas", "InspectionAreaType", nameof(CompanyAreas), page, cancellationToken);
+    }
+
+    [HttpPost("SuperAdmin/Companies/{companyId:guid}/BuildingTypes/AddDefaults")]
+    [ValidateAntiForgeryToken]
+    public async Task<IActionResult> AddDefaultBuildingTypes(Guid companyId, CancellationToken cancellationToken)
+    {
+        if (!await _dbContext.RenoCompanies.AnyAsync(company => company.RenoCompanyID == companyId, cancellationToken))
+        {
+            return NotFound();
+        }
+
+        var defaultBuildingTypes = await _dbContext.BuildingTypes
+            .AsNoTracking()
+            .Where(item => item.RenoCompanyID == TemplateRenoCompanyID)
+            .OrderBy(item => item.Name)
+            .ToListAsync(cancellationToken);
+
+        var existingNames = await _dbContext.BuildingTypes
+            .Where(item => item.RenoCompanyID == companyId)
+            .Select(item => item.Name)
+            .ToListAsync(cancellationToken);
+        var existingNameSet = existingNames.ToHashSet(StringComparer.OrdinalIgnoreCase);
+
+        foreach (var buildingType in defaultBuildingTypes)
+        {
+            var name = Clean(buildingType.Name);
+            if (string.IsNullOrWhiteSpace(name) || existingNameSet.Contains(name))
+            {
+                continue;
+            }
+
+            _dbContext.BuildingTypes.Add(new BuildingType
+            {
+                BuildingTypeId = Guid.NewGuid(),
+                RenoCompanyID = companyId,
+                Name = name
+            });
+            existingNameSet.Add(name);
+        }
+
+        await _dbContext.SaveChangesAsync(cancellationToken);
+        return RedirectToAction(nameof(CompanyBuildingTypes), new { companyId });
+    }
+
+    [HttpPost("SuperAdmin/Companies/{companyId:guid}/Areas/AddDefaults")]
+    [ValidateAntiForgeryToken]
+    public async Task<IActionResult> AddDefaultAreas(Guid companyId, CancellationToken cancellationToken)
+    {
+        if (!await _dbContext.RenoCompanies.AnyAsync(company => company.RenoCompanyID == companyId, cancellationToken))
+        {
+            return NotFound();
+        }
+
+        await UpsertDefaultInspectionAreasAsync(companyId, cancellationToken);
+        await _dbContext.SaveChangesAsync(cancellationToken);
+
+        return RedirectToAction(nameof(CompanyAreas), new { companyId });
+    }
+
     [HttpGet("SuperAdmin/Companies/{companyId:guid}/Customers")]
     public Task<IActionResult> CompanyCustomers(Guid companyId, int page = 1, CancellationToken cancellationToken = default)
     {
@@ -599,6 +662,53 @@ public sealed class SuperAdminController : Controller
         return RedirectToAction(nameof(EditCompany), new { id = companyId });
     }
 
+    [HttpPost("SuperAdmin/Companies/{companyId:guid}/Users/AddFromTable")]
+    [ValidateAntiForgeryToken]
+    public async Task<IActionResult> AddCompanyUserFromTable(Guid companyId, SuperAdminUserEditViewModel model, CancellationToken cancellationToken)
+    {
+        if (!await _dbContext.RenoCompanies.AnyAsync(company => company.RenoCompanyID == companyId, cancellationToken))
+        {
+            return NotFound();
+        }
+
+        if (string.IsNullOrWhiteSpace(model.Login)
+            || string.IsNullOrWhiteSpace(model.Password)
+            || string.IsNullOrWhiteSpace(model.FirstName)
+            || string.IsNullOrWhiteSpace(model.LastName))
+        {
+            TempData["SuperAdminUsersMessage"] = "New user failed. Login, password, first name, and last name are required.";
+            return RedirectToAction(nameof(CompanyUsersTable), new { companyId });
+        }
+
+        if (await _dbContext.RenoUsers.AnyAsync(user => user.Login == model.Login.Trim(), cancellationToken))
+        {
+            TempData["SuperAdminUsersMessage"] = "New user failed. A user with this login already exists.";
+            return RedirectToAction(nameof(CompanyUsersTable), new { companyId });
+        }
+
+        var now = DateTime.UtcNow;
+        var user = new RenoUser
+        {
+            RenoCompanyID = companyId,
+            Login = Clean(model.Login),
+            Password = _passwordService.HashPassword(model.Password!),
+            FirstName = Clean(model.FirstName),
+            LastName = Clean(model.LastName),
+            Email = Clean(model.Email),
+            PhonePrimary = Clean(model.PhonePrimary),
+            PhoneSecondary = Clean(model.PhoneSecondary),
+            Active = model.Active,
+            DateCreated = now,
+            DateModified = now
+        };
+
+        _dbContext.RenoUsers.Add(user);
+        ApplyUserRoles(user, model.SelectedRoleIDs);
+        await _dbContext.SaveChangesAsync(cancellationToken);
+
+        return RedirectToAction(nameof(CompanyUsersTable), new { companyId });
+    }
+
     [HttpGet("SuperAdmin/Companies/{companyId:guid}/Users/{userId:guid}")]
     public async Task<IActionResult> EditCompanyUser(Guid companyId, Guid userId, CancellationToken cancellationToken)
     {
@@ -649,6 +759,58 @@ public sealed class SuperAdminController : Controller
         await _dbContext.SaveChangesAsync(cancellationToken);
 
         return RedirectToAction(nameof(EditCompany), new { id = companyId });
+    }
+
+    [HttpPost("SuperAdmin/Companies/{companyId:guid}/Users/{userId:guid}/UpdateFromTable")]
+    [ValidateAntiForgeryToken]
+    public async Task<IActionResult> UpdateCompanyUserFromTable(
+        Guid companyId,
+        Guid userId,
+        SuperAdminUserEditViewModel model,
+        CancellationToken cancellationToken)
+    {
+        if (string.IsNullOrWhiteSpace(model.Login)
+            || string.IsNullOrWhiteSpace(model.FirstName)
+            || string.IsNullOrWhiteSpace(model.LastName))
+        {
+            TempData["SuperAdminUsersMessage"] = "Edit user failed. Login, first name, and last name are required.";
+            return RedirectToAction(nameof(CompanyUsersTable), new { companyId });
+        }
+
+        var user = await _dbContext.RenoUsers
+            .Include(item => item.UserRoles)
+            .FirstOrDefaultAsync(item => item.UserID == userId && item.RenoCompanyID == companyId, cancellationToken);
+
+        if (user is null)
+        {
+            return NotFound();
+        }
+
+        var normalizedLogin = Clean(model.Login);
+        if (await _dbContext.RenoUsers.AnyAsync(item => item.UserID != userId && item.Login == normalizedLogin, cancellationToken))
+        {
+            TempData["SuperAdminUsersMessage"] = "Edit user failed. A user with this login already exists.";
+            return RedirectToAction(nameof(CompanyUsersTable), new { companyId });
+        }
+
+        user.Login = normalizedLogin;
+        user.FirstName = Clean(model.FirstName);
+        user.LastName = Clean(model.LastName);
+        user.Email = Clean(model.Email);
+        user.PhonePrimary = Clean(model.PhonePrimary);
+        user.PhoneSecondary = Clean(model.PhoneSecondary);
+        user.Active = model.Active;
+        user.DateModified = DateTime.UtcNow;
+
+        if (!string.IsNullOrWhiteSpace(model.Password))
+        {
+            user.Password = _passwordService.HashPassword(model.Password);
+        }
+
+        user.UserRoles.Clear();
+        ApplyUserRoles(user, model.SelectedRoleIDs);
+        await _dbContext.SaveChangesAsync(cancellationToken);
+        return RedirectToAction(nameof(CompanyUsersTable), new { companyId });
     }
 
     [HttpGet("SuperAdmin/Companies/{companyId:guid}/Users/Attach")]
@@ -836,51 +998,7 @@ public sealed class SuperAdminController : Controller
             });
         }
 
-        var templateCategories = await _dbContext.InspectionAreaCategories
-            .AsNoTracking()
-            .Where(item => item.RenoCompanyID == TemplateRenoCompanyID)
-            .OrderBy(item => item.SortOrder)
-            .ThenBy(item => item.Name)
-            .ToListAsync(cancellationToken);
-
-        var categoryIdMap = new Dictionary<Guid, Guid>();
-        foreach (var category in templateCategories)
-        {
-            var newCategoryId = Guid.NewGuid();
-            categoryIdMap[category.InspectionAreaCategoryId] = newCategoryId;
-
-            _dbContext.InspectionAreaCategories.Add(new InspectionAreaCategory
-            {
-                InspectionAreaCategoryId = newCategoryId,
-                RenoCompanyID = newRenoCompanyID,
-                Name = category.Name,
-                SortOrder = category.SortOrder
-            });
-        }
-
-        var templateAreaTypes = await _dbContext.InspectionAreaTypes
-            .AsNoTracking()
-            .Where(item => item.RenoCompanyID == TemplateRenoCompanyID)
-            .OrderBy(item => item.SortOrder)
-            .ThenBy(item => item.Name)
-            .ToListAsync(cancellationToken);
-
-        foreach (var areaType in templateAreaTypes)
-        {
-            if (!categoryIdMap.TryGetValue(areaType.CategoryId, out var newCategoryId))
-            {
-                continue;
-            }
-
-            _dbContext.InspectionAreaTypes.Add(new InspectionAreaType
-            {
-                InspectionAreaTypeId = Guid.NewGuid(),
-                RenoCompanyID = newRenoCompanyID,
-                CategoryId = newCategoryId,
-                Name = areaType.Name,
-                SortOrder = areaType.SortOrder
-            });
-        }
+        await UpsertDefaultInspectionAreasAsync(newRenoCompanyID, cancellationToken);
 
         var templatePartSources = await _dbContext.PartSources
             .AsNoTracking()
@@ -932,6 +1050,87 @@ public sealed class SuperAdminController : Controller
                 IsPackage = part.IsPackage,
                 PackageUnits = part.PackageUnits
             });
+        }
+    }
+
+    private async Task UpsertDefaultInspectionAreasAsync(Guid targetRenoCompanyID, CancellationToken cancellationToken)
+    {
+        var templateCategories = await _dbContext.InspectionAreaCategories
+            .AsNoTracking()
+            .Where(item => item.RenoCompanyID == TemplateRenoCompanyID)
+            .OrderBy(item => item.SortOrder)
+            .ThenBy(item => item.Name)
+            .ToListAsync(cancellationToken);
+
+        var targetCategories = await _dbContext.InspectionAreaCategories
+            .Where(item => item.RenoCompanyID == targetRenoCompanyID)
+            .ToListAsync(cancellationToken);
+        var targetCategoriesByName = targetCategories
+            .Where(item => !string.IsNullOrWhiteSpace(item.Name))
+            .ToDictionary(item => Clean(item.Name), StringComparer.OrdinalIgnoreCase);
+        var categoryIdMap = new Dictionary<Guid, Guid>();
+
+        foreach (var templateCategory in templateCategories)
+        {
+            var categoryName = Clean(templateCategory.Name);
+            if (string.IsNullOrWhiteSpace(categoryName))
+            {
+                continue;
+            }
+
+            if (!targetCategoriesByName.TryGetValue(categoryName, out var targetCategory))
+            {
+                targetCategory = new InspectionAreaCategory
+                {
+                    InspectionAreaCategoryId = Guid.NewGuid(),
+                    RenoCompanyID = targetRenoCompanyID,
+                    Name = categoryName
+                };
+                _dbContext.InspectionAreaCategories.Add(targetCategory);
+                targetCategoriesByName[categoryName] = targetCategory;
+            }
+
+            targetCategory.SortOrder = templateCategory.SortOrder;
+            categoryIdMap[templateCategory.InspectionAreaCategoryId] = targetCategory.InspectionAreaCategoryId;
+        }
+
+        var templateAreaTypes = await _dbContext.InspectionAreaTypes
+            .AsNoTracking()
+            .Where(item => item.RenoCompanyID == TemplateRenoCompanyID)
+            .OrderBy(item => item.SortOrder)
+            .ThenBy(item => item.Name)
+            .ToListAsync(cancellationToken);
+
+        var targetAreaTypes = await _dbContext.InspectionAreaTypes
+            .Where(item => item.RenoCompanyID == targetRenoCompanyID)
+            .ToListAsync(cancellationToken);
+        var targetAreaTypesByName = targetAreaTypes
+            .Where(item => !string.IsNullOrWhiteSpace(item.Name))
+            .ToDictionary(item => Clean(item.Name), StringComparer.OrdinalIgnoreCase);
+
+        foreach (var templateAreaType in templateAreaTypes)
+        {
+            var areaTypeName = Clean(templateAreaType.Name);
+            if (string.IsNullOrWhiteSpace(areaTypeName)
+                || !categoryIdMap.TryGetValue(templateAreaType.CategoryId, out var targetCategoryId))
+            {
+                continue;
+            }
+
+            if (!targetAreaTypesByName.TryGetValue(areaTypeName, out var targetAreaType))
+            {
+                targetAreaType = new InspectionAreaType
+                {
+                    InspectionAreaTypeId = Guid.NewGuid(),
+                    RenoCompanyID = targetRenoCompanyID,
+                    Name = areaTypeName
+                };
+                _dbContext.InspectionAreaTypes.Add(targetAreaType);
+                targetAreaTypesByName[areaTypeName] = targetAreaType;
+            }
+
+            targetAreaType.CategoryId = targetCategoryId;
+            targetAreaType.SortOrder = templateAreaType.SortOrder;
         }
     }
 

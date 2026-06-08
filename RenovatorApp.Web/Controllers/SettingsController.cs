@@ -109,6 +109,403 @@ public sealed class SettingsController : Controller
         return View();
     }
 
+    public async Task<IActionResult> InspectionAreas(int page = 1, CancellationToken cancellationToken = default)
+    {
+        const int pageSize = 10;
+        var query = _dbContext.InspectionAreaTypes
+            .AsNoTracking()
+            .ForCompany(_currentUserSession.RenoCompanyID);
+
+        var totalInspectionAreas = await query.CountAsync(cancellationToken);
+        var totalPages = Math.Max(1, (int)Math.Ceiling(totalInspectionAreas / (double)pageSize));
+        page = Math.Clamp(page, 1, totalPages);
+
+        var inspectionAreas = await query
+            .OrderBy(areaType => areaType.Name)
+            .Skip((page - 1) * pageSize)
+            .Take(pageSize)
+            .Select(areaType => new InspectionAreaRowViewModel
+            {
+                InspectionAreaTypeId = areaType.InspectionAreaTypeId,
+                Name = areaType.Name
+            })
+            .ToListAsync(cancellationToken);
+
+        var statusMessage = TempData["InspectionAreasStatus"] as string ?? string.Empty;
+        return View(new InspectionAreasViewModel
+        {
+            InspectionAreas = inspectionAreas,
+            Page = page,
+            PageSize = pageSize,
+            TotalInspectionAreas = totalInspectionAreas,
+            TotalPages = totalPages,
+            StatusMessage = statusMessage,
+            StatusClass = string.IsNullOrWhiteSpace(statusMessage)
+                ? "alert-info"
+                : statusMessage.Contains("cannot", StringComparison.OrdinalIgnoreCase)
+                    || statusMessage.Contains("already", StringComparison.OrdinalIgnoreCase)
+                        ? "alert-warning"
+                        : "alert-success"
+        });
+    }
+
+    [HttpPost]
+    [ValidateAntiForgeryToken]
+    public async Task<IActionResult> AddInspectionArea(AddInspectionAreaViewModel model, CancellationToken cancellationToken = default)
+    {
+        var name = CleanText(model.Name);
+        if (string.IsNullOrWhiteSpace(name))
+        {
+            if (IsAjaxRequest())
+            {
+                return BadRequest(new { message = "Name cannot be blank" });
+            }
+
+            TempData["InspectionAreasStatus"] = "Name cannot be blank";
+            return RedirectToAction(nameof(InspectionAreas));
+        }
+
+        var exists = await _dbContext.InspectionAreaTypes
+            .AsNoTracking()
+            .ForCompany(_currentUserSession.RenoCompanyID)
+            .AnyAsync(areaType => areaType.Name.ToLower() == name.ToLower(), cancellationToken);
+
+        if (exists)
+        {
+            if (IsAjaxRequest())
+            {
+                return BadRequest(new { message = "Inspection Area already exists" });
+            }
+
+            TempData["InspectionAreasStatus"] = "Inspection Area already exists";
+            return RedirectToAction(nameof(InspectionAreas));
+        }
+
+        var category = await _dbContext.InspectionAreaCategories
+            .ForCompany(_currentUserSession.RenoCompanyID)
+            .OrderBy(areaCategory => areaCategory.SortOrder)
+            .ThenBy(areaCategory => areaCategory.Name)
+            .FirstOrDefaultAsync(cancellationToken);
+
+        if (category is null)
+        {
+            category = new InspectionAreaCategory
+            {
+                RenoCompanyID = _currentUserSession.RenoCompanyID,
+                Name = "General",
+                SortOrder = 0
+            };
+            _dbContext.InspectionAreaCategories.Add(category);
+        }
+
+        var nextSortOrder = await _dbContext.InspectionAreaTypes
+            .AsNoTracking()
+            .ForCompany(_currentUserSession.RenoCompanyID)
+            .Select(areaType => (int?)areaType.SortOrder)
+            .MaxAsync(cancellationToken) ?? 0;
+
+        _dbContext.InspectionAreaTypes.Add(new InspectionAreaType
+        {
+            RenoCompanyID = _currentUserSession.RenoCompanyID,
+            Category = category,
+            Name = name,
+            SortOrder = nextSortOrder + 10
+        });
+        await _dbContext.SaveChangesAsync(cancellationToken);
+
+        TempData["InspectionAreasStatus"] = "Inspection Area added.";
+        if (IsAjaxRequest())
+        {
+            return Ok(new { message = "Inspection Area added." });
+        }
+
+        return RedirectToAction(nameof(InspectionAreas));
+    }
+
+    [HttpPost]
+    [ValidateAntiForgeryToken]
+    public async Task<IActionResult> UpdateInspectionArea(Guid id, AddInspectionAreaViewModel model, CancellationToken cancellationToken = default)
+    {
+        var name = CleanText(model.Name);
+        if (string.IsNullOrWhiteSpace(name))
+        {
+            if (IsAjaxRequest())
+            {
+                return BadRequest(new { message = "Name cannot be blank" });
+            }
+
+            TempData["InspectionAreasStatus"] = "Name cannot be blank";
+            return RedirectToAction(nameof(InspectionAreas));
+        }
+
+        var inspectionAreaType = await _dbContext.InspectionAreaTypes
+            .ForCompany(_currentUserSession.RenoCompanyID)
+            .FirstOrDefaultAsync(areaType => areaType.InspectionAreaTypeId == id, cancellationToken);
+
+        if (inspectionAreaType is null)
+        {
+            return NotFound();
+        }
+
+        var exists = await _dbContext.InspectionAreaTypes
+            .AsNoTracking()
+            .ForCompany(_currentUserSession.RenoCompanyID)
+            .AnyAsync(areaType =>
+                areaType.InspectionAreaTypeId != id
+                && areaType.Name.ToLower() == name.ToLower(), cancellationToken);
+
+        if (exists)
+        {
+            var message = $"Inspection Area {name} already exists";
+            if (IsAjaxRequest())
+            {
+                return BadRequest(new { message });
+            }
+
+            TempData["InspectionAreasStatus"] = message;
+            return RedirectToAction(nameof(InspectionAreas));
+        }
+
+        inspectionAreaType.Name = name;
+        await _dbContext.SaveChangesAsync(cancellationToken);
+
+        TempData["InspectionAreasStatus"] = "Inspection Area saved.";
+        if (IsAjaxRequest())
+        {
+            return Ok(new { message = "Inspection Area saved." });
+        }
+
+        return RedirectToAction(nameof(InspectionAreas));
+    }
+
+    [HttpPost]
+    [ValidateAntiForgeryToken]
+    public async Task<IActionResult> DeleteInspectionArea(Guid id, CancellationToken cancellationToken = default)
+    {
+        var inspectionAreaType = await _dbContext.InspectionAreaTypes
+            .ForCompany(_currentUserSession.RenoCompanyID)
+            .FirstOrDefaultAsync(areaType => areaType.InspectionAreaTypeId == id, cancellationToken);
+
+        if (inspectionAreaType is null)
+        {
+            return NotFound();
+        }
+
+        var isInUse = await _dbContext.InspectionAreas
+            .AsNoTracking()
+            .ForCompany(_currentUserSession.RenoCompanyID)
+            .AnyAsync(area => area.AreaTypeId == id, cancellationToken);
+
+        if (isInUse)
+        {
+            const string message = "You cannot delete this Inspection Area as it is in use.";
+            if (IsAjaxRequest())
+            {
+                return BadRequest(new { message });
+            }
+
+            TempData["InspectionAreasStatus"] = message;
+            return RedirectToAction(nameof(InspectionAreas));
+        }
+
+        _dbContext.InspectionAreaTypes.Remove(inspectionAreaType);
+        await _dbContext.SaveChangesAsync(cancellationToken);
+
+        TempData["InspectionAreasStatus"] = "Inspection Area deleted.";
+        if (IsAjaxRequest())
+        {
+            return Ok(new { message = "Inspection Area deleted." });
+        }
+
+        return RedirectToAction(nameof(InspectionAreas));
+    }
+
+    public async Task<IActionResult> BuildingTypes(int page = 1, CancellationToken cancellationToken = default)
+    {
+        const int pageSize = 10;
+        var query = _dbContext.BuildingTypes
+            .AsNoTracking()
+            .ForCompany(_currentUserSession.RenoCompanyID);
+
+        var totalBuildingTypes = await query.CountAsync(cancellationToken);
+        var totalPages = Math.Max(1, (int)Math.Ceiling(totalBuildingTypes / (double)pageSize));
+        page = Math.Clamp(page, 1, totalPages);
+
+        var buildingTypes = await query
+            .OrderBy(buildingType => buildingType.Name)
+            .Skip((page - 1) * pageSize)
+            .Take(pageSize)
+            .Select(buildingType => new BuildingTypeRowViewModel
+            {
+                BuildingTypeId = buildingType.BuildingTypeId,
+                Name = buildingType.Name
+            })
+            .ToListAsync(cancellationToken);
+
+        var statusMessage = TempData["BuildingTypesStatus"] as string ?? string.Empty;
+        return View(new BuildingTypesViewModel
+        {
+            BuildingTypes = buildingTypes,
+            Page = page,
+            PageSize = pageSize,
+            TotalBuildingTypes = totalBuildingTypes,
+            TotalPages = totalPages,
+            StatusMessage = statusMessage,
+            StatusClass = string.IsNullOrWhiteSpace(statusMessage)
+                ? "alert-info"
+                : statusMessage.Contains("cannot", StringComparison.OrdinalIgnoreCase)
+                    || statusMessage.Contains("already", StringComparison.OrdinalIgnoreCase)
+                        ? "alert-warning"
+                        : "alert-success"
+        });
+    }
+
+    [HttpPost]
+    [ValidateAntiForgeryToken]
+    public async Task<IActionResult> AddBuildingType(AddBuildingTypeViewModel model, CancellationToken cancellationToken = default)
+    {
+        var name = CleanText(model.Name);
+        if (string.IsNullOrWhiteSpace(name))
+        {
+            if (IsAjaxRequest())
+            {
+                return BadRequest(new { message = "Name cannot be blank" });
+            }
+
+            TempData["BuildingTypesStatus"] = "Name cannot be blank";
+            return RedirectToAction(nameof(BuildingTypes));
+        }
+
+        var exists = await _dbContext.BuildingTypes
+            .AsNoTracking()
+            .ForCompany(_currentUserSession.RenoCompanyID)
+            .AnyAsync(buildingType => buildingType.Name.ToLower() == name.ToLower(), cancellationToken);
+
+        if (exists)
+        {
+            if (IsAjaxRequest())
+            {
+                return BadRequest(new { message = "Building Type already exists" });
+            }
+
+            TempData["BuildingTypesStatus"] = "Building Type already exists";
+            return RedirectToAction(nameof(BuildingTypes));
+        }
+
+        _dbContext.BuildingTypes.Add(new BuildingType
+        {
+            RenoCompanyID = _currentUserSession.RenoCompanyID,
+            Name = name
+        });
+        await _dbContext.SaveChangesAsync(cancellationToken);
+
+        TempData["BuildingTypesStatus"] = "Building Type added.";
+        if (IsAjaxRequest())
+        {
+            return Ok(new { message = "Building Type added." });
+        }
+
+        return RedirectToAction(nameof(BuildingTypes));
+    }
+
+    [HttpPost]
+    [ValidateAntiForgeryToken]
+    public async Task<IActionResult> UpdateBuildingType(Guid id, AddBuildingTypeViewModel model, CancellationToken cancellationToken = default)
+    {
+        var name = CleanText(model.Name);
+        if (string.IsNullOrWhiteSpace(name))
+        {
+            if (IsAjaxRequest())
+            {
+                return BadRequest(new { message = "Name cannot be blank" });
+            }
+
+            TempData["BuildingTypesStatus"] = "Name cannot be blank";
+            return RedirectToAction(nameof(BuildingTypes));
+        }
+
+        var buildingType = await _dbContext.BuildingTypes
+            .ForCompany(_currentUserSession.RenoCompanyID)
+            .FirstOrDefaultAsync(item => item.BuildingTypeId == id, cancellationToken);
+
+        if (buildingType is null)
+        {
+            return NotFound();
+        }
+
+        var exists = await _dbContext.BuildingTypes
+            .AsNoTracking()
+            .ForCompany(_currentUserSession.RenoCompanyID)
+            .AnyAsync(item =>
+                item.BuildingTypeId != id
+                && item.Name.ToLower() == name.ToLower(), cancellationToken);
+
+        if (exists)
+        {
+            var message = $"Building Type {name} already exists";
+            if (IsAjaxRequest())
+            {
+                return BadRequest(new { message });
+            }
+
+            TempData["BuildingTypesStatus"] = message;
+            return RedirectToAction(nameof(BuildingTypes));
+        }
+
+        buildingType.Name = name;
+        await _dbContext.SaveChangesAsync(cancellationToken);
+
+        TempData["BuildingTypesStatus"] = "Building Type saved.";
+        if (IsAjaxRequest())
+        {
+            return Ok(new { message = "Building Type saved." });
+        }
+
+        return RedirectToAction(nameof(BuildingTypes));
+    }
+
+    [HttpPost]
+    [ValidateAntiForgeryToken]
+    public async Task<IActionResult> DeleteBuildingType(Guid id, CancellationToken cancellationToken = default)
+    {
+        var buildingType = await _dbContext.BuildingTypes
+            .ForCompany(_currentUserSession.RenoCompanyID)
+            .FirstOrDefaultAsync(item => item.BuildingTypeId == id, cancellationToken);
+
+        if (buildingType is null)
+        {
+            return NotFound();
+        }
+
+        var isInUse = await _dbContext.Buildings
+            .AsNoTracking()
+            .ForCompany(_currentUserSession.RenoCompanyID)
+            .AnyAsync(building => building.BuildingTypeId == id, cancellationToken);
+
+        if (isInUse)
+        {
+            const string message = "You cannot delete this Building Type as it is in use.";
+            if (IsAjaxRequest())
+            {
+                return BadRequest(new { message });
+            }
+
+            TempData["BuildingTypesStatus"] = message;
+            return RedirectToAction(nameof(BuildingTypes));
+        }
+
+        _dbContext.BuildingTypes.Remove(buildingType);
+        await _dbContext.SaveChangesAsync(cancellationToken);
+
+        TempData["BuildingTypesStatus"] = "Building Type deleted.";
+        if (IsAjaxRequest())
+        {
+            return Ok(new { message = "Building Type deleted." });
+        }
+
+        return RedirectToAction(nameof(BuildingTypes));
+    }
+
     public async Task<IActionResult> DefaultSettings(CancellationToken cancellationToken)
     {
         var defaultState = await _dbContext.AppSettings
@@ -994,6 +1391,11 @@ public sealed class SettingsController : Controller
     {
         return HttpContext.RequestServices
             .GetRequiredService<IConfiguration>()[$"QuickBooks:{name}"] ?? string.Empty;
+    }
+
+    private bool IsAjaxRequest()
+    {
+        return string.Equals(Request.Headers["X-Requested-With"], "XMLHttpRequest", StringComparison.OrdinalIgnoreCase);
     }
 
     private static ScrapedPartData ScrapePartPage(string html)

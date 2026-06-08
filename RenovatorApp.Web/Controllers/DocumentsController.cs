@@ -63,8 +63,6 @@ public sealed class DocumentsController : Controller
         return View(new DocumentsIndexViewModel
         {
             Documents = documents,
-            Customers = await GetCustomerAssignmentOptionsAsync(cancellationToken),
-            Inspections = await GetInspectionAssignmentOptionsAsync(cancellationToken),
             Page = page,
             PageSize = PageSize,
             TotalDocuments = totalDocuments,
@@ -75,11 +73,10 @@ public sealed class DocumentsController : Controller
 
     [HttpPost]
     [ValidateAntiForgeryToken]
-    public async Task<IActionResult> Assign(Guid id, Guid? customerId, Guid? inspectionId, string? search, int page = 1, CancellationToken cancellationToken = default)
+    public async Task<IActionResult> Update(Guid id, string documentName, string? search, int page = 1, CancellationToken cancellationToken = default)
     {
-        var renoCompanyId = _currentUserSession.RenoCompanyID;
         var document = await _dbContext.Documents
-            .ForCompany(renoCompanyId)
+            .ForCompany(_currentUserSession.RenoCompanyID)
             .FirstOrDefaultAsync(item => item.DocumentId == id, cancellationToken);
 
         if (document is null)
@@ -87,34 +84,7 @@ public sealed class DocumentsController : Controller
             return NotFound();
         }
 
-        if (customerId.HasValue)
-        {
-            var customerExists = await _dbContext.Customers
-                .AsNoTracking()
-                .ForCompany(renoCompanyId)
-                .AnyAsync(customer => customer.CustomerId == customerId.Value, cancellationToken);
-
-            if (!customerExists)
-            {
-                return NotFound();
-            }
-        }
-
-        if (inspectionId.HasValue)
-        {
-            var inspectionExists = await _dbContext.Inspections
-                .AsNoTracking()
-                .ForCompany(renoCompanyId)
-                .AnyAsync(inspection => inspection.InspectionId == inspectionId.Value, cancellationToken);
-
-            if (!inspectionExists)
-            {
-                return NotFound();
-            }
-        }
-
-        document.CustomerId = customerId;
-        document.InspectionId = inspectionId;
+        document.DocumentName = Clean(documentName);
         await _dbContext.SaveChangesAsync(cancellationToken);
 
         return RedirectToAction(nameof(Index), new { search, page });
@@ -177,41 +147,6 @@ public sealed class DocumentsController : Controller
         };
     }
 
-    private async Task<IReadOnlyList<DocumentAssignmentOptionViewModel>> GetCustomerAssignmentOptionsAsync(CancellationToken cancellationToken)
-    {
-        var customers = await _dbContext.Customers
-            .AsNoTracking()
-            .ForCompany(_currentUserSession.RenoCompanyID)
-            .OrderBy(customer => customer.DisplayName)
-            .ThenBy(customer => customer.FamilyName)
-            .ToListAsync(cancellationToken);
-
-        return customers
-            .Select(customer => new DocumentAssignmentOptionViewModel
-            {
-                Id = customer.CustomerId,
-                Name = string.IsNullOrWhiteSpace(customer.DisplayName)
-                    ? GetCustomerName(customer)
-                    : customer.DisplayName
-            })
-            .ToList();
-    }
-
-    private async Task<IReadOnlyList<DocumentAssignmentOptionViewModel>> GetInspectionAssignmentOptionsAsync(CancellationToken cancellationToken)
-    {
-        return await _dbContext.Inspections
-            .AsNoTracking()
-            .ForCompany(_currentUserSession.RenoCompanyID)
-            .OrderByDescending(inspection => inspection.InspectionDate)
-            .ThenBy(inspection => inspection.Title)
-            .Select(inspection => new DocumentAssignmentOptionViewModel
-            {
-                Id = inspection.InspectionId,
-                Name = inspection.Title
-            })
-            .ToListAsync(cancellationToken);
-    }
-
     private static string GetCustomerName(Customer? customer)
     {
         if (customer is null)
@@ -222,4 +157,6 @@ public sealed class DocumentsController : Controller
         return string.Join(" ", new[] { customer.GivenName, customer.FamilyName }
             .Where(value => !string.IsNullOrWhiteSpace(value)));
     }
+
+    private static string Clean(string? value) => value?.Trim() ?? string.Empty;
 }
