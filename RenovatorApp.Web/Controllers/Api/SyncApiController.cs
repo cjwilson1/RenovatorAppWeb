@@ -171,7 +171,8 @@ public sealed class SyncApiController : ControllerBase
                 item.PostalCode,
                 item.Notes)).ToList(),
             (request.Properties ?? []).Select(item => new MobileSyncProperty(
-                item.Id)).ToList(),
+                item.Id,
+                item.Name)).ToList(),
             (request.Addresses ?? []).Select(item => new MobileSyncAddress(
                 item.Id,
                 item.PropertyId,
@@ -241,12 +242,14 @@ public sealed class SyncApiController : ControllerBase
                 item.StartingLocation,
                 item.StartingPosition,
                 item.EndingLocation,
-                item.EndingPosition)).ToList(),
+                item.EndingPosition,
+                item.InspectionId)).ToList(),
             (request.MileageTrackingWaypoints ?? []).Select(item => new MobileSyncMileageTrackingWaypoint(
                 item.UniqueId,
                 item.MileageTrackingId,
                 item.WaypointTime,
                 item.CumulativeMiles,
-                item.GpsCoordinates)).ToList());
+                item.GpsCoordinates,
+                item.Location)).ToList());
     }
 }

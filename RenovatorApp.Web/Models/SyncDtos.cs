@@ -94,7 +94,8 @@ public sealed record SyncCustomerDto(
     string Notes);
 
 public sealed record SyncPropertyDto(
-    Guid Id);
+    Guid Id,
+    string? Name);
 
 public sealed record SyncAddressDto(
     Guid Id,
@@ -172,11 +173,13 @@ public sealed record SyncMileageTrackingDto(
     string StartingLocation,
     string StartingPosition,
     string EndingLocation,
-    string EndingPosition);
+    string EndingPosition,
+    Guid? InspectionId);
 
 public sealed record SyncMileageTrackingWaypointDto(
     Guid UniqueId,
     Guid MileageTrackingId,
     DateTime WaypointTime,
     double CumulativeMiles,
-    string GpsCoordinates);
+    string GpsCoordinates,
+    string? Location);
