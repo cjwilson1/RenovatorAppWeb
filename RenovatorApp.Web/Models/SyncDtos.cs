@@ -21,7 +21,8 @@ public sealed record SyncRequest(
     IReadOnlyList<SyncInspectionAreaNoteEstimateItemDto>? InspectionAreaNoteEstimateItems,
     IReadOnlyList<SyncInspectionAreaNotePhotoDto>? InspectionAreaNotePhotos,
     IReadOnlyList<SyncMileageTrackingDto>? MileageTracking,
-    IReadOnlyList<SyncMileageTrackingWaypointDto>? MileageTrackingWaypoints);
+    IReadOnlyList<SyncMileageTrackingWaypointDto>? MileageTrackingWaypoints,
+    IReadOnlyList<SyncCalendarEventDto>? CalendarEvents);
 
 public sealed record SyncResponse(
     DateTime SyncedAtUtc,
@@ -188,3 +189,19 @@ public sealed record SyncMileageTrackingWaypointDto(
     double CumulativeMiles,
     string GpsCoordinates,
     string? Location);
+
+public sealed record SyncCalendarEventDto(
+    Guid UniqueEventId,
+    Guid RenoUserID,
+    string Title,
+    DateTime Date,
+    bool AllDay,
+    TimeSpan StartTime,
+    TimeSpan EndTime,
+    string EventAlertTimes,
+    string Notes,
+    bool IsPrivate,
+    Guid? InspectionId,
+    DateTime CreatedAtUtc,
+    DateTime UpdatedAtUtc,
+    bool IsDeleted);

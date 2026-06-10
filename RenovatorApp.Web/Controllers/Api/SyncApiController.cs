@@ -253,6 +253,21 @@ public sealed class SyncApiController : ControllerBase
                 item.WaypointTime,
                 item.CumulativeMiles,
                 item.GpsCoordinates,
-                item.Location)).ToList());
+                item.Location)).ToList(),
+            (request.CalendarEvents ?? []).Select(item => new MobileSyncCalendarEvent(
+                item.UniqueEventId,
+                item.RenoUserID,
+                item.Title,
+                item.Date,
+                item.AllDay,
+                item.StartTime,
+                item.EndTime,
+                item.EventAlertTimes,
+                item.Notes,
+                item.IsPrivate,
+                item.InspectionId,
+                item.CreatedAtUtc,
+                item.UpdatedAtUtc,
+                item.IsDeleted)).ToList());
     }
 }

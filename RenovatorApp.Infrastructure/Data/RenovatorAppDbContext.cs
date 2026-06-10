@@ -13,6 +13,7 @@ public sealed class RenovatorAppDbContext : DbContext
     public DbSet<AppSetting> AppSettings => Set<AppSetting>();
     public DbSet<Building> Buildings => Set<Building>();
     public DbSet<BuildingType> BuildingTypes => Set<BuildingType>();
+    public DbSet<CalendarEvent> CalendarEvents => Set<CalendarEvent>();
     public DbSet<Customer> Customers => Set<Customer>();
     public DbSet<Document> Documents => Set<Document>();
     public DbSet<DocumentType> DocumentTypes => Set<DocumentType>();
@@ -50,6 +51,7 @@ public sealed class RenovatorAppDbContext : DbContext
         modelBuilder.Entity<AppSetting>().ToTable("Settings");
         modelBuilder.Entity<Building>().ToTable("Building");
         modelBuilder.Entity<BuildingType>().ToTable("BuildingType");
+        modelBuilder.Entity<CalendarEvent>().ToTable("CalendarEvent");
         modelBuilder.Entity<Customer>().ToTable("Customer");
         modelBuilder.Entity<Document>().ToTable("Documents");
         modelBuilder.Entity<DocumentType>().ToTable("DocumentType");
@@ -79,6 +81,7 @@ public sealed class RenovatorAppDbContext : DbContext
         modelBuilder.Entity<AppSetting>().HasKey(setting => setting.AppSettingId);
         modelBuilder.Entity<Building>().HasKey(building => building.BuildingId);
         modelBuilder.Entity<BuildingType>().HasKey(buildingType => buildingType.BuildingTypeId);
+        modelBuilder.Entity<CalendarEvent>().HasKey(calendarEvent => calendarEvent.CalendarEventId);
         modelBuilder.Entity<Customer>().HasKey(customer => customer.CustomerId);
         modelBuilder.Entity<Document>().HasKey(document => document.DocumentId);
         modelBuilder.Entity<DocumentType>().HasKey(documentType => documentType.DocumentTypeId);
@@ -252,6 +255,18 @@ public sealed class RenovatorAppDbContext : DbContext
             .HasForeignKey(session => session.InspectionId)
             .OnDelete(DeleteBehavior.SetNull);
 
+        modelBuilder.Entity<CalendarEvent>()
+            .HasOne(calendarEvent => calendarEvent.Inspection)
+            .WithMany(inspection => inspection.CalendarEvents)
+            .HasForeignKey(calendarEvent => calendarEvent.InspectionId)
+            .OnDelete(DeleteBehavior.SetNull);
+
+        modelBuilder.Entity<CalendarEvent>()
+            .HasOne(calendarEvent => calendarEvent.RenoUser)
+            .WithMany(user => user.CalendarEvents)
+            .HasForeignKey(calendarEvent => calendarEvent.RenoUserID)
+            .OnDelete(DeleteBehavior.Restrict);
+
         modelBuilder.Entity<RenoUser>()
             .HasOne(user => user.RenoCompany)
             .WithMany(company => company.Users)
@@ -301,6 +316,11 @@ public sealed class RenovatorAppDbContext : DbContext
         modelBuilder.Entity<MileageTracking>().HasIndex(session => session.InspectionId);
         modelBuilder.Entity<MileageTrackingWaypoint>().HasIndex(waypoint => waypoint.MileageTrackingId);
         modelBuilder.Entity<MileageTrackingWaypoint>().HasIndex(waypoint => waypoint.WaypointTime);
+        modelBuilder.Entity<CalendarEvent>().HasIndex(calendarEvent => calendarEvent.RenoCompanyID);
+        modelBuilder.Entity<CalendarEvent>().HasIndex(calendarEvent => calendarEvent.RenoUserID);
+        modelBuilder.Entity<CalendarEvent>().HasIndex(calendarEvent => calendarEvent.Date);
+        modelBuilder.Entity<CalendarEvent>().HasIndex(calendarEvent => calendarEvent.UpdatedAtUtc);
+        modelBuilder.Entity<CalendarEvent>().HasIndex(calendarEvent => calendarEvent.InspectionId);
         modelBuilder.Entity<Part>().HasIndex(part => part.Name);
         modelBuilder.Entity<Part>().HasIndex(part => part.RenoCompanyID);
         modelBuilder.Entity<PartSource>().HasIndex(source => new { source.RenoCompanyID, source.Name }).IsUnique();

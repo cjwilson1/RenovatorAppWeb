@@ -588,6 +588,67 @@ public sealed class MobileSyncDataService
             results.Add(MobileSyncResult.Updated(nameof(MileageTrackingWaypoint), item.UniqueId));
         }
 
+        foreach (var item in batch.CalendarEvents)
+        {
+            var entity = await _dbContext.CalendarEvents
+                .ForCompany(renoCompanyID)
+                .FirstOrDefaultAsync(calendarEvent => calendarEvent.CalendarEventId == item.UniqueEventId, cancellationToken);
+            var incomingUpdatedAtUtc = NormalizeUtc(item.UpdatedAtUtc);
+
+            if (entity is null)
+            {
+                if (item.IsDeleted)
+                {
+                    results.Add(MobileSyncResult.Unchanged(nameof(CalendarEvent), item.UniqueEventId));
+                    continue;
+                }
+
+                _dbContext.CalendarEvents.Add(new CalendarEvent
+                {
+                    CalendarEventId = item.UniqueEventId,
+                    RenoCompanyID = renoCompanyID,
+                    RenoUserID = item.RenoUserID,
+                    Title = item.Title,
+                    Date = NormalizeDate(item.Date),
+                    AllDay = item.AllDay,
+                    StartTime = item.StartTime,
+                    EndTime = item.EndTime,
+                    EventAlertTimes = item.EventAlertTimes,
+                    Notes = item.Notes,
+                    IsPrivate = item.IsPrivate,
+                    IsDeleted = item.IsDeleted,
+                    InspectionId = item.InspectionId,
+                    CreatedAtUtc = NormalizeUtc(item.CreatedAtUtc),
+                    UpdatedAtUtc = incomingUpdatedAtUtc
+                });
+                results.Add(MobileSyncResult.Created(nameof(CalendarEvent), item.UniqueEventId));
+                continue;
+            }
+
+            if (entity.UpdatedAtUtc > incomingUpdatedAtUtc)
+            {
+                results.Add(MobileSyncResult.Conflict(nameof(CalendarEvent), item.UniqueEventId, "Server row is newer than incoming mobile row."));
+                continue;
+            }
+
+            entity.RenoUserID = item.RenoUserID;
+            entity.Title = item.Title;
+            entity.Date = NormalizeDate(item.Date);
+            entity.AllDay = item.AllDay;
+            entity.StartTime = item.StartTime;
+            entity.EndTime = item.EndTime;
+            entity.EventAlertTimes = item.EventAlertTimes;
+            entity.Notes = item.Notes;
+            entity.IsPrivate = item.IsPrivate;
+            entity.IsDeleted = item.IsDeleted;
+            entity.InspectionId = item.InspectionId;
+            entity.CreatedAtUtc = NormalizeUtc(item.CreatedAtUtc);
+            entity.UpdatedAtUtc = incomingUpdatedAtUtc;
+            results.Add(item.IsDeleted
+                ? MobileSyncResult.Updated(nameof(CalendarEvent), item.UniqueEventId)
+                : MobileSyncResult.Updated(nameof(CalendarEvent), item.UniqueEventId));
+        }
+
         await _dbContext.SaveChangesAsync(cancellationToken);
         await transaction.CommitAsync(cancellationToken);
 
@@ -682,7 +743,8 @@ public sealed record MobileSyncBatch(
     IReadOnlyList<MobileSyncInspectionAreaNoteEstimateItem> InspectionAreaNoteEstimateItems,
     IReadOnlyList<MobileSyncInspectionAreaNotePhoto> InspectionAreaNotePhotos,
     IReadOnlyList<MobileSyncMileageTracking> MileageTracking,
-    IReadOnlyList<MobileSyncMileageTrackingWaypoint> MileageTrackingWaypoints);
+    IReadOnlyList<MobileSyncMileageTrackingWaypoint> MileageTrackingWaypoints,
+    IReadOnlyList<MobileSyncCalendarEvent> CalendarEvents);
 
 public sealed record MobileSyncResult(string EntityName, Guid Id, string Status, string? Message)
 {
@@ -712,3 +774,4 @@ public sealed record MobileSyncInspectionAreaNoteEstimateItem(Guid Id, Guid Prop
 public sealed record MobileSyncInspectionAreaNotePhoto(Guid Id, Guid PropertyId, Guid? BuildingId, Guid AreaId, Guid AreaNoteId, DateTime CreatedAtUtc, string FileName, string ContentType, string DataBase64);
 public sealed record MobileSyncMileageTracking(Guid UniqueId, DateTime TrackingStartedAtUtc, double TotalMileage, TimeSpan TotalTime, string StartingLocation, string StartingPosition, string EndingLocation, string EndingPosition, Guid? InspectionId);
 public sealed record MobileSyncMileageTrackingWaypoint(Guid UniqueId, Guid MileageTrackingId, DateTime WaypointTime, double CumulativeMiles, string GpsCoordinates, string? Location);
+public sealed record MobileSyncCalendarEvent(Guid UniqueEventId, Guid RenoUserID, string Title, DateTime Date, bool AllDay, TimeSpan StartTime, TimeSpan EndTime, string EventAlertTimes, string Notes, bool IsPrivate, Guid? InspectionId, DateTime CreatedAtUtc, DateTime UpdatedAtUtc, bool IsDeleted);

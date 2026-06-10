@@ -15,5 +15,6 @@ public sealed class Inspection : IRenoCompanyEntity
     public Property Property { get; set; } = null!;
     public Customer? Customer { get; set; }
     public List<MileageTracking> MileageTrackingRecords { get; set; } = [];
+    public List<CalendarEvent> CalendarEvents { get; set; } = [];
     public List<Document> Documents { get; set; } = [];
 }
