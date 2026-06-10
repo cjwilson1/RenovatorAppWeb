@@ -170,6 +170,9 @@ public sealed class SyncApiController : ControllerBase
                 item.State,
                 item.PostalCode,
                 item.Notes)).ToList(),
+            (request.CustomerProperties ?? []).Select(item => new MobileSyncCustomerProperty(
+                item.CustomerId,
+                item.PropertyId)).ToList(),
             (request.Properties ?? []).Select(item => new MobileSyncProperty(
                 item.Id,
                 item.Name)).ToList(),

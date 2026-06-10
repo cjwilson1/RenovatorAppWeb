@@ -276,6 +276,39 @@ public sealed class MobileSyncDataService
             results.Add(MobileSyncResult.Updated(nameof(Address), item.Id));
         }
 
+        await _dbContext.SaveChangesAsync(cancellationToken);
+
+        foreach (var item in batch.CustomerProperties)
+        {
+            var customerExists = await _dbContext.Customers
+                .ForCompany(renoCompanyID)
+                .AnyAsync(customer => customer.CustomerId == item.CustomerId, cancellationToken);
+            var propertyExists = await _dbContext.Properties
+                .ForCompany(renoCompanyID)
+                .AnyAsync(property => property.PropertyId == item.PropertyId, cancellationToken);
+
+            if (!customerExists || !propertyExists)
+            {
+                results.Add(MobileSyncResult.Skipped(
+                    "CustomerProperty",
+                    item.PropertyId,
+                    "Customer or property was not found for this company."));
+                continue;
+            }
+
+            var rowsAffected = await _dbContext.Database.ExecuteSqlInterpolatedAsync(
+                $"""
+                 INSERT INTO "CustomerProperty" ("CustomerId", "PropertyId")
+                 VALUES ({item.CustomerId}, {item.PropertyId})
+                 ON CONFLICT DO NOTHING
+                 """,
+                cancellationToken);
+
+            results.Add(rowsAffected > 0
+                ? MobileSyncResult.Created("CustomerProperty", item.PropertyId)
+                : MobileSyncResult.Unchanged("CustomerProperty", item.PropertyId));
+        }
+
         foreach (var item in batch.Buildings)
         {
             var entity = await _dbContext.Buildings.ForCompany(renoCompanyID).FirstOrDefaultAsync(building => building.BuildingId == item.Id, cancellationToken);
@@ -639,6 +672,7 @@ public sealed record MobileSyncBatch(
     IReadOnlyList<MobileSyncBuildingType> BuildingTypes,
     IReadOnlyList<MobileSyncInspector> Inspectors,
     IReadOnlyList<MobileSyncCustomer> Customers,
+    IReadOnlyList<MobileSyncCustomerProperty> CustomerProperties,
     IReadOnlyList<MobileSyncProperty> Properties,
     IReadOnlyList<MobileSyncAddress> Addresses,
     IReadOnlyList<MobileSyncBuilding> Buildings,
@@ -667,6 +701,7 @@ public sealed record MobileSyncInspectionAreaType(Guid AreaTypeId, Guid Category
 public sealed record MobileSyncBuildingType(Guid Id, string Name);
 public sealed record MobileSyncInspector(Guid Id, string FirstName, string LastName, decimal HourlyRate, string Phone, string Email, bool IsDefault);
 public sealed record MobileSyncCustomer(Guid CustomerId, string FirstName, string LastName, string CompanyName, string Phone, string Email, string Street1, string Street2, string City, string State, string PostalCode, string Notes);
+public sealed record MobileSyncCustomerProperty(Guid CustomerId, Guid PropertyId);
 public sealed record MobileSyncProperty(Guid Id, string? Name);
 public sealed record MobileSyncAddress(Guid Id, Guid? PropertyId, string Street1, string Street2, string City, string State, string PostalCode);
 public sealed record MobileSyncBuilding(Guid Id, Guid PropertyId, Guid BuildingTypeId, string Name, int SortOrder);

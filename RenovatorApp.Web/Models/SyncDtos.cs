@@ -11,6 +11,7 @@ public sealed record SyncRequest(
     IReadOnlyList<SyncBuildingTypeDto>? BuildingTypes,
     IReadOnlyList<SyncInspectorDto>? Inspectors,
     IReadOnlyList<SyncCustomerDto>? Customers,
+    IReadOnlyList<SyncCustomerPropertyDto>? CustomerProperties,
     IReadOnlyList<SyncPropertyDto>? Properties,
     IReadOnlyList<SyncAddressDto>? Addresses,
     IReadOnlyList<SyncBuildingDto>? Buildings,
@@ -92,6 +93,10 @@ public sealed record SyncCustomerDto(
     string State,
     string PostalCode,
     string Notes);
+
+public sealed record SyncCustomerPropertyDto(
+    Guid CustomerId,
+    Guid PropertyId);
 
 public sealed record SyncPropertyDto(
     Guid Id,
