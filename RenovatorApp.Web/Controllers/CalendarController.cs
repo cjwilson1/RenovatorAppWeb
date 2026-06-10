@@ -32,6 +32,7 @@ public sealed class CalendarController : Controller
         int? month,
         DateTime? selectedDate,
         Guid? editId,
+        bool showDay = false,
         bool showEditor = false,
         CancellationToken cancellationToken = default)
     {
@@ -61,6 +62,7 @@ public sealed class CalendarController : Controller
                 .Select(ToRowViewModel)
                 .ToList(),
             EventForm = eventForm,
+            ShowDayDialog = showDay && eventForm is null,
             StatusMessage = TempData["CalendarStatus"] as string,
             ErrorMessage = TempData["CalendarError"] as string
         });
