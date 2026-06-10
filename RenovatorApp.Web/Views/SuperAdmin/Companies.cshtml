@@ -40,13 +40,14 @@
             <th scope="col">URL</th>
             <th scope="col">Active</th>
             <th scope="col">Created</th>
+            <th scope="col">Id</th>
         </tr>
         </thead>
         <tbody>
         @if (Model.Companies.Count == 0)
         {
             <tr>
-                <td class="text-muted" colspan="8">No companies found.</td>
+                <td class="text-muted" colspan="9">No companies found.</td>
             </tr>
         }
         else
@@ -66,6 +67,7 @@
                     <td>@company.URL</td>
                     <td>@(company.Active ? "Yes" : "No")</td>
                     <td>@company.DateCreated.ToLocalTime().ToString("g")</td>
+                    <td>@company.RenoCompanyID.ToString()[..8]</td>
                 </tr>
             }
         }
