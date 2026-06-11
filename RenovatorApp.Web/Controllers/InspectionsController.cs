@@ -1186,26 +1186,38 @@ public sealed class InspectionsController : Controller
 
     private async Task<IReadOnlyList<InspectorPickerItemViewModel>> GetInspectorPickerItemsAsync(CancellationToken cancellationToken)
     {
-        var inspectors = await _inspectionDataService.GetInspectorsAsync(_currentUserSession.RenoCompanyID, cancellationToken);
+        var inspectors = await _dbContext.Employees
+            .AsNoTracking()
+            .ForCompany(_currentUserSession.RenoCompanyID)
+            .Where(employee => employee.IsInspector)
+            .OrderBy(employee => employee.FamilyName)
+            .ThenBy(employee => employee.GivenName)
+            .ThenBy(employee => employee.DisplayName)
+            .ToListAsync(cancellationToken);
 
         return inspectors
             .Select(inspector => new InspectorPickerItemViewModel
             {
-                Id = inspector.InspectorId,
+                Id = inspector.EmployeeId,
                 FullName = GetInspectorFullName(inspector),
-                Email = inspector.Email,
-                Phone = inspector.Phone,
-                HourlyRate = inspector.HourlyRate,
-                IsDefault = inspector.IsDefault
+                Email = inspector.PrimaryEmailAddress,
+                Phone = inspector.PrimaryPhone,
+                HourlyRate = inspector.InspectorHourlyRate,
+                IsDefault = inspector.IsDefaultInspector
             })
             .ToList();
     }
 
-    private static string GetInspectorFullName(Inspector inspector)
+    private static string GetInspectorFullName(Employee inspector)
     {
-        var fullName = $"{inspector.FirstName} {inspector.LastName}".Trim();
+        var fullName = $"{inspector.GivenName} {inspector.FamilyName}".Trim();
 
-        return string.IsNullOrWhiteSpace(fullName) ? "Unnamed Inspector" : fullName;
+        if (!string.IsNullOrWhiteSpace(fullName))
+        {
+            return fullName;
+        }
+
+        return string.IsNullOrWhiteSpace(inspector.DisplayName) ? "Unnamed Inspector" : inspector.DisplayName;
     }
 
     private async Task<IReadOnlyList<PartPickerItemViewModel>> GetPartPickerItemsAsync(CancellationToken cancellationToken)

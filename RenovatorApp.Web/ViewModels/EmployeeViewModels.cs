@@ -21,17 +21,18 @@ public sealed class EmployeeRowViewModel
     public string ContactName { get; init; } = string.Empty;
     public string Email { get; init; } = string.Empty;
     public string Phone { get; init; } = string.Empty;
+    public bool IsInspector { get; init; }
     public string Active { get; init; } = string.Empty;
 }
 
 public sealed class EmployeeDetailViewModel
 {
+    public bool IsNew { get; set; }
     public Guid EmployeeId { get; set; }
     public string QuickBooksEmployeeId { get; set; } = string.Empty;
     public string SyncToken { get; set; } = string.Empty;
 
-    [Required]
-    public string DisplayName { get; set; } = string.Empty;
+    public string? DisplayName { get; set; }
 
     public string? PrintOnCheckName { get; set; }
     public string? Title { get; set; }
@@ -47,8 +48,7 @@ public sealed class EmployeeDetailViewModel
     public string? Suffix { get; set; }
     public string? PrimaryEmailAddress { get; set; }
 
-    [Required]
-    public string PrimaryPhone { get; set; } = string.Empty;
+    public string? PrimaryPhone { get; set; }
 
     public string? MobilePhone { get; set; }
     public string Active { get; set; } = string.Empty;
@@ -61,6 +61,9 @@ public sealed class EmployeeDetailViewModel
     public DateTime? BirthDate { get; set; }
     public decimal BillRate { get; set; }
     public decimal HourlyCostRate { get; set; }
+    public decimal InspectorHourlyRate { get; set; }
+    public bool IsInspector { get; set; }
+    public bool IsDefaultInspector { get; set; }
     public DateTime? QuickBooksCreateTime { get; set; }
     public DateTime? QuickBooksLastUpdatedTime { get; set; }
     public DateTime CreatedDate { get; set; }
@@ -73,8 +76,7 @@ public sealed class EmployeeDetailUpdateViewModel
 {
     public Guid EmployeeId { get; set; }
 
-    [Required]
-    public string DisplayName { get; set; } = string.Empty;
+    public string? DisplayName { get; set; }
 
     public string? PrintOnCheckName { get; set; }
     public string? Title { get; set; }
@@ -90,12 +92,14 @@ public sealed class EmployeeDetailUpdateViewModel
     public string? Suffix { get; set; }
     public string? PrimaryEmailAddress { get; set; }
 
-    [Required]
-    public string PrimaryPhone { get; set; } = string.Empty;
+    public string? PrimaryPhone { get; set; }
 
     public string? MobilePhone { get; set; }
     public decimal BillRate { get; set; }
     public decimal HourlyCostRate { get; set; }
+    public decimal InspectorHourlyRate { get; set; }
+    public bool IsInspector { get; set; }
+    public bool IsDefaultInspector { get; set; }
     public EmployeeAddressUpdateViewModel PrimaryAddress { get; set; } = new();
 }
 

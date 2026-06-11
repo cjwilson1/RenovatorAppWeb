@@ -975,6 +975,9 @@ public sealed class QuickBooksController : Controller
         employee.MobilePhone = Clean(update.MobilePhone);
         employee.BillRate = update.BillRate;
         employee.HourlyCostRate = update.HourlyCostRate;
+        employee.InspectorHourlyRate = update.InspectorHourlyRate;
+        employee.IsInspector = update.IsInspector;
+        employee.IsDefaultInspector = update.IsDefaultInspector;
 
         if (IsEmployeeAddressEmpty(update.PrimaryAddress))
         {

@@ -7,7 +7,6 @@
     var isInspectionTable = string.Equals(Model.SelectedTableName, "Inspection", StringComparison.OrdinalIgnoreCase);
     var isCompanyEmployeeTable = string.Equals(Model.SelectedTableName, "Employee", StringComparison.OrdinalIgnoreCase);
     var isCompanyCustomerTable = string.Equals(Model.SelectedTableName, "Customer", StringComparison.OrdinalIgnoreCase);
-    var isCompanyInspectorsTable = string.Equals(Model.SelectedTableName, "Inspectors", StringComparison.OrdinalIgnoreCase);
     var isCompanyMileageTable = string.Equals(Model.SelectedTableName, "MileageTracking", StringComparison.OrdinalIgnoreCase);
     var isCompanyBuildingTypeTable = string.Equals(Model.SelectedTableName, "BuildingType", StringComparison.OrdinalIgnoreCase);
     var isCompanyAreaTypeTable = string.Equals(Model.SelectedTableName, "InspectionAreaType", StringComparison.OrdinalIgnoreCase);
@@ -53,15 +52,6 @@
             }
             .Select(column => GetColumnIndex(Model.Columns, column))
             .Where(index => index >= 0)
-            .ToList();
-    }
-    else if (isCompanyInspectorsTable)
-    {
-        visibleColumnIndexes = Model.Columns
-            .Select((column, index) => new { column, index })
-            .Where(item => !string.Equals(item.column, "Id", StringComparison.OrdinalIgnoreCase)
-                && !string.Equals(item.column, "RenoCompanyID", StringComparison.OrdinalIgnoreCase))
-            .Select(item => item.index)
             .ToList();
     }
     else if (isInspectionTable)

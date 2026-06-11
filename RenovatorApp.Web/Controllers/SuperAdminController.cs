@@ -428,7 +428,6 @@ public sealed class SuperAdminController : Controller
         await _dbContext.Documents.Where(document => document.RenoCompanyID == id).ExecuteDeleteAsync(cancellationToken);
         await _dbContext.Customers.Where(customer => customer.RenoCompanyID == id).ExecuteDeleteAsync(cancellationToken);
         await _dbContext.Employees.Where(employee => employee.RenoCompanyID == id).ExecuteDeleteAsync(cancellationToken);
-        await _dbContext.Inspectors.Where(inspector => inspector.RenoCompanyID == id).ExecuteDeleteAsync(cancellationToken);
 
         await _dbContext.Parts.Where(part => part.RenoCompanyID == id).ExecuteDeleteAsync(cancellationToken);
         await _dbContext.PartSources.Where(source => source.RenoCompanyID == id).ExecuteDeleteAsync(cancellationToken);
@@ -579,12 +578,6 @@ public sealed class SuperAdminController : Controller
             CustomerName = FormatCustomerName(inspection.Customer),
             CustomerAddress = FormatAddress(inspection.Customer?.BillAddress)
         });
-    }
-
-    [HttpGet("SuperAdmin/Companies/{companyId:guid}/Inspectors")]
-    public Task<IActionResult> CompanyInspectors(Guid companyId, int page = 1, CancellationToken cancellationToken = default)
-    {
-        return CompanyTable(companyId, "Inspectors", "Inspectors", nameof(CompanyInspectors), page, cancellationToken);
     }
 
     [HttpGet("SuperAdmin/Companies/{companyId:guid}/Mileage")]

@@ -174,36 +174,6 @@ public sealed class MobileSyncDataService
             results.Add(MobileSyncResult.Updated(nameof(BuildingType), item.Id));
         }
 
-        foreach (var item in batch.Inspectors)
-        {
-            var entity = await _dbContext.Inspectors.ForCompany(renoCompanyID).FirstOrDefaultAsync(inspector => inspector.InspectorId == item.Id, cancellationToken);
-
-            if (entity is null)
-            {
-                _dbContext.Inspectors.Add(new Inspector
-                {
-                    InspectorId = item.Id,
-                    RenoCompanyID = renoCompanyID,
-                    FirstName = item.FirstName,
-                    LastName = item.LastName,
-                    HourlyRate = item.HourlyRate,
-                    Phone = item.Phone,
-                    Email = item.Email,
-                    IsDefault = item.IsDefault
-                });
-                results.Add(MobileSyncResult.Created(nameof(Inspector), item.Id));
-                continue;
-            }
-
-            entity.FirstName = item.FirstName;
-            entity.LastName = item.LastName;
-            entity.HourlyRate = item.HourlyRate;
-            entity.Phone = item.Phone;
-            entity.Email = item.Email;
-            entity.IsDefault = item.IsDefault;
-            results.Add(MobileSyncResult.Updated(nameof(Inspector), item.Id));
-        }
-
         foreach (var item in batch.Customers)
         {
             var entity = await _dbContext.Customers
@@ -731,7 +701,6 @@ public sealed record MobileSyncBatch(
     IReadOnlyList<MobileSyncInspectionAreaCategory> InspectionAreaCategories,
     IReadOnlyList<MobileSyncInspectionAreaType> InspectionAreaTypes,
     IReadOnlyList<MobileSyncBuildingType> BuildingTypes,
-    IReadOnlyList<MobileSyncInspector> Inspectors,
     IReadOnlyList<MobileSyncCustomer> Customers,
     IReadOnlyList<MobileSyncCustomerProperty> CustomerProperties,
     IReadOnlyList<MobileSyncProperty> Properties,
@@ -761,7 +730,6 @@ public sealed record MobileSyncPart(Guid PartId, Guid PartSourceId, string Name,
 public sealed record MobileSyncInspectionAreaCategory(Guid Id, string Name, int SortOrder);
 public sealed record MobileSyncInspectionAreaType(Guid AreaTypeId, Guid CategoryId, string Name, int SortOrder);
 public sealed record MobileSyncBuildingType(Guid Id, string Name);
-public sealed record MobileSyncInspector(Guid Id, string FirstName, string LastName, decimal HourlyRate, string Phone, string Email, bool IsDefault);
 public sealed record MobileSyncCustomer(Guid CustomerId, string FirstName, string LastName, string CompanyName, string Phone, string Email, string Street1, string Street2, string City, string State, string PostalCode, string Notes);
 public sealed record MobileSyncCustomerProperty(Guid CustomerId, Guid PropertyId);
 public sealed record MobileSyncProperty(Guid Id, string? Name);

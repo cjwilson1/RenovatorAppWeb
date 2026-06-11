@@ -25,7 +25,6 @@ public sealed class RenovatorAppDbContext : DbContext
     public DbSet<InspectionAreaNoteEstimateItem> InspectionAreaNoteEstimateItems => Set<InspectionAreaNoteEstimateItem>();
     public DbSet<InspectionAreaNotePhoto> InspectionAreaNotePhotos => Set<InspectionAreaNotePhoto>();
     public DbSet<InspectionAreaType> InspectionAreaTypes => Set<InspectionAreaType>();
-    public DbSet<Inspector> Inspectors => Set<Inspector>();
     public DbSet<MileageTracking> MileageTracking => Set<MileageTracking>();
     public DbSet<MileageTrackingWaypoint> MileageTrackingWaypoints => Set<MileageTrackingWaypoint>();
     public DbSet<Part> Parts => Set<Part>();
@@ -63,7 +62,6 @@ public sealed class RenovatorAppDbContext : DbContext
         modelBuilder.Entity<InspectionAreaNoteEstimateItem>().ToTable("InspectionAreaNoteEstimateItem");
         modelBuilder.Entity<InspectionAreaNotePhoto>().ToTable("InspectionAreaNotePhoto");
         modelBuilder.Entity<InspectionAreaType>().ToTable("InspectionAreaType");
-        modelBuilder.Entity<Inspector>().ToTable("Inspectors");
         modelBuilder.Entity<MileageTracking>().ToTable("MileageTracking");
         modelBuilder.Entity<MileageTrackingWaypoint>().ToTable("MileageTrackingWaypoint");
         modelBuilder.Entity<Part>().ToTable("Part");
@@ -93,7 +91,6 @@ public sealed class RenovatorAppDbContext : DbContext
         modelBuilder.Entity<InspectionAreaNoteEstimateItem>().HasKey(item => item.InspectionAreaNoteEstimateItemId);
         modelBuilder.Entity<InspectionAreaNotePhoto>().HasKey(photo => photo.InspectionAreaNotePhotoId);
         modelBuilder.Entity<InspectionAreaType>().HasKey(areaType => areaType.InspectionAreaTypeId);
-        modelBuilder.Entity<Inspector>().HasKey(inspector => inspector.InspectorId);
         modelBuilder.Entity<MileageTracking>().HasKey(session => session.MileageTrackingID);
         modelBuilder.Entity<MileageTrackingWaypoint>().HasKey(waypoint => waypoint.MileageTrackingWaypointId);
         modelBuilder.Entity<Part>().HasKey(part => part.PartId);
@@ -301,7 +298,7 @@ public sealed class RenovatorAppDbContext : DbContext
         modelBuilder.Entity<Document>().HasIndex(document => document.RenoCompanyID);
         modelBuilder.Entity<Document>().HasIndex(document => document.CreateDate);
         modelBuilder.Entity<DocumentType>().HasIndex(documentType => documentType.Name).IsUnique();
-        modelBuilder.Entity<Employee>().HasIndex(employee => new { employee.RenoCompanyID, employee.QuickBooksEmployeeId }).IsUnique();
+        modelBuilder.Entity<Employee>().HasIndex(employee => new { employee.RenoCompanyID, employee.QuickBooksEmployeeId }).IsUnique().HasFilter("\"QuickBooksEmployeeId\" <> ''");
         modelBuilder.Entity<Employee>().HasIndex(employee => employee.DisplayName);
         modelBuilder.Entity<Employee>().HasIndex(employee => employee.FamilyName);
         modelBuilder.Entity<Employee>().HasIndex(employee => employee.RenoCompanyID);
@@ -332,7 +329,6 @@ public sealed class RenovatorAppDbContext : DbContext
 
     private static void ConfigurePrecision(ModelBuilder modelBuilder)
     {
-        modelBuilder.Entity<Inspector>().Property(inspector => inspector.HourlyRate).HasPrecision(12, 2);
         modelBuilder.Entity<InspectionAreaNoteEstimateItem>().Property(item => item.Cost).HasPrecision(12, 2);
         modelBuilder.Entity<InspectionAreaNoteEstimateItem>().Property(item => item.Hours).HasPrecision(12, 2);
         modelBuilder.Entity<Part>().Property(part => part.Cost).HasPrecision(12, 2);
@@ -340,5 +336,6 @@ public sealed class RenovatorAppDbContext : DbContext
         modelBuilder.Entity<Customer>().Property(customer => customer.BalanceWithJobs).HasPrecision(12, 2);
         modelBuilder.Entity<Employee>().Property(employee => employee.BillRate).HasPrecision(12, 2);
         modelBuilder.Entity<Employee>().Property(employee => employee.HourlyCostRate).HasPrecision(12, 2);
+        modelBuilder.Entity<Employee>().Property(employee => employee.InspectorHourlyRate).HasPrecision(12, 2);
     }
 }

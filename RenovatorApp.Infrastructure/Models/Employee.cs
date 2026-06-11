@@ -26,6 +26,9 @@ public sealed class Employee : IRenoCompanyEntity
     public DateTime? BirthDate { get; set; }
     public decimal BillRate { get; set; }
     public decimal HourlyCostRate { get; set; }
+    public decimal InspectorHourlyRate { get; set; }
+    public bool IsInspector { get; set; }
+    public bool IsDefaultInspector { get; set; }
     public DateTime? QuickBooksCreateTime { get; set; }
     public DateTime? QuickBooksLastUpdatedTime { get; set; }
     public Guid? PrimaryAddressId { get; set; }

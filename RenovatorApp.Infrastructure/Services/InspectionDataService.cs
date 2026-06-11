@@ -60,16 +60,6 @@ public sealed class InspectionDataService
             .FirstOrDefaultAsync(inspection => inspection.InspectionId == inspectionId, cancellationToken);
     }
 
-    public async Task<IReadOnlyList<Inspector>> GetInspectorsAsync(Guid renoCompanyID, CancellationToken cancellationToken = default)
-    {
-        return await _dbContext.Inspectors
-            .AsNoTracking()
-            .ForCompany(renoCompanyID)
-            .OrderBy(inspector => inspector.LastName)
-            .ThenBy(inspector => inspector.FirstName)
-            .ToListAsync(cancellationToken);
-    }
-
     public async Task<IReadOnlyList<Part>> GetPartsAsync(Guid renoCompanyID, CancellationToken cancellationToken = default)
     {
         return await _dbContext.Parts

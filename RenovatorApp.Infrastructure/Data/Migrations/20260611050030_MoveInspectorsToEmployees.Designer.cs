@@ -2,6 +2,7 @@
 using System;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Infrastructure;
+using Microsoft.EntityFrameworkCore.Migrations;
 using Microsoft.EntityFrameworkCore.Storage.ValueConversion;
 using Npgsql.EntityFrameworkCore.PostgreSQL.Metadata;
 using RenovatorApp.Infrastructure.Data;
@@ -11,9 +12,11 @@ using RenovatorApp.Infrastructure.Data;
 namespace RenovatorApp.Infrastructure.Data.Migrations
 {
     [DbContext(typeof(RenovatorAppDbContext))]
-    partial class RenovatorAppDbContextModelSnapshot : ModelSnapshot
+    [Migration("20260611050030_MoveInspectorsToEmployees")]
+    partial class MoveInspectorsToEmployees
     {
-        protected override void BuildModel(ModelBuilder modelBuilder)
+        /// <inheritdoc />
+        protected override void BuildTargetModel(ModelBuilder modelBuilder)
         {
 #pragma warning disable 612, 618
             modelBuilder
@@ -612,8 +615,7 @@ namespace RenovatorApp.Infrastructure.Data.Migrations
                     b.HasIndex("RenoCompanyID");
 
                     b.HasIndex("RenoCompanyID", "QuickBooksEmployeeId")
-                        .IsUnique()
-                        .HasFilter("\"QuickBooksEmployeeId\" <> ''");
+                        .IsUnique();
 
                     b.ToTable("Employee", (string)null);
                 });

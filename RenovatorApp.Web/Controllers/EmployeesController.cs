@@ -76,6 +76,19 @@ public sealed class EmployeesController : Controller
         return View(ToDetailViewModel(employee));
     }
 
+    [HttpGet]
+    public IActionResult New()
+    {
+        return View("Details", new EmployeeDetailViewModel
+        {
+            IsNew = true,
+            EmployeeId = Guid.NewGuid(),
+            Active = "Yes",
+            CreatedDate = DateTime.UtcNow,
+            PrimaryAddress = new EmployeeAddressViewModel()
+        });
+    }
+
     [HttpPost]
     [ValidateAntiForgeryToken]
     public async Task<IActionResult> Details(Guid id, EmployeeDetailUpdateViewModel update, CancellationToken cancellationToken)
@@ -94,6 +107,7 @@ public sealed class EmployeesController : Controller
             return NotFound();
         }
 
+        ValidateExistingEmployeeUpdate(update);
         if (!ModelState.IsValid)
         {
             return View(ToDetailViewModel(employee, update));
@@ -109,6 +123,39 @@ public sealed class EmployeesController : Controller
         return RedirectToAction(nameof(Details), new { id });
     }
 
+    [HttpPost]
+    [ValidateAntiForgeryToken]
+    public async Task<IActionResult> New(EmployeeDetailUpdateViewModel update, CancellationToken cancellationToken)
+    {
+        if (!ModelState.IsValid)
+        {
+            return View("Details", ToNewDetailViewModel(update));
+        }
+
+        if (string.IsNullOrWhiteSpace(update.DisplayName))
+        {
+            update.DisplayName = BuildEmployeeDisplayName(update);
+        }
+
+        var employee = new Employee
+        {
+            EmployeeId = update.EmployeeId == Guid.Empty ? Guid.NewGuid() : update.EmployeeId,
+            RenoCompanyID = _currentUserSession.RenoCompanyID,
+            Active = true,
+            CreatedDate = DateTime.UtcNow,
+            LastEditDate = DateTime.UtcNow
+        };
+
+        ApplyUpdate(employee, update);
+        TrackPrimaryAddress(employee);
+
+        _dbContext.Employees.Add(employee);
+        await _dbContext.SaveChangesAsync(cancellationToken);
+        TempData["EmployeesStatus"] = "Employee created.";
+
+        return RedirectToAction(nameof(Index));
+    }
+
     private static EmployeeRowViewModel ToRowViewModel(Employee employee)
     {
         return new EmployeeRowViewModel
@@ -118,6 +165,7 @@ public sealed class EmployeesController : Controller
             ContactName = string.Join(" ", new[] { employee.GivenName, employee.FamilyName }.Where(value => !string.IsNullOrWhiteSpace(value))),
             Email = employee.PrimaryEmailAddress,
             Phone = employee.PrimaryPhone,
+            IsInspector = employee.IsInspector,
             Active = employee.Active ? "Yes" : "No"
         };
     }
@@ -149,12 +197,54 @@ public sealed class EmployeesController : Controller
             BirthDate = employee.BirthDate,
             BillRate = employee.BillRate,
             HourlyCostRate = employee.HourlyCostRate,
+            InspectorHourlyRate = employee.InspectorHourlyRate,
+            IsInspector = employee.IsInspector,
+            IsDefaultInspector = employee.IsDefaultInspector,
             QuickBooksCreateTime = employee.QuickBooksCreateTime,
             QuickBooksLastUpdatedTime = employee.QuickBooksLastUpdatedTime,
             CreatedDate = employee.CreatedDate,
             LastSyncDate = employee.LastSyncDate,
             LastEditDate = employee.LastEditDate,
             PrimaryAddress = ToAddressViewModel(employee.PrimaryAddress)
+        };
+    }
+
+    private static EmployeeDetailViewModel ToNewDetailViewModel(EmployeeDetailUpdateViewModel update)
+    {
+        update.PrimaryAddress ??= new EmployeeAddressUpdateViewModel();
+
+        return new EmployeeDetailViewModel
+        {
+            IsNew = true,
+            EmployeeId = update.EmployeeId == Guid.Empty ? Guid.NewGuid() : update.EmployeeId,
+            DisplayName = update.DisplayName,
+            PrintOnCheckName = update.PrintOnCheckName,
+            Title = update.Title,
+            GivenName = update.GivenName,
+            MiddleName = update.MiddleName,
+            FamilyName = update.FamilyName,
+            Suffix = update.Suffix,
+            PrimaryEmailAddress = update.PrimaryEmailAddress,
+            PrimaryPhone = update.PrimaryPhone,
+            MobilePhone = update.MobilePhone,
+            Active = "Yes",
+            BillRate = update.BillRate,
+            HourlyCostRate = update.HourlyCostRate,
+            InspectorHourlyRate = update.InspectorHourlyRate,
+            IsInspector = update.IsInspector,
+            IsDefaultInspector = update.IsDefaultInspector,
+            CreatedDate = DateTime.UtcNow,
+            PrimaryAddress = new EmployeeAddressViewModel
+            {
+                Street1 = update.PrimaryAddress.Street1,
+                Street2 = update.PrimaryAddress.Street2,
+                Street3 = update.PrimaryAddress.Street3,
+                City = update.PrimaryAddress.City,
+                State = update.PrimaryAddress.State,
+                CountrySubDivisionCode = update.PrimaryAddress.CountrySubDivisionCode,
+                PostalCode = update.PrimaryAddress.PostalCode,
+                Country = update.PrimaryAddress.Country
+            }
         };
     }
 
@@ -175,6 +265,9 @@ public sealed class EmployeesController : Controller
         model.MobilePhone = update.MobilePhone;
         model.BillRate = update.BillRate;
         model.HourlyCostRate = update.HourlyCostRate;
+        model.InspectorHourlyRate = update.InspectorHourlyRate;
+        model.IsInspector = update.IsInspector;
+        model.IsDefaultInspector = update.IsDefaultInspector;
         model.PrimaryAddress = new EmployeeAddressViewModel
         {
             Street1 = update.PrimaryAddress.Street1,
@@ -205,6 +298,9 @@ public sealed class EmployeesController : Controller
         employee.MobilePhone = Clean(update.MobilePhone);
         employee.BillRate = update.BillRate;
         employee.HourlyCostRate = update.HourlyCostRate;
+        employee.InspectorHourlyRate = update.InspectorHourlyRate;
+        employee.IsInspector = update.IsInspector;
+        employee.IsDefaultInspector = update.IsDefaultInspector;
 
         if (IsEmpty(update.PrimaryAddress))
         {
@@ -239,6 +335,26 @@ public sealed class EmployeesController : Controller
     private static string Clean(string? value)
     {
         return value?.Trim() ?? string.Empty;
+    }
+
+    private void ValidateExistingEmployeeUpdate(EmployeeDetailUpdateViewModel update)
+    {
+        if (string.IsNullOrWhiteSpace(update.DisplayName))
+        {
+            ModelState.AddModelError(nameof(update.DisplayName), "The Display Name field is required.");
+        }
+
+        if (string.IsNullOrWhiteSpace(update.PrimaryPhone))
+        {
+            ModelState.AddModelError(nameof(update.PrimaryPhone), "The Primary Phone field is required.");
+        }
+    }
+
+    private static string BuildEmployeeDisplayName(EmployeeDetailUpdateViewModel update)
+    {
+        return string.Join(" ", new[] { update.GivenName, update.FamilyName }
+            .Select(Clean)
+            .Where(value => !string.IsNullOrWhiteSpace(value)));
     }
 
     private void TrackPrimaryAddress(Employee employee)

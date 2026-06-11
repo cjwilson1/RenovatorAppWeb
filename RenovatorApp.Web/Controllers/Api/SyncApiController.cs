@@ -149,14 +149,6 @@ public sealed class SyncApiController : ControllerBase
             (request.BuildingTypes ?? []).Select(item => new MobileSyncBuildingType(
                 item.Id,
                 item.Name)).ToList(),
-            (request.Inspectors ?? []).Select(item => new MobileSyncInspector(
-                item.Id,
-                item.FirstName,
-                item.LastName,
-                item.HourlyRate,
-                item.Phone,
-                item.Email,
-                item.IsDefault)).ToList(),
             (request.Customers ?? []).Select(item => new MobileSyncCustomer(
                 item.CustomerId,
                 item.FirstName,

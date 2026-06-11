@@ -9,7 +9,6 @@ public sealed record SyncRequest(
     IReadOnlyList<SyncInspectionAreaCategoryDto>? InspectionAreaCategories,
     IReadOnlyList<SyncInspectionAreaTypeDto>? InspectionAreaTypes,
     IReadOnlyList<SyncBuildingTypeDto>? BuildingTypes,
-    IReadOnlyList<SyncInspectorDto>? Inspectors,
     IReadOnlyList<SyncCustomerDto>? Customers,
     IReadOnlyList<SyncCustomerPropertyDto>? CustomerProperties,
     IReadOnlyList<SyncPropertyDto>? Properties,
@@ -71,15 +70,6 @@ public sealed record SyncInspectionAreaTypeDto(
 public sealed record SyncBuildingTypeDto(
     Guid Id,
     string Name);
-
-public sealed record SyncInspectorDto(
-    Guid Id,
-    string FirstName,
-    string LastName,
-    decimal HourlyRate,
-    string Phone,
-    string Email,
-    bool IsDefault);
 
 public sealed record SyncCustomerDto(
     Guid CustomerId,
