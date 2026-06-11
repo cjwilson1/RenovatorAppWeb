@@ -149,6 +149,15 @@ public sealed class SyncApiController : ControllerBase
             (request.BuildingTypes ?? []).Select(item => new MobileSyncBuildingType(
                 item.Id,
                 item.Name)).ToList(),
+            (request.Employees ?? []).Select(item => new MobileSyncEmployee(
+                item.Id,
+                item.FirstName,
+                item.LastName,
+                item.Phone,
+                item.Email,
+                item.IsInspector,
+                item.IsDefaultInspector,
+                item.InspectorHourlyRate)).ToList(),
             (request.Customers ?? []).Select(item => new MobileSyncCustomer(
                 item.CustomerId,
                 item.FirstName,
@@ -263,3 +272,6 @@ public sealed class SyncApiController : ControllerBase
                 item.IsDeleted)).ToList());
     }
 }
+
+
+

@@ -173,6 +173,44 @@ public sealed class MobileSyncDataService
             entity.Name = item.Name;
             results.Add(MobileSyncResult.Updated(nameof(BuildingType), item.Id));
         }
+        foreach (var item in batch.Employees)
+        {
+            var entity = await _dbContext.Employees.ForCompany(renoCompanyID).FirstOrDefaultAsync(employee => employee.EmployeeId == item.Id, cancellationToken);
+            var isDefaultInspector = item.IsInspector && item.IsDefaultInspector;
+
+            if (isDefaultInspector)
+            {
+                var previousDefaults = await _dbContext.Employees
+                    .ForCompany(renoCompanyID)
+                    .Where(employee => employee.EmployeeId != item.Id && employee.IsDefaultInspector)
+                    .ToListAsync(cancellationToken);
+
+                foreach (var previousDefault in previousDefaults)
+                {
+                    previousDefault.IsDefaultInspector = false;
+                }
+            }
+
+            if (entity is null)
+            {
+                entity = new Employee
+                {
+                    EmployeeId = item.Id,
+                    RenoCompanyID = renoCompanyID,
+                    Active = true,
+                    CreatedDate = DateTime.UtcNow
+                };
+
+                ApplyEmployee(item, entity, isDefaultInspector);
+                _dbContext.Employees.Add(entity);
+                results.Add(MobileSyncResult.Created(nameof(Employee), item.Id));
+                continue;
+            }
+
+            ApplyEmployee(item, entity, isDefaultInspector);
+            results.Add(MobileSyncResult.Updated(nameof(Employee), item.Id));
+        }
+
 
         foreach (var item in batch.Customers)
         {
@@ -653,6 +691,26 @@ public sealed class MobileSyncDataService
             return false;
         }
     }
+    private static void ApplyEmployee(MobileSyncEmployee item, Employee entity, bool isDefaultInspector)
+    {
+        entity.GivenName = item.FirstName.Trim();
+        entity.FamilyName = item.LastName.Trim();
+        entity.PrimaryPhone = item.Phone.Trim();
+        entity.PrimaryEmailAddress = item.Email.Trim();
+        entity.IsInspector = item.IsInspector;
+        entity.IsDefaultInspector = isDefaultInspector;
+        entity.InspectorHourlyRate = item.InspectorHourlyRate;
+        entity.DisplayName = GetEmployeeDisplayName(entity);
+        entity.PrintOnCheckName = entity.DisplayName;
+        entity.LastEditDate = DateTime.UtcNow;
+    }
+
+    private static string GetEmployeeDisplayName(Employee employee)
+    {
+        var name = $"{employee.GivenName} {employee.FamilyName}".Trim();
+        return string.IsNullOrWhiteSpace(name) ? employee.DisplayName : name;
+    }
+
 
     private static void ApplyCustomer(MobileSyncCustomer item, Customer entity)
     {
@@ -701,6 +759,7 @@ public sealed record MobileSyncBatch(
     IReadOnlyList<MobileSyncInspectionAreaCategory> InspectionAreaCategories,
     IReadOnlyList<MobileSyncInspectionAreaType> InspectionAreaTypes,
     IReadOnlyList<MobileSyncBuildingType> BuildingTypes,
+    IReadOnlyList<MobileSyncEmployee> Employees,
     IReadOnlyList<MobileSyncCustomer> Customers,
     IReadOnlyList<MobileSyncCustomerProperty> CustomerProperties,
     IReadOnlyList<MobileSyncProperty> Properties,
@@ -730,6 +789,7 @@ public sealed record MobileSyncPart(Guid PartId, Guid PartSourceId, string Name,
 public sealed record MobileSyncInspectionAreaCategory(Guid Id, string Name, int SortOrder);
 public sealed record MobileSyncInspectionAreaType(Guid AreaTypeId, Guid CategoryId, string Name, int SortOrder);
 public sealed record MobileSyncBuildingType(Guid Id, string Name);
+public sealed record MobileSyncEmployee(Guid Id, string FirstName, string LastName, string Phone, string Email, bool IsInspector, bool IsDefaultInspector, decimal InspectorHourlyRate);
 public sealed record MobileSyncCustomer(Guid CustomerId, string FirstName, string LastName, string CompanyName, string Phone, string Email, string Street1, string Street2, string City, string State, string PostalCode, string Notes);
 public sealed record MobileSyncCustomerProperty(Guid CustomerId, Guid PropertyId);
 public sealed record MobileSyncProperty(Guid Id, string? Name);
@@ -743,3 +803,6 @@ public sealed record MobileSyncInspectionAreaNotePhoto(Guid Id, Guid PropertyId,
 public sealed record MobileSyncMileageTracking(Guid UniqueId, DateTime TrackingStartedAtUtc, double TotalMileage, TimeSpan TotalTime, string StartingLocation, string StartingPosition, string EndingLocation, string EndingPosition, Guid? InspectionId);
 public sealed record MobileSyncMileageTrackingWaypoint(Guid UniqueId, Guid MileageTrackingId, DateTime WaypointTime, double CumulativeMiles, string GpsCoordinates, string? Location);
 public sealed record MobileSyncCalendarEvent(Guid UniqueEventId, Guid RenoUserID, string Title, DateTime Date, bool AllDay, TimeSpan StartTime, TimeSpan EndTime, string EventAlertTimes, string Notes, bool IsPrivate, Guid? InspectionId, DateTime CreatedAtUtc, DateTime UpdatedAtUtc, bool IsDeleted);
+
+
+

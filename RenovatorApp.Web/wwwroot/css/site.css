@@ -451,7 +451,16 @@ body > header,
   align-items: end;
   display: grid;
   gap: 0.75rem;
-  grid-template-columns: minmax(10rem, 1fr) minmax(7rem, 0.5fr) auto;
+  grid-template-columns: max-content max-content auto;
+  justify-content: start;
+}
+
+.calendar-month-select {
+  width: 11rem;
+}
+
+.calendar-year-select {
+  width: 6.5rem;
 }
 
 .calendar-shell {
@@ -921,6 +930,11 @@ body > header,
   .calendar-workspace,
   .calendar-time-grid {
     grid-template-columns: 1fr;
+  }
+
+  .calendar-month-select,
+  .calendar-year-select {
+    width: 100%;
   }
 
   .calendar-day-cell {

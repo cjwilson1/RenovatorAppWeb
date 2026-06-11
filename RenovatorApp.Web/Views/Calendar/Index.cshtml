@@ -43,7 +43,7 @@
         <input type="hidden" name="selectedDate" value="@Model.SelectedDate.ToString("yyyy-MM-dd", CultureInfo.InvariantCulture)" />
         <div>
             <label class="form-label" for="calendar-month">Month</label>
-            <select class="form-select" id="calendar-month" name="month">
+            <select class="form-select calendar-month-select" id="calendar-month" name="month">
                 @for (var month = 1; month <= 12; month++)
                 {
                     <option value="@month" selected="@(month == Model.DisplayMonth.Month)">
@@ -54,7 +54,7 @@
         </div>
         <div>
             <label class="form-label" for="calendar-year">Year</label>
-            <select class="form-select" id="calendar-year" name="year">
+            <select class="form-select calendar-year-select" id="calendar-year" name="year">
                 @for (var year = 2025; year <= 2050; year++)
                 {
                     <option value="@year" selected="@(year == Model.DisplayMonth.Year)">@year</option>
