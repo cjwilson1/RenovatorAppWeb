@@ -10,30 +10,7 @@
     </div>
 </div>
 
-<div class="home-link-grid">
-    <a class="app-hero app-hero-link" asp-controller="SuperAdmin" asp-action="Companies">
-        <div>
-            <h1>Companies</h1>
-            <p>Search, add, and manage RenovatorWeb companies.</p>
-        </div>
-    </a>
-
-    <a class="app-hero app-hero-link" asp-controller="SuperAdmin" asp-action="Users">
-        <div>
-            <h1>Users</h1>
-            <p>Search, add, and manage RenovatorWeb users.</p>
-        </div>
-    </a>
-
-    <a class="app-hero app-hero-link" asp-controller="SuperAdmin" asp-action="Database">
-        <div>
-            <h1>Database</h1>
-            <p>Browse database tables and maintenance tools.</p>
-        </div>
-    </a>
-</div>
-
-<section class="detail-section detail-section-full mt-4">
+<section class="detail-section detail-section-full">
     <div class="detail-section-title-row">
         <h2>Site Diagnostics</h2>
         <span class="text-muted">Updated @Model.GeneratedAtUtc.ToLocalTime().ToString("g")</span>
@@ -146,6 +123,29 @@
         This panel is in-memory per Railway instance. It resets when the app restarts and only shows requests handled by the current process.
     </p>
 </section>
+
+<div class="home-link-grid mt-4">
+    <a class="app-hero app-hero-link" asp-controller="SuperAdmin" asp-action="Companies">
+        <div>
+            <h1>Companies</h1>
+            <p>Search, add, and manage RenovatorWeb companies.</p>
+        </div>
+    </a>
+
+    <a class="app-hero app-hero-link" asp-controller="SuperAdmin" asp-action="Users">
+        <div>
+            <h1>Users</h1>
+            <p>Search, add, and manage RenovatorWeb users.</p>
+        </div>
+    </a>
+
+    <a class="app-hero app-hero-link" asp-controller="SuperAdmin" asp-action="Database">
+        <div>
+            <h1>Database</h1>
+            <p>Browse database tables and maintenance tools.</p>
+        </div>
+    </a>
+</div>
 
 @functions {
     private static string FormatMilliseconds(double? value)
