@@ -1,4 +1,5 @@
 using System.Security.Claims;
+using System.Diagnostics;
 using Microsoft.AspNetCore.Authentication;
 using Microsoft.AspNetCore.Authentication.Cookies;
 using Microsoft.AspNetCore.Authorization;
@@ -22,22 +23,65 @@ public sealed class SuperAdminController : Controller
     private readonly RenovatorAppDbContext _dbContext;
     private readonly PasswordService _passwordService;
     private readonly CurrentUserSession _currentUserSession;
+    private readonly RequestDiagnosticsService _requestDiagnosticsService;
 
     public SuperAdminController(
         DatabaseViewerService databaseViewerService,
         RenovatorAppDbContext dbContext,
         PasswordService passwordService,
-        CurrentUserSession currentUserSession)
+        CurrentUserSession currentUserSession,
+        RequestDiagnosticsService requestDiagnosticsService)
     {
         _databaseViewerService = databaseViewerService;
         _dbContext = dbContext;
         _passwordService = passwordService;
         _currentUserSession = currentUserSession;
+        _requestDiagnosticsService = requestDiagnosticsService;
     }
 
-    public IActionResult Index()
+    public async Task<IActionResult> Index(CancellationToken cancellationToken)
     {
-        return View();
+        var diagnostics = _requestDiagnosticsService.GetSnapshot();
+        var databaseStopwatch = Stopwatch.StartNew();
+        var databaseAvailable = true;
+        var databaseStatusMessage = "OK";
+        long? databaseLatencyMilliseconds = null;
+
+        try
+        {
+            await _dbContext.Database.ExecuteSqlRawAsync("SELECT 1", cancellationToken);
+            databaseStopwatch.Stop();
+            databaseLatencyMilliseconds = databaseStopwatch.ElapsedMilliseconds;
+        }
+        catch (Exception exception)
+        {
+            databaseStopwatch.Stop();
+            databaseAvailable = false;
+            databaseStatusMessage = $"{exception.GetType().Name}: {exception.Message}";
+        }
+
+        ThreadPool.GetAvailableThreads(out var availableWorkerThreads, out _);
+        ThreadPool.GetMaxThreads(out var maxWorkerThreads, out _);
+
+        var process = Process.GetCurrentProcess();
+
+        return View(new SuperAdminIndexViewModel
+        {
+            GeneratedAtUtc = DateTimeOffset.UtcNow,
+            StartedAtUtc = diagnostics.StartedAtUtc,
+            Uptime = DateTimeOffset.UtcNow - diagnostics.StartedAtUtc,
+            DatabaseAvailable = databaseAvailable,
+            DatabaseLatencyMilliseconds = databaseLatencyMilliseconds,
+            DatabaseStatusMessage = databaseStatusMessage,
+            ActiveRequests = diagnostics.ActiveRequests,
+            AllRequests = ToTimingViewModel(diagnostics.AllRequests),
+            ApiRequests = ToTimingViewModel(diagnostics.ApiRequests),
+            SlowRequests = diagnostics.SlowRequests.Select(ToRequestRowViewModel).ToList(),
+            RecentRequests = diagnostics.RecentRequests.Select(ToRequestRowViewModel).ToList(),
+            ProcessMemoryMegabytes = process.WorkingSet64 / 1024d / 1024d,
+            ThreadPoolAvailableWorkerThreads = availableWorkerThreads,
+            ThreadPoolMaxWorkerThreads = maxWorkerThreads
+        });
     }
 
     [HttpGet("SuperAdmin/Users")]
@@ -1291,6 +1335,30 @@ public sealed class SuperAdminController : Controller
                 .Where(userRole => userRole.Role != null)
                 .Select(userRole => userRole.Role!.Name)
                 .OrderBy(roleName => roleName))
+        };
+    }
+
+    private static RequestTimingViewModel ToTimingViewModel(RequestTimingSummary summary)
+    {
+        return new RequestTimingViewModel
+        {
+            Count = summary.Count,
+            AverageMilliseconds = summary.AverageMilliseconds,
+            P95Milliseconds = summary.P95Milliseconds,
+            MaxMilliseconds = summary.MaxMilliseconds
+        };
+    }
+
+    private static RequestDiagnosticRowViewModel ToRequestRowViewModel(RequestDiagnosticEntry entry)
+    {
+        return new RequestDiagnosticRowViewModel
+        {
+            CompletedAtUtc = entry.CompletedAtUtc,
+            Method = entry.Method,
+            Path = entry.Path,
+            StatusCode = entry.StatusCode,
+            ElapsedMilliseconds = entry.ElapsedMilliseconds,
+            IsApi = entry.IsApi
         };
     }
 }

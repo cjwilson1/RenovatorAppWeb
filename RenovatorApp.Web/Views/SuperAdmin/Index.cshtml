@@ -1,3 +1,4 @@
+@model RenovatorApp.Web.ViewModels.SuperAdminIndexViewModel
 @{
     ViewData["Title"] = "Super Admin";
 }
@@ -31,3 +32,144 @@
         </div>
     </a>
 </div>
+
+<section class="detail-section detail-section-full mt-4">
+    <div class="detail-section-title-row">
+        <h2>Site Diagnostics</h2>
+        <span class="text-muted">Updated @Model.GeneratedAtUtc.ToLocalTime().ToString("g")</span>
+    </div>
+
+    <div class="diagnostics-grid">
+        <div class="diagnostics-card @(Model.DatabaseAvailable ? "diagnostics-card-ok" : "diagnostics-card-warning")">
+            <span class="diagnostics-label">Database</span>
+            <strong>@(Model.DatabaseAvailable ? "OK" : "Issue")</strong>
+            <span>@(Model.DatabaseLatencyMilliseconds.HasValue ? $"{Model.DatabaseLatencyMilliseconds} ms" : Model.DatabaseStatusMessage)</span>
+        </div>
+        <div class="diagnostics-card">
+            <span class="diagnostics-label">Active Requests</span>
+            <strong>@Model.ActiveRequests</strong>
+            <span>Requests currently running</span>
+        </div>
+        <div class="diagnostics-card">
+            <span class="diagnostics-label">Web Requests</span>
+            <strong>@FormatMilliseconds(Model.AllRequests.AverageMilliseconds)</strong>
+            <span>@Model.AllRequests.Count recent, p95 @FormatMilliseconds(Model.AllRequests.P95Milliseconds)</span>
+        </div>
+        <div class="diagnostics-card">
+            <span class="diagnostics-label">API Requests</span>
+            <strong>@FormatMilliseconds(Model.ApiRequests.AverageMilliseconds)</strong>
+            <span>@Model.ApiRequests.Count recent, p95 @FormatMilliseconds(Model.ApiRequests.P95Milliseconds)</span>
+        </div>
+        <div class="diagnostics-card">
+            <span class="diagnostics-label">Memory</span>
+            <strong>@Model.ProcessMemoryMegabytes.ToString("N0") MB</strong>
+            <span>Process working set</span>
+        </div>
+        <div class="diagnostics-card">
+            <span class="diagnostics-label">Uptime</span>
+            <strong>@FormatDuration(Model.Uptime)</strong>
+            <span>Started @Model.StartedAtUtc.ToLocalTime().ToString("g")</span>
+        </div>
+    </div>
+
+    <div class="diagnostics-detail-grid">
+        <div>
+            <h3>Slow or Failing Requests</h3>
+            @if (Model.SlowRequests.Count == 0)
+            {
+                <p class="text-muted">No recent requests over 1 second or HTTP 500+.</p>
+            }
+            else
+            {
+                <div class="table-responsive">
+                    <table class="table table-sm align-middle">
+                        <thead>
+                            <tr>
+                                <th>Time</th>
+                                <th>Path</th>
+                                <th>Status</th>
+                                <th>Duration</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            @foreach (var request in Model.SlowRequests)
+                            {
+                                <tr>
+                                    <td>@request.CompletedAtUtc.ToLocalTime().ToString("T")</td>
+                                    <td><code>@request.Method @request.Path</code></td>
+                                    <td>@request.StatusCode</td>
+                                    <td>@request.ElapsedMilliseconds ms</td>
+                                </tr>
+                            }
+                        </tbody>
+                    </table>
+                </div>
+            }
+        </div>
+
+        <div>
+            <h3>Recent Requests</h3>
+            @if (Model.RecentRequests.Count == 0)
+            {
+                <p class="text-muted">No requests have been recorded since startup.</p>
+            }
+            else
+            {
+                <div class="table-responsive">
+                    <table class="table table-sm align-middle">
+                        <thead>
+                            <tr>
+                                <th>Time</th>
+                                <th>Path</th>
+                                <th>Status</th>
+                                <th>Duration</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            @foreach (var request in Model.RecentRequests)
+                            {
+                                <tr>
+                                    <td>@request.CompletedAtUtc.ToLocalTime().ToString("T")</td>
+                                    <td><code>@request.Method @request.Path</code></td>
+                                    <td>@request.StatusCode</td>
+                                    <td>@request.ElapsedMilliseconds ms</td>
+                                </tr>
+                            }
+                        </tbody>
+                    </table>
+                </div>
+            }
+        </div>
+    </div>
+
+    <p class="text-muted mb-0">
+        This panel is in-memory per Railway instance. It resets when the app restarts and only shows requests handled by the current process.
+    </p>
+</section>
+
+@functions {
+    private static string FormatMilliseconds(double? value)
+    {
+        return value.HasValue ? $"{value.Value:N0} ms" : "No data";
+    }
+
+    private static string FormatMilliseconds(long? value)
+    {
+        return value.HasValue ? $"{value.Value:N0} ms" : "No data";
+    }
+
+    private static string FormatDuration(TimeSpan value)
+    {
+        if (value.TotalDays >= 1)
+        {
+            return $"{(int)value.TotalDays}d {value.Hours}h";
+        }
+
+        if (value.TotalHours >= 1)
+        {
+            return $"{(int)value.TotalHours}h {value.Minutes}m";
+        }
+
+        return $"{Math.Max(0, (int)value.TotalMinutes)}m";
+    }
+}

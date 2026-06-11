@@ -5,6 +5,7 @@ using QuestPDF.Infrastructure;
 using RenovatorApp.Infrastructure.Data;
 using RenovatorApp.Infrastructure.Services;
 using RenovatorApp.Web.Services;
+using System.Diagnostics;
 using System.Net;
 
 var builder = WebApplication.CreateBuilder(args);
@@ -67,6 +68,7 @@ builder.Services.AddHttpContextAccessor();
 builder.Services.AddScoped<CurrentUserSession>();
 builder.Services.AddSingleton<PasswordService>();
 builder.Services.AddSingleton<BuildInfoService>();
+builder.Services.AddSingleton<RequestDiagnosticsService>();
 
 var app = builder.Build();
 
@@ -117,6 +119,28 @@ if (args.Contains("seed-startup-data", StringComparer.OrdinalIgnoreCase))
 app.UseHttpsRedirection();
 app.UseStaticFiles();
 app.UseRouting();
+app.Use(async (context, next) =>
+{
+    var diagnostics = context.RequestServices.GetRequiredService<RequestDiagnosticsService>();
+    var stopwatch = Stopwatch.StartNew();
+
+    using (diagnostics.BeginRequest())
+    {
+        try
+        {
+            await next();
+        }
+        finally
+        {
+            stopwatch.Stop();
+            diagnostics.Record(
+                context.Request.Method,
+                context.Request.Path.Value ?? string.Empty,
+                context.Response.StatusCode,
+                stopwatch.ElapsedMilliseconds);
+        }
+    }
+});
 app.UseSession();
 app.UseAuthentication();
 app.UseAuthorization();

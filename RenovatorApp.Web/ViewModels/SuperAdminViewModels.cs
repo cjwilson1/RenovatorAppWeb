@@ -3,6 +3,42 @@ using RenovatorApp.Infrastructure.Models;
 
 namespace RenovatorApp.Web.ViewModels;
 
+public sealed class SuperAdminIndexViewModel
+{
+    public DateTimeOffset GeneratedAtUtc { get; init; }
+    public DateTimeOffset StartedAtUtc { get; init; }
+    public TimeSpan Uptime { get; init; }
+    public bool DatabaseAvailable { get; init; }
+    public long? DatabaseLatencyMilliseconds { get; init; }
+    public string DatabaseStatusMessage { get; init; } = string.Empty;
+    public int ActiveRequests { get; init; }
+    public RequestTimingViewModel AllRequests { get; init; } = new();
+    public RequestTimingViewModel ApiRequests { get; init; } = new();
+    public IReadOnlyList<RequestDiagnosticRowViewModel> SlowRequests { get; init; } = [];
+    public IReadOnlyList<RequestDiagnosticRowViewModel> RecentRequests { get; init; } = [];
+    public double ProcessMemoryMegabytes { get; init; }
+    public int ThreadPoolAvailableWorkerThreads { get; init; }
+    public int ThreadPoolMaxWorkerThreads { get; init; }
+}
+
+public sealed class RequestTimingViewModel
+{
+    public int Count { get; init; }
+    public double? AverageMilliseconds { get; init; }
+    public long? P95Milliseconds { get; init; }
+    public long? MaxMilliseconds { get; init; }
+}
+
+public sealed class RequestDiagnosticRowViewModel
+{
+    public DateTimeOffset CompletedAtUtc { get; init; }
+    public string Method { get; init; } = string.Empty;
+    public string Path { get; init; } = string.Empty;
+    public int StatusCode { get; init; }
+    public long ElapsedMilliseconds { get; init; }
+    public bool IsApi { get; init; }
+}
+
 public sealed class SuperAdminCompaniesViewModel
 {
     public IReadOnlyList<SuperAdminCompanyRowViewModel> Companies { get; init; } = [];

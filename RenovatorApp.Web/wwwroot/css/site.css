@@ -711,6 +711,55 @@ body > header,
   width: fit-content;
 }
 
+.diagnostics-grid {
+  display: grid;
+  gap: 1rem;
+  grid-template-columns: repeat(auto-fit, minmax(12rem, 1fr));
+  margin-bottom: 1.5rem;
+}
+
+.diagnostics-card {
+  background: #f8fafc;
+  border: 1px solid #d7d7d7;
+  border-left: 0.35rem solid #6c757d;
+  border-radius: 0.85rem;
+  display: grid;
+  gap: 0.25rem;
+  padding: 1rem;
+}
+
+.diagnostics-card-ok {
+  border-left-color: #198754;
+}
+
+.diagnostics-card-warning {
+  border-left-color: #dc3545;
+}
+
+.diagnostics-card strong {
+  font-size: 1.35rem;
+}
+
+.diagnostics-label {
+  color: #6c757d;
+  font-size: 0.82rem;
+  font-weight: 700;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+}
+
+.diagnostics-detail-grid {
+  display: grid;
+  gap: 1.5rem;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  margin-bottom: 1rem;
+}
+
+.diagnostics-detail-grid h3 {
+  font-size: 1.05rem;
+  margin-bottom: 0.75rem;
+}
+
 .customer-search-row {
   align-items: center;
   display: grid;
@@ -961,5 +1010,9 @@ body > header,
 
   .calendar-event-save-actions {
     margin-left: 0;
+  }
+
+  .diagnostics-detail-grid {
+    grid-template-columns: 1fr;
   }
 }
