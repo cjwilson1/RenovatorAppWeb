@@ -1,4 +1,5 @@
 using System.Security.Cryptography;
+using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
 using RenovatorApp.Infrastructure.Data;
@@ -8,6 +9,7 @@ using RenovatorApp.Web.ViewModels;
 
 namespace RenovatorApp.Web.Controllers;
 
+[Authorize(Roles = "Admin,SuperAdmin")]
 public sealed class EmployeesController : Controller
 {
     private const int PageSize = 10;
@@ -86,7 +88,9 @@ public sealed class EmployeesController : Controller
             return NotFound();
         }
 
-        return View(ToDetailViewModel(employee));
+        var model = ToDetailViewModel(employee);
+        model.UserRole = await GetEmployeeUserRoleDisplayAsync(employee.PrimaryEmailAddress, cancellationToken);
+        return View(model);
     }
 
     [HttpGet]
@@ -123,7 +127,9 @@ public sealed class EmployeesController : Controller
         ValidateExistingEmployeeUpdate(update);
         if (!ModelState.IsValid)
         {
-            return View(ToDetailViewModel(employee, update));
+            var model = ToDetailViewModel(employee, update);
+            model.UserRole = await GetEmployeeUserRoleDisplayAsync(employee.PrimaryEmailAddress, cancellationToken);
+            return View(model);
         }
 
         ApplyUpdate(employee, update);
@@ -361,6 +367,38 @@ public sealed class EmployeesController : Controller
             Country = update.PrimaryAddress.Country
         };
         return model;
+    }
+
+    private async Task<string> GetEmployeeUserRoleDisplayAsync(string? employeeEmail, CancellationToken cancellationToken)
+    {
+        if (string.IsNullOrWhiteSpace(employeeEmail))
+        {
+            return "No web user";
+        }
+
+        var normalizedEmail = employeeEmail.Trim().ToLowerInvariant();
+        var user = await _dbContext.RenoUsers
+            .AsNoTracking()
+            .Include(item => item.UserRoles)
+                .ThenInclude(item => item.Role)
+            .FirstOrDefaultAsync(
+                item => item.RenoCompanyID == _currentUserSession.RenoCompanyID
+                    && (item.Login.ToLower() == normalizedEmail || item.Email.ToLower() == normalizedEmail),
+                cancellationToken);
+
+        if (user is null)
+        {
+            return "No web user";
+        }
+
+        var roles = user.UserRoles
+            .Select(userRole => userRole.Role?.Name)
+            .Where(roleName => !string.IsNullOrWhiteSpace(roleName))
+            .Cast<string>()
+            .Order(StringComparer.OrdinalIgnoreCase)
+            .ToArray();
+
+        return roles.Length == 0 ? "No role" : string.Join(", ", roles);
     }
 
     private static void ApplyUpdate(Employee employee, EmployeeDetailUpdateViewModel update)

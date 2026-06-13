@@ -52,6 +52,7 @@ public sealed class EmployeeDetailViewModel
 
     public string? MobilePhone { get; set; }
     public string Active { get; set; } = string.Empty;
+    public string UserRole { get; set; } = string.Empty;
     public string BillableTime { get; set; } = string.Empty;
     public string EmployeeNumber { get; set; } = string.Empty;
     public string Organization { get; set; } = string.Empty;

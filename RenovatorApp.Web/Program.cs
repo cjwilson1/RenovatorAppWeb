@@ -26,7 +26,7 @@ builder.Services.AddAuthentication(CookieAuthenticationDefaults.AuthenticationSc
     {
         options.LoginPath = "/Account/Login";
         options.LogoutPath = "/Account/Logout";
-        options.AccessDeniedPath = "/Account/Login";
+        options.AccessDeniedPath = "/Account/AccessDenied";
         options.Cookie.HttpOnly = true;
         options.Cookie.IsEssential = true;
         options.SlidingExpiration = true;

@@ -45,6 +45,12 @@ public sealed class AccountController : Controller
         return View(new LoginViewModel { ReturnUrl = returnUrl });
     }
 
+    [HttpGet]
+    public IActionResult AccessDenied()
+    {
+        return View();
+    }
+
     [HttpPost]
     [ValidateAntiForgeryToken]
     public async Task<IActionResult> Login(LoginViewModel model, CancellationToken cancellationToken)

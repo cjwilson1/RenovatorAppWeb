@@ -1,0 +1,18 @@
+@{
+    ViewData["Title"] = "Access Denied";
+    Layout = "_AuthLayout";
+}
+
+<div class="auth-shell">
+    <div class="auth-panel">
+        <div class="auth-brand">
+            <img src="~/images/AppIconWeb.png" alt="RenovatorWeb logo" />
+            <div>
+                <h1>Access Denied</h1>
+                <p>You do not have permission to view this page.</p>
+            </div>
+        </div>
+
+        <a class="btn btn-primary w-100" asp-controller="Home" asp-action="Index">Return Home</a>
+    </div>
+</div>
