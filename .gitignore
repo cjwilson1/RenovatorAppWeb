@@ -7,6 +7,7 @@
 .env
 appsettings.Development.json
 build-check/
+**/artifacts/
 .playwright/
 RenovatorApp.Web/Documents/Inspections/*.pdf
 RenovatorApp.Web/Documents/Customers/*.pdf
