@@ -16,7 +16,7 @@
     <div class="alert alert-success" role="status">@Model.StatusMessage</div>
 }
 
-<form asp-controller="Settings" asp-action="DefaultSettings" method="post">
+<form asp-controller="Settings" asp-action="DefaultSettings" method="post" enctype="multipart/form-data">
     @Html.AntiForgeryToken()
 
     <section class="detail-section">
@@ -37,8 +37,20 @@
         <div class="form-check mb-3">
             <input class="form-check-input" asp-for="ShareCalendarEventsAcrossCompany" />
             <label class="form-check-label" asp-for="ShareCalendarEventsAcrossCompany">
-                Share calendar events across company users
+                Share calendar events across company
             </label>
+        </div>
+
+        <div class="mb-3">
+            <label class="form-label" asp-for="CompanyIconUpload">Company Application Icon</label>
+            <div class="d-flex align-items-center gap-3 mb-2">
+                <img class="company-icon-preview"
+                     src="@(string.IsNullOrWhiteSpace(Model.CompanyIconUrl) ? Url.Content("~/images/AppIconWeb.png") : Url.Content(Model.CompanyIconUrl))"
+                     alt="Current application icon" />
+                <span class="text-muted">Shown in the main header for users in this company.</span>
+            </div>
+            <input class="form-control" asp-for="CompanyIconUpload" type="file" accept=".png,.jpg,.jpeg,.gif,.webp,image/png,image/jpeg,image/gif,image/webp" style="max-width: 28rem;" />
+            <span class="text-danger" asp-validation-for="CompanyIconUpload"></span>
         </div>
 
         <div class="d-flex gap-2">

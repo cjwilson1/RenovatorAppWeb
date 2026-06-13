@@ -108,6 +108,7 @@ public sealed class CustomersController : Controller
             Taxable = "No",
             Job = "No",
             BillWithParent = "No",
+            IncludeBillingAddressAsCustomerProperty = true,
             CreatedDate = DateTime.UtcNow,
             BillAddress = new CustomerAddressViewModel
             {

@@ -20,6 +20,15 @@ public sealed class SettingsController : Controller
 {
     private const string DefaultStateSettingName = "defaultstate";
     private const string ShareCalendarEventsAcrossCompanySettingName = "Calendar:ShareEventsAcrossCompany";
+    private const string CompanyIconUrlSettingName = "Company:IconUrl";
+    private static readonly HashSet<string> AllowedCompanyIconExtensions = new(StringComparer.OrdinalIgnoreCase)
+    {
+        ".png",
+        ".jpg",
+        ".jpeg",
+        ".gif",
+        ".webp"
+    };
     private static readonly int[] PageSizeOptions = [10, 15, 25, 50, 100];
     private static readonly JsonSerializerOptions PartsTransferJsonOptions = new()
     {
@@ -30,17 +39,20 @@ public sealed class SettingsController : Controller
     private readonly InspectionDataService _inspectionDataService;
     private readonly IHttpClientFactory _httpClientFactory;
     private readonly CurrentUserSession _currentUserSession;
+    private readonly IWebHostEnvironment _webHostEnvironment;
 
     public SettingsController(
         RenovatorAppDbContext dbContext,
         InspectionDataService inspectionDataService,
         IHttpClientFactory httpClientFactory,
-        CurrentUserSession currentUserSession)
+        CurrentUserSession currentUserSession,
+        IWebHostEnvironment webHostEnvironment)
     {
         _dbContext = dbContext;
         _inspectionDataService = inspectionDataService;
         _httpClientFactory = httpClientFactory;
         _currentUserSession = currentUserSession;
+        _webHostEnvironment = webHostEnvironment;
     }
 
     public async Task<IActionResult> Index(CancellationToken cancellationToken)
@@ -514,16 +526,19 @@ public sealed class SettingsController : Controller
             .AsNoTracking()
             .ForCompany(_currentUserSession.RenoCompanyID)
             .Where(setting => setting.Name == DefaultStateSettingName
-                || setting.Name == ShareCalendarEventsAcrossCompanySettingName)
+                || setting.Name == ShareCalendarEventsAcrossCompanySettingName
+                || setting.Name == CompanyIconUrlSettingName)
             .ToDictionaryAsync(setting => setting.Name, setting => setting.Value, cancellationToken);
 
         settings.TryGetValue(DefaultStateSettingName, out var defaultState);
         settings.TryGetValue(ShareCalendarEventsAcrossCompanySettingName, out var shareCalendarEventsAcrossCompany);
+        settings.TryGetValue(CompanyIconUrlSettingName, out var companyIconUrl);
 
         return View(new DefaultSettingsViewModel
         {
             DefaultState = defaultState ?? string.Empty,
             ShareCalendarEventsAcrossCompany = ParseBooleanSetting(shareCalendarEventsAcrossCompany, defaultValue: true),
+            CompanyIconUrl = companyIconUrl ?? string.Empty,
             States = StateOptionsProvider.GetStates(),
             StatusMessage = TempData["DefaultSettingsStatus"] as string ?? string.Empty
         });
@@ -534,14 +549,20 @@ public sealed class SettingsController : Controller
     public async Task<IActionResult> DefaultSettings(DefaultSettingsViewModel update, CancellationToken cancellationToken)
     {
         var selectedState = (update.DefaultState ?? string.Empty).Trim().ToUpperInvariant();
+        ValidateCompanyIconUpload(update.CompanyIconUpload);
 
         if (!StateOptionsProvider.GetStates().Any(state => state.Abbreviation == selectedState))
         {
             ModelState.AddModelError(nameof(update.DefaultState), "Choose a valid state.");
+        }
+
+        if (!ModelState.IsValid)
+        {
             return View(new DefaultSettingsViewModel
             {
                 DefaultState = selectedState,
                 ShareCalendarEventsAcrossCompany = update.ShareCalendarEventsAcrossCompany,
+                CompanyIconUrl = await GetCompanyIconUrlAsync(cancellationToken),
                 States = StateOptionsProvider.GetStates()
             });
         }
@@ -551,6 +572,11 @@ public sealed class SettingsController : Controller
             ShareCalendarEventsAcrossCompanySettingName,
             update.ShareCalendarEventsAcrossCompany.ToString(CultureInfo.InvariantCulture),
             cancellationToken);
+        if (update.CompanyIconUpload is not null && update.CompanyIconUpload.Length > 0)
+        {
+            var iconUrl = await SaveCompanyIconAsync(update.CompanyIconUpload, cancellationToken);
+            await UpsertAppSettingAsync(CompanyIconUrlSettingName, iconUrl, cancellationToken);
+        }
         await _dbContext.SaveChangesAsync(cancellationToken);
 
         TempData["DefaultSettingsStatus"] = "Default settings saved.";
@@ -1407,6 +1433,55 @@ public sealed class SettingsController : Controller
         }
 
         setting.Value = value;
+    }
+
+    private async Task<string> GetCompanyIconUrlAsync(CancellationToken cancellationToken)
+    {
+        return await _dbContext.AppSettings
+            .AsNoTracking()
+            .ForCompany(_currentUserSession.RenoCompanyID)
+            .Where(setting => setting.Name == CompanyIconUrlSettingName)
+            .Select(setting => setting.Value)
+            .FirstOrDefaultAsync(cancellationToken) ?? string.Empty;
+    }
+
+    private void ValidateCompanyIconUpload(IFormFile? upload)
+    {
+        if (upload is null || upload.Length == 0)
+        {
+            return;
+        }
+
+        var extension = Path.GetExtension(upload.FileName);
+        if (!AllowedCompanyIconExtensions.Contains(extension))
+        {
+            ModelState.AddModelError(
+                nameof(DefaultSettingsViewModel.CompanyIconUpload),
+                "Upload a PNG, JPG, GIF, or WEBP image.");
+        }
+    }
+
+    private async Task<string> SaveCompanyIconAsync(IFormFile upload, CancellationToken cancellationToken)
+    {
+        var extension = Path.GetExtension(upload.FileName).ToLowerInvariant();
+        var companyId = _currentUserSession.RenoCompanyID.ToString("N");
+        var relativeDirectory = Path.Combine("uploads", "company-icons", companyId);
+        var absoluteDirectory = Path.Combine(_webHostEnvironment.WebRootPath, relativeDirectory);
+        Directory.CreateDirectory(absoluteDirectory);
+
+        foreach (var existingFile in Directory.EnumerateFiles(absoluteDirectory, "company-icon.*"))
+        {
+            System.IO.File.Delete(existingFile);
+        }
+
+        var fileName = $"company-icon{extension}";
+        var absolutePath = Path.Combine(absoluteDirectory, fileName);
+        await using (var stream = System.IO.File.Create(absolutePath))
+        {
+            await upload.CopyToAsync(stream, cancellationToken);
+        }
+
+        return "/" + Path.Combine(relativeDirectory, fileName).Replace('\\', '/');
     }
 
     private static bool ParseBooleanSetting(string? value, bool defaultValue)

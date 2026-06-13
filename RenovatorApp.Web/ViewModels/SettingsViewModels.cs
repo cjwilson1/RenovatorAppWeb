@@ -19,6 +19,8 @@ public sealed class DefaultSettingsViewModel
 {
     public string DefaultState { get; set; } = string.Empty;
     public bool ShareCalendarEventsAcrossCompany { get; set; } = true;
+    public IFormFile? CompanyIconUpload { get; set; }
+    public string CompanyIconUrl { get; init; } = string.Empty;
     public IReadOnlyList<StateOptionViewModel> States { get; init; } = [];
     public string StatusMessage { get; init; } = string.Empty;
 }
