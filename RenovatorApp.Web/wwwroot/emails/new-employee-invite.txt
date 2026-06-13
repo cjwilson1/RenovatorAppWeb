@@ -1,0 +1,9 @@
+Hi {{FirstName}},
+
+Welcome to Renovator App for {{CompanyName}}.
+
+Your account has been created. Use this secure link to set your password and sign in for the first time:
+
+{{InviteLink}}
+
+This link expires in {{ExpirationHours}} hours. If you were not expecting this email, you can ignore it.

@@ -1,4 +1,5 @@
 using System.Security.Claims;
+using System.Security.Cryptography;
 using System.Diagnostics;
 using Microsoft.AspNetCore.Authentication;
 using Microsoft.AspNetCore.Authentication.Cookies;
@@ -24,19 +25,25 @@ public sealed class SuperAdminController : Controller
     private readonly PasswordService _passwordService;
     private readonly CurrentUserSession _currentUserSession;
     private readonly RequestDiagnosticsService _requestDiagnosticsService;
+    private readonly NewEmployeeEmailService _newEmployeeEmailService;
+    private readonly IConfiguration _configuration;
 
     public SuperAdminController(
         DatabaseViewerService databaseViewerService,
         RenovatorAppDbContext dbContext,
         PasswordService passwordService,
         CurrentUserSession currentUserSession,
-        RequestDiagnosticsService requestDiagnosticsService)
+        RequestDiagnosticsService requestDiagnosticsService,
+        NewEmployeeEmailService newEmployeeEmailService,
+        IConfiguration configuration)
     {
         _databaseViewerService = databaseViewerService;
         _dbContext = dbContext;
         _passwordService = passwordService;
         _currentUserSession = currentUserSession;
         _requestDiagnosticsService = requestDiagnosticsService;
+        _newEmployeeEmailService = newEmployeeEmailService;
+        _configuration = configuration;
     }
 
     public async Task<IActionResult> Index(CancellationToken cancellationToken)
@@ -284,6 +291,82 @@ public sealed class SuperAdminController : Controller
         ApplyUserUpdate(user, model);
         await _dbContext.SaveChangesAsync(cancellationToken);
 
+        return RedirectToAction(nameof(Users));
+    }
+
+    [HttpPost("SuperAdmin/Users/{id:guid}/Delete")]
+    [ValidateAntiForgeryToken]
+    public async Task<IActionResult> DeleteUser(Guid id, CancellationToken cancellationToken)
+    {
+        var user = await _dbContext.RenoUsers
+            .FirstOrDefaultAsync(item => item.UserID == id, cancellationToken);
+
+        if (user is null)
+        {
+            return NotFound();
+        }
+
+        if (id == _currentUserSession.UserID)
+        {
+            TempData["SuperAdminUsersMessage"] = "You cannot delete the currently signed-in user.";
+            return RedirectToAction(nameof(EditUser), new { id });
+        }
+
+        await using var transaction = await _dbContext.Database.BeginTransactionAsync(cancellationToken);
+
+        await _dbContext.CalendarEvents
+            .Where(calendarEvent => calendarEvent.RenoUserID == id)
+            .ExecuteDeleteAsync(cancellationToken);
+
+        await _dbContext.UserRoles
+            .Where(userRole => userRole.UserID == id)
+            .ExecuteDeleteAsync(cancellationToken);
+
+        await _dbContext.UserInvitations
+            .Where(invitation => invitation.UserID == id)
+            .ExecuteDeleteAsync(cancellationToken);
+
+        await _dbContext.UserInvitations
+            .Where(invitation => invitation.CreatedByUserID == id)
+            .ExecuteUpdateAsync(
+                setters => setters.SetProperty(invitation => invitation.CreatedByUserID, (Guid?)null),
+                cancellationToken);
+
+        var userEmail = Clean(user.Email);
+        if (string.IsNullOrWhiteSpace(userEmail))
+        {
+            userEmail = Clean(user.Login);
+        }
+
+        if (user.RenoCompanyID is Guid companyId && !string.IsNullOrWhiteSpace(userEmail))
+        {
+            var employees = await _dbContext.Employees
+                .Include(employee => employee.PrimaryAddress)
+                .Where(employee => employee.RenoCompanyID == companyId
+                    && employee.PrimaryEmailAddress.ToLower() == userEmail.ToLower())
+                .ToListAsync(cancellationToken);
+
+            foreach (var employee in employees)
+            {
+                var address = employee.PrimaryAddress;
+                var addressId = employee.PrimaryAddressId;
+
+                _dbContext.Employees.Remove(employee);
+
+                if (address is not null
+                    && addressId is Guid primaryAddressId
+                    && await CanDeleteEmployeeAddressAsync(companyId, employee.EmployeeId, primaryAddressId, cancellationToken))
+                {
+                    _dbContext.Addresses.Remove(address);
+                }
+            }
+        }
+
+        _dbContext.RenoUsers.Remove(user);
+        await _dbContext.SaveChangesAsync(cancellationToken);
+        await transaction.CommitAsync(cancellationToken);
+
+        TempData["SuperAdminUsersMessage"] = "User deleted.";
         return RedirectToAction(nameof(Users));
     }
 
@@ -574,6 +657,435 @@ public sealed class SuperAdminController : Controller
     public Task<IActionResult> CompanyEmployees(Guid companyId, int page = 1, CancellationToken cancellationToken = default)
     {
         return CompanyTable(companyId, "Employee", "Employee", nameof(CompanyEmployees), page, cancellationToken);
+    }
+
+    [HttpGet("SuperAdmin/Companies/{companyId:guid}/Employees/New")]
+    public async Task<IActionResult> NewCompanyEmployee(Guid companyId, CancellationToken cancellationToken)
+    {
+        var model = await BuildNewEmployeeViewModelAsync(companyId, null, cancellationToken);
+        return model is null ? NotFound() : View("NewEmployee", model);
+    }
+
+    [HttpGet("SuperAdmin/Companies/{companyId:guid}/Employees/{employeeId:guid}")]
+    public async Task<IActionResult> EditCompanyEmployee(Guid companyId, Guid employeeId, CancellationToken cancellationToken)
+    {
+        var model = await BuildEditEmployeeViewModelAsync(companyId, employeeId, null, cancellationToken);
+        return model is null ? NotFound() : View("NewEmployee", model);
+    }
+
+    [HttpPost("SuperAdmin/Companies/{companyId:guid}/Employees/New")]
+    [ValidateAntiForgeryToken]
+    public async Task<IActionResult> NewCompanyEmployee(
+        Guid companyId,
+        SuperAdminNewEmployeeViewModel model,
+        CancellationToken cancellationToken)
+    {
+        model.RenoCompanyID = companyId;
+
+        var role = model.SelectedRoleID is Guid selectedRoleId
+            ? await _dbContext.Roles.FirstOrDefaultAsync(
+                item => item.RoleID == selectedRoleId
+                    && (item.Name == "User" || item.Name == "Admin"),
+                cancellationToken)
+            : null;
+
+        if (role is null)
+        {
+            ModelState.AddModelError(nameof(model.SelectedRoleID), "Select User or Admin.");
+        }
+
+        var normalizedEmail = Clean(model.PrimaryEmailAddress);
+        var normalizedEmailLookup = normalizedEmail.ToLowerInvariant();
+        var existingUser = string.IsNullOrWhiteSpace(normalizedEmail)
+            ? null
+            : await _dbContext.RenoUsers
+                .Include(user => user.UserRoles)
+                .FirstOrDefaultAsync(
+                    user => user.Login.ToLower() == normalizedEmailLookup
+                        || user.Email.ToLower() == normalizedEmailLookup,
+                    cancellationToken);
+
+        if (existingUser?.RenoCompanyID is Guid existingCompanyId && existingCompanyId != companyId)
+        {
+            model.DialogTitle = "Cannot Add Employee";
+            model.DialogMessage = "The email address you entered is already a user in the RenovatorApp but they are connected to a different company.  User's cannot belong to more that one company";
+            var conflictModel = await BuildNewEmployeeViewModelAsync(companyId, model, cancellationToken);
+            return conflictModel is null ? NotFound() : View("NewEmployee", conflictModel);
+        }
+
+        if (!ModelState.IsValid)
+        {
+            var invalidModel = await BuildNewEmployeeViewModelAsync(companyId, model, cancellationToken);
+            return invalidModel is null ? NotFound() : View("NewEmployee", invalidModel);
+        }
+
+        var companyName = await _dbContext.RenoCompanies
+            .Where(company => company.RenoCompanyID == companyId)
+            .Select(company => company.Name)
+            .FirstOrDefaultAsync(cancellationToken);
+
+        if (companyName is null)
+        {
+            return NotFound();
+        }
+
+        var expirationHours = await GetNewUserTokenExpirationHoursAsync(cancellationToken);
+        var now = DateTime.UtcNow;
+        await using var transaction = await _dbContext.Database.BeginTransactionAsync(cancellationToken);
+
+        var address = new Address
+        {
+            RenoCompanyID = companyId,
+            Street1 = Clean(model.Street1),
+            Street2 = Clean(model.Street2),
+            Street3 = Clean(model.Street3),
+            City = Clean(model.City),
+            State = Clean(model.State),
+            PostalCode = Clean(model.PostalCode)
+        };
+
+        _dbContext.Addresses.Add(address);
+
+        var firstName = Clean(model.GivenName);
+        var lastName = Clean(model.FamilyName);
+        var displayName = FormatPersonName(firstName, lastName);
+
+        var employee = new Employee
+        {
+            RenoCompanyID = companyId,
+            Title = Clean(model.Title),
+            GivenName = firstName,
+            MiddleName = Clean(model.MiddleName),
+            FamilyName = lastName,
+            DisplayName = displayName,
+            PrintOnCheckName = displayName,
+            PrimaryEmailAddress = normalizedEmail,
+            PrimaryPhone = Clean(model.PrimaryPhone),
+            MobilePhone = Clean(model.MobilePhone),
+            EmployeeNumber = Clean(model.EmployeeNumber),
+            Active = model.Active,
+            PrimaryAddress = address,
+            CreatedDate = now,
+            LastEditDate = now
+        };
+
+        var user = existingUser;
+        if (user is null)
+        {
+            user = new RenoUser
+            {
+                RenoCompanyID = companyId,
+                Login = normalizedEmail,
+                Password = _passwordService.HashPassword(Guid.NewGuid().ToString("N") + Guid.NewGuid().ToString("N")),
+                FirstName = firstName,
+                LastName = lastName,
+                Email = normalizedEmail,
+                PhonePrimary = Clean(model.PrimaryPhone),
+                PhoneSecondary = Clean(model.MobilePhone),
+                Active = false,
+                DateCreated = now,
+                DateModified = now
+            };
+
+            _dbContext.RenoUsers.Add(user);
+        }
+        else
+        {
+            user.RenoCompanyID = companyId;
+            user.FirstName = string.IsNullOrWhiteSpace(user.FirstName) ? firstName : user.FirstName;
+            user.LastName = string.IsNullOrWhiteSpace(user.LastName) ? lastName : user.LastName;
+            user.Email = string.IsNullOrWhiteSpace(user.Email) ? normalizedEmail : user.Email;
+            user.PhonePrimary = string.IsNullOrWhiteSpace(user.PhonePrimary) ? Clean(model.PrimaryPhone) : user.PhonePrimary;
+            user.PhoneSecondary = string.IsNullOrWhiteSpace(user.PhoneSecondary) ? Clean(model.MobilePhone) : user.PhoneSecondary;
+            user.DateModified = now;
+        }
+
+        _dbContext.Employees.Add(employee);
+        if (!user.UserRoles.Any(userRole => userRole.RoleID == role!.RoleID))
+        {
+            user.UserRoles.Add(new UserRole
+            {
+                UserID = user.UserID,
+                RoleID = role!.RoleID
+            });
+        }
+
+        UserInvitation? invitation = null;
+        string? invitationToken = null;
+        if (model.SendInviteEmail)
+        {
+            await RevokePendingInvitationsAsync(user.UserID, now, cancellationToken);
+            invitationToken = GenerateInvitationToken();
+            invitation = new UserInvitation
+            {
+                UserID = user.UserID,
+                TokenHash = HashInvitationToken(invitationToken),
+                SentToEmail = normalizedEmail,
+                CreatedAtUtc = now,
+                ExpiresAtUtc = now.AddHours(expirationHours),
+                CreatedByUserID = _currentUserSession.UserID
+            };
+
+            _dbContext.UserInvitations.Add(invitation);
+        }
+
+        await _dbContext.SaveChangesAsync(cancellationToken);
+        await transaction.CommitAsync(cancellationToken);
+
+        if (invitation is null || string.IsNullOrWhiteSpace(invitationToken))
+        {
+            TempData["SuperAdminEmployeesMessage"] = "Employee saved.";
+            return RedirectToAction(nameof(CompanyEmployees), new { companyId });
+        }
+
+        var inviteLink = BuildInviteLink(invitation.UserInvitationId, invitationToken);
+
+        try
+        {
+            await _newEmployeeEmailService.SendWelcomeEmailAsync(
+                normalizedEmail,
+                firstName,
+                companyName,
+                inviteLink,
+                expirationHours,
+                cancellationToken);
+
+            TempData["SuperAdminEmployeesMessage"] = "Employee saved and welcome email sent.";
+        }
+        catch (Exception exception)
+        {
+            TempData["SuperAdminEmployeesMessage"] = $"Employee saved, but the welcome email failed to send: {exception.Message}";
+        }
+
+        return RedirectToAction(nameof(CompanyEmployees), new { companyId });
+    }
+
+    [HttpPost("SuperAdmin/Companies/{companyId:guid}/Employees/{employeeId:guid}")]
+    [ValidateAntiForgeryToken]
+    public async Task<IActionResult> EditCompanyEmployee(
+        Guid companyId,
+        Guid employeeId,
+        SuperAdminNewEmployeeViewModel model,
+        CancellationToken cancellationToken)
+    {
+        model.EmployeeId = employeeId;
+        model.RenoCompanyID = companyId;
+
+        var role = model.SelectedRoleID is Guid selectedRoleId
+            ? await _dbContext.Roles.FirstOrDefaultAsync(
+                item => item.RoleID == selectedRoleId
+                    && (item.Name == "User" || item.Name == "Admin"),
+                cancellationToken)
+            : null;
+
+        if (role is null)
+        {
+            ModelState.AddModelError(nameof(model.SelectedRoleID), "Select User or Admin.");
+        }
+
+        var normalizedEmail = Clean(model.PrimaryEmailAddress);
+        var existingUser = await FindUserByEmailAsync(normalizedEmail, cancellationToken);
+        if (existingUser?.RenoCompanyID is Guid existingCompanyId && existingCompanyId != companyId)
+        {
+            model.DialogTitle = "Cannot Add Employee";
+            model.DialogMessage = "The email address you entered is already a user in the RenovatorApp but they are connected to a different company.  User's cannot belong to more that one company";
+            var conflictModel = await BuildEditEmployeeViewModelAsync(companyId, employeeId, model, cancellationToken);
+            return conflictModel is null ? NotFound() : View("NewEmployee", conflictModel);
+        }
+
+        if (!ModelState.IsValid)
+        {
+            var invalidModel = await BuildEditEmployeeViewModelAsync(companyId, employeeId, model, cancellationToken);
+            return invalidModel is null ? NotFound() : View("NewEmployee", invalidModel);
+        }
+
+        var employee = await _dbContext.Employees
+            .Include(item => item.PrimaryAddress)
+            .FirstOrDefaultAsync(item => item.EmployeeId == employeeId && item.RenoCompanyID == companyId, cancellationToken);
+
+        if (employee is null)
+        {
+            return NotFound();
+        }
+
+        var now = DateTime.UtcNow;
+        ApplyEmployeeUpdate(employee, model, now);
+        TrackEmployeeAddress(employee, model);
+
+        var firstName = Clean(model.GivenName);
+        var lastName = Clean(model.FamilyName);
+        var user = existingUser;
+        if (user is null)
+        {
+            user = new RenoUser
+            {
+                RenoCompanyID = companyId,
+                Login = normalizedEmail,
+                Password = _passwordService.HashPassword(Guid.NewGuid().ToString("N") + Guid.NewGuid().ToString("N")),
+                FirstName = firstName,
+                LastName = lastName,
+                Email = normalizedEmail,
+                PhonePrimary = Clean(model.PrimaryPhone),
+                PhoneSecondary = Clean(model.MobilePhone),
+                Active = false,
+                DateCreated = now,
+                DateModified = now
+            };
+
+            _dbContext.RenoUsers.Add(user);
+        }
+        else
+        {
+            user.RenoCompanyID = companyId;
+            user.Login = string.IsNullOrWhiteSpace(user.Login) ? normalizedEmail : user.Login;
+            user.Email = normalizedEmail;
+            user.FirstName = firstName;
+            user.LastName = lastName;
+            user.PhonePrimary = Clean(model.PrimaryPhone);
+            user.PhoneSecondary = Clean(model.MobilePhone);
+            user.DateModified = now;
+        }
+
+        ApplyEmployeeUserRole(user, role!);
+
+        await _dbContext.SaveChangesAsync(cancellationToken);
+        TempData["SuperAdminEmployeesMessage"] = "Employee updated.";
+        return RedirectToAction(nameof(CompanyEmployees), new { companyId });
+    }
+
+    [HttpPost("SuperAdmin/Companies/{companyId:guid}/Employees/{employeeId:guid}/SendInvite")]
+    [ValidateAntiForgeryToken]
+    public async Task<IActionResult> SendCompanyEmployeeInvite(
+        Guid companyId,
+        Guid employeeId,
+        SuperAdminNewEmployeeViewModel model,
+        CancellationToken cancellationToken)
+    {
+        var employee = await _dbContext.Employees
+            .AsNoTracking()
+            .FirstOrDefaultAsync(item => item.EmployeeId == employeeId && item.RenoCompanyID == companyId, cancellationToken);
+
+        if (employee is null)
+        {
+            return NotFound();
+        }
+
+        var role = model.SelectedRoleID is Guid selectedRoleId
+            ? await _dbContext.Roles.FirstOrDefaultAsync(
+                item => item.RoleID == selectedRoleId
+                    && (item.Name == "User" || item.Name == "Admin"),
+                cancellationToken)
+            : null;
+
+        if (role is null)
+        {
+            model.EmployeeId = employeeId;
+            model.RenoCompanyID = companyId;
+            ModelState.AddModelError(nameof(model.SelectedRoleID), "Select User or Admin before sending an invite.");
+            var invalidModel = await BuildEditEmployeeViewModelAsync(companyId, employeeId, model, cancellationToken);
+            return invalidModel is null ? NotFound() : View("NewEmployee", invalidModel);
+        }
+
+        var user = await FindUserByEmailAsync(employee.PrimaryEmailAddress, cancellationToken);
+        if (user?.RenoCompanyID is Guid existingCompanyId && existingCompanyId != companyId)
+        {
+            model.EmployeeId = employeeId;
+            model.RenoCompanyID = companyId;
+            model.DialogTitle = "Cannot Add Employee";
+            model.DialogMessage = "The email address you entered is already a user in the RenovatorApp but they are connected to a different company.  User's cannot belong to more that one company";
+            var conflictModel = await BuildEditEmployeeViewModelAsync(companyId, employeeId, model, cancellationToken);
+            return conflictModel is null ? NotFound() : View("NewEmployee", conflictModel);
+        }
+
+        if (user is null)
+        {
+            var now = DateTime.UtcNow;
+            user = new RenoUser
+            {
+                RenoCompanyID = companyId,
+                Login = Clean(employee.PrimaryEmailAddress),
+                Password = _passwordService.HashPassword(Guid.NewGuid().ToString("N") + Guid.NewGuid().ToString("N")),
+                FirstName = Clean(employee.GivenName),
+                LastName = Clean(employee.FamilyName),
+                Email = Clean(employee.PrimaryEmailAddress),
+                PhonePrimary = Clean(employee.PrimaryPhone),
+                PhoneSecondary = Clean(employee.MobilePhone),
+                Active = false,
+                DateCreated = now,
+                DateModified = now
+            };
+
+            _dbContext.RenoUsers.Add(user);
+        }
+        else
+        {
+            user.RenoCompanyID = companyId;
+        }
+
+        ApplyEmployeeUserRole(user, role);
+
+        await _dbContext.SaveChangesAsync(cancellationToken);
+        await CreateAndSendEmployeeInvitationAsync(companyId, user, employee.GivenName, employee.PrimaryEmailAddress, cancellationToken);
+
+        return RedirectToAction(nameof(CompanyEmployees), new { companyId });
+    }
+
+    [HttpPost("SuperAdmin/Companies/{companyId:guid}/Employees/{employeeId:guid}/Delete")]
+    [ValidateAntiForgeryToken]
+    public async Task<IActionResult> DeleteCompanyEmployee(
+        Guid companyId,
+        Guid employeeId,
+        CancellationToken cancellationToken)
+    {
+        var employee = await _dbContext.Employees
+            .Include(item => item.PrimaryAddress)
+            .FirstOrDefaultAsync(
+                item => item.EmployeeId == employeeId && item.RenoCompanyID == companyId,
+                cancellationToken);
+
+        if (employee is null)
+        {
+            return NotFound();
+        }
+
+        var employeeEmail = Clean(employee.PrimaryEmailAddress);
+        var address = employee.PrimaryAddress;
+        var addressId = employee.PrimaryAddressId;
+
+        await using var transaction = await _dbContext.Database.BeginTransactionAsync(cancellationToken);
+
+        if (!string.IsNullOrWhiteSpace(employeeEmail))
+        {
+            var inactiveUser = await _dbContext.RenoUsers
+                .Include(user => user.UserRoles)
+                .FirstOrDefaultAsync(
+                    user => user.RenoCompanyID == companyId
+                        && !user.Active
+                        && user.DateLastLogin == null
+                        && (user.Login == employeeEmail || user.Email == employeeEmail),
+                    cancellationToken);
+
+            if (inactiveUser is not null)
+            {
+                _dbContext.UserRoles.RemoveRange(inactiveUser.UserRoles);
+                _dbContext.RenoUsers.Remove(inactiveUser);
+            }
+        }
+
+        _dbContext.Employees.Remove(employee);
+
+        if (address is not null
+            && addressId is Guid primaryAddressId
+            && await CanDeleteEmployeeAddressAsync(companyId, employeeId, primaryAddressId, cancellationToken))
+        {
+            _dbContext.Addresses.Remove(address);
+        }
+
+        await _dbContext.SaveChangesAsync(cancellationToken);
+        await transaction.CommitAsync(cancellationToken);
+
+        TempData["SuperAdminEmployeesMessage"] = "Employee deleted.";
+        return RedirectToAction(nameof(CompanyEmployees), new { companyId });
     }
 
     [HttpGet("SuperAdmin/Companies/{companyId:guid}/Inspections")]
@@ -909,6 +1421,59 @@ public sealed class SuperAdminController : Controller
         return RedirectToAction(nameof(EditCompany), new { id = companyId });
     }
 
+    [HttpGet("SuperAdmin/Settings")]
+    public async Task<IActionResult> Settings(CancellationToken cancellationToken = default)
+    {
+        return View(new SuperAdminSettingsViewModel
+        {
+            Settings = await GetDefaultSettingsRowsAsync(cancellationToken),
+            StatusMessage = TempData["SuperAdminSettingsMessage"] as string ?? string.Empty
+        });
+    }
+
+    [HttpPost("SuperAdmin/Settings")]
+    [ValidateAntiForgeryToken]
+    public async Task<IActionResult> Settings(SuperAdminSettingsViewModel model, CancellationToken cancellationToken)
+    {
+        var normalizedSettings = model.Settings
+            .Select(setting => new SuperAdminSettingEditViewModel
+            {
+                Name = Clean(setting.Name),
+                Value = setting.Value ?? string.Empty
+            })
+            .Where(setting => !string.IsNullOrWhiteSpace(setting.Name))
+            .GroupBy(setting => setting.Name, StringComparer.OrdinalIgnoreCase)
+            .Select(group => group.Last())
+            .OrderBy(setting => setting.Name)
+            .ToList();
+
+        var existingSettings = await _dbContext.AppSettings
+            .Where(setting => setting.RenoCompanyID == TemplateRenoCompanyID)
+            .ToListAsync(cancellationToken);
+        var existingByName = existingSettings.ToDictionary(setting => setting.Name, StringComparer.OrdinalIgnoreCase);
+
+        foreach (var postedSetting in normalizedSettings)
+        {
+            if (!existingByName.TryGetValue(postedSetting.Name, out var setting))
+            {
+                setting = new AppSetting
+                {
+                    RenoCompanyID = TemplateRenoCompanyID,
+                    Name = postedSetting.Name
+                };
+                _dbContext.AppSettings.Add(setting);
+                existingByName[postedSetting.Name] = setting;
+            }
+
+            setting.Value = postedSetting.Value;
+        }
+
+        await _dbContext.SaveChangesAsync(cancellationToken);
+        TempData["SuperAdminSettingsMessage"] = "Settings saved.";
+
+        return RedirectToAction(nameof(Settings));
+    }
+
     [HttpGet("SuperAdmin/Database")]
     public async Task<IActionResult> Database(string? tableName, int page = 1, int pageSize = DefaultPageSize, CancellationToken cancellationToken = default)
     {
@@ -960,6 +1525,75 @@ public sealed class SuperAdminController : Controller
         return value?.Trim() ?? string.Empty;
     }
 
+    private async Task<int> GetNewUserTokenExpirationHoursAsync(CancellationToken cancellationToken)
+    {
+        var value = await _dbContext.AppSettings
+            .AsNoTracking()
+            .Where(setting => setting.RenoCompanyID == TemplateRenoCompanyID
+                && setting.Name == "NewUserTokenExpiratinHours")
+            .Select(setting => setting.Value)
+            .FirstOrDefaultAsync(cancellationToken);
+
+        return int.TryParse(value, out var expirationHours) && expirationHours > 0
+            ? expirationHours
+            : 72;
+    }
+
+    private async Task RevokePendingInvitationsAsync(Guid userId, DateTime revokedAtUtc, CancellationToken cancellationToken)
+    {
+        var pendingInvitations = await _dbContext.UserInvitations
+            .Where(invitation => invitation.UserID == userId
+                && invitation.AcceptedAtUtc == null
+                && invitation.RevokedAtUtc == null)
+            .ToListAsync(cancellationToken);
+
+        foreach (var invitation in pendingInvitations)
+        {
+            invitation.RevokedAtUtc = revokedAtUtc;
+        }
+    }
+
+    private static string GenerateInvitationToken()
+    {
+        return Base64UrlEncode(RandomNumberGenerator.GetBytes(32));
+    }
+
+    private static string HashInvitationToken(string token)
+    {
+        var tokenBytes = System.Text.Encoding.UTF8.GetBytes(token);
+        var hashBytes = SHA256.HashData(tokenBytes);
+        return Convert.ToBase64String(hashBytes);
+    }
+
+    private static string Base64UrlEncode(byte[] bytes)
+    {
+        return Convert.ToBase64String(bytes)
+            .TrimEnd('=')
+            .Replace("+", "-", StringComparison.Ordinal)
+            .Replace("/", "_", StringComparison.Ordinal);
+    }
+
+    private string BuildInviteLink(Guid invitationId, string invitationToken)
+    {
+        var path = Url.Action(
+            "AcceptInvite",
+            "Account",
+            new { invitationId, token = invitationToken }) ?? "/Account/AcceptInvite";
+        var baseUrl = _configuration["App:BaseUrl"]?.TrimEnd('/');
+
+        if (!string.IsNullOrWhiteSpace(baseUrl))
+        {
+            return $"{baseUrl}{path}";
+        }
+
+        return Url.Action(
+            "AcceptInvite",
+            "Account",
+            new { invitationId, token = invitationToken },
+            Request.Scheme,
+            Request.Host.Value) ?? path;
+    }
+
     private static string FormatAddress(Address? address)
     {
         if (address is null)
@@ -994,6 +1628,12 @@ public sealed class SuperAdminController : Controller
             .Where(value => !string.IsNullOrWhiteSpace(value)));
 
         return string.IsNullOrWhiteSpace(name) ? customer.CompanyName : name;
+    }
+
+    private static string FormatPersonName(string firstName, string lastName)
+    {
+        return string.Join(" ", new[] { firstName, lastName }
+            .Where(value => !string.IsNullOrWhiteSpace(value)));
     }
 
     private async Task<IActionResult> CompanyTable(
@@ -1285,6 +1925,362 @@ public sealed class SuperAdminController : Controller
                 Name = role.Name
             })
             .ToListAsync(cancellationToken);
+    }
+
+    private async Task<List<SuperAdminSettingEditViewModel>> GetDefaultSettingsRowsAsync(CancellationToken cancellationToken)
+    {
+        return await _dbContext.AppSettings
+            .AsNoTracking()
+            .Where(setting => setting.RenoCompanyID == TemplateRenoCompanyID)
+            .OrderBy(setting => setting.Name)
+            .Select(setting => new SuperAdminSettingEditViewModel
+            {
+                Name = setting.Name,
+                Value = setting.Value
+            })
+            .ToListAsync(cancellationToken);
+    }
+
+    private async Task<IReadOnlyList<SuperAdminRoleOptionViewModel>> GetNewEmployeeRoleOptionsAsync(CancellationToken cancellationToken)
+    {
+        return await _dbContext.Roles
+            .AsNoTracking()
+            .Where(role => role.Name == "User" || role.Name == "Admin")
+            .OrderBy(role => role.Name == "User" ? 0 : 1)
+            .ThenBy(role => role.Name)
+            .Select(role => new SuperAdminRoleOptionViewModel
+            {
+                RoleID = role.RoleID,
+                Name = role.Name
+            })
+            .ToListAsync(cancellationToken);
+    }
+
+    private async Task<RenoUser?> FindUserByEmailAsync(string? email, CancellationToken cancellationToken)
+    {
+        var normalizedEmail = Clean(email);
+        if (string.IsNullOrWhiteSpace(normalizedEmail))
+        {
+            return null;
+        }
+
+        var normalizedEmailLookup = normalizedEmail.ToLowerInvariant();
+        return await _dbContext.RenoUsers
+            .Include(user => user.UserRoles)
+                .ThenInclude(userRole => userRole.Role)
+            .FirstOrDefaultAsync(
+                user => user.Login.ToLower() == normalizedEmailLookup
+                    || user.Email.ToLower() == normalizedEmailLookup,
+                cancellationToken);
+    }
+
+    private async Task CreateAndSendEmployeeInvitationAsync(
+        Guid companyId,
+        RenoUser user,
+        string firstName,
+        string email,
+        CancellationToken cancellationToken)
+    {
+        var companyName = await _dbContext.RenoCompanies
+            .Where(company => company.RenoCompanyID == companyId)
+            .Select(company => company.Name)
+            .FirstOrDefaultAsync(cancellationToken);
+
+        if (companyName is null)
+        {
+            throw new InvalidOperationException("Company was not found.");
+        }
+
+        var expirationHours = await GetNewUserTokenExpirationHoursAsync(cancellationToken);
+        var now = DateTime.UtcNow;
+        var invitationToken = GenerateInvitationToken();
+        var invitation = new UserInvitation
+        {
+            UserID = user.UserID,
+            TokenHash = HashInvitationToken(invitationToken),
+            SentToEmail = Clean(email),
+            CreatedAtUtc = now,
+            ExpiresAtUtc = now.AddHours(expirationHours),
+            CreatedByUserID = _currentUserSession.UserID
+        };
+
+        await using var transaction = await _dbContext.Database.BeginTransactionAsync(cancellationToken);
+        await RevokePendingInvitationsAsync(user.UserID, now, cancellationToken);
+        _dbContext.UserInvitations.Add(invitation);
+        await _dbContext.SaveChangesAsync(cancellationToken);
+        await transaction.CommitAsync(cancellationToken);
+
+        var inviteLink = BuildInviteLink(invitation.UserInvitationId, invitationToken);
+
+        try
+        {
+            await _newEmployeeEmailService.SendWelcomeEmailAsync(
+                Clean(email),
+                Clean(firstName),
+                companyName,
+                inviteLink,
+                expirationHours,
+                cancellationToken);
+
+            TempData["SuperAdminEmployeesMessage"] = "Invite email sent.";
+        }
+        catch (Exception exception)
+        {
+            TempData["SuperAdminEmployeesMessage"] = $"Invite was created, but the welcome email failed to send: {exception.Message}";
+        }
+    }
+
+    private void ApplyEmployeeUpdate(Employee employee, SuperAdminNewEmployeeViewModel model, DateTime editedAtUtc)
+    {
+        var firstName = Clean(model.GivenName);
+        var lastName = Clean(model.FamilyName);
+        var displayName = FormatPersonName(firstName, lastName);
+
+        employee.Title = Clean(model.Title);
+        employee.GivenName = firstName;
+        employee.MiddleName = Clean(model.MiddleName);
+        employee.FamilyName = lastName;
+        employee.DisplayName = displayName;
+        employee.PrintOnCheckName = displayName;
+        employee.PrimaryEmailAddress = Clean(model.PrimaryEmailAddress);
+        employee.PrimaryPhone = Clean(model.PrimaryPhone);
+        employee.MobilePhone = Clean(model.MobilePhone);
+        employee.EmployeeNumber = Clean(model.EmployeeNumber);
+        employee.Active = model.Active;
+        employee.LastEditDate = editedAtUtc;
+    }
+
+    private void TrackEmployeeAddress(Employee employee, SuperAdminNewEmployeeViewModel model)
+    {
+        if (IsEmployeeAddressEmpty(model))
+        {
+            employee.PrimaryAddress = null;
+            employee.PrimaryAddressId = null;
+            return;
+        }
+
+        employee.PrimaryAddress ??= new Address
+        {
+            RenoCompanyID = employee.RenoCompanyID
+        };
+
+        employee.PrimaryAddress.RenoCompanyID = employee.RenoCompanyID;
+        employee.PrimaryAddress.Street1 = Clean(model.Street1);
+        employee.PrimaryAddress.Street2 = Clean(model.Street2);
+        employee.PrimaryAddress.Street3 = Clean(model.Street3);
+        employee.PrimaryAddress.City = Clean(model.City);
+        employee.PrimaryAddress.State = Clean(model.State);
+        employee.PrimaryAddress.PostalCode = Clean(model.PostalCode);
+        employee.PrimaryAddressId = employee.PrimaryAddress.AddressId;
+    }
+
+    private static bool IsEmployeeAddressEmpty(SuperAdminNewEmployeeViewModel model)
+    {
+        return string.IsNullOrWhiteSpace(model.Street1)
+            && string.IsNullOrWhiteSpace(model.Street2)
+            && string.IsNullOrWhiteSpace(model.Street3)
+            && string.IsNullOrWhiteSpace(model.City)
+            && string.IsNullOrWhiteSpace(model.State)
+            && string.IsNullOrWhiteSpace(model.PostalCode);
+    }
+
+    private static void ApplyEmployeeUserRole(RenoUser user, Role role)
+    {
+        var employeeRoles = user.UserRoles
+            .Where(userRole => string.Equals(userRole.Role?.Name, "User", StringComparison.OrdinalIgnoreCase)
+                || string.Equals(userRole.Role?.Name, "Admin", StringComparison.OrdinalIgnoreCase)
+                || userRole.RoleID == role.RoleID)
+            .ToList();
+
+        foreach (var userRole in employeeRoles)
+        {
+            user.UserRoles.Remove(userRole);
+        }
+
+        user.UserRoles.Add(new UserRole
+        {
+            UserID = user.UserID,
+            RoleID = role.RoleID
+        });
+    }
+
+    private async Task<bool> CanDeleteEmployeeAddressAsync(
+        Guid companyId,
+        Guid employeeId,
+        Guid addressId,
+        CancellationToken cancellationToken)
+    {
+        var usedByAnotherEmployee = await _dbContext.Employees.AnyAsync(
+            item => item.RenoCompanyID == companyId
+                && item.EmployeeId != employeeId
+                && item.PrimaryAddressId == addressId,
+            cancellationToken);
+
+        if (usedByAnotherEmployee)
+        {
+            return false;
+        }
+
+        var usedByCustomer = await _dbContext.Customers.AnyAsync(
+            item => item.RenoCompanyID == companyId
+                && (item.BillAddressId == addressId || item.ShipAddressId == addressId),
+            cancellationToken);
+
+        if (usedByCustomer)
+        {
+            return false;
+        }
+
+        return !await _dbContext.Addresses.AnyAsync(
+            item => item.RenoCompanyID == companyId
+                && item.AddressId == addressId
+                && item.PropertyId != null,
+            cancellationToken);
+    }
+
+    private async Task<SuperAdminNewEmployeeViewModel?> BuildNewEmployeeViewModelAsync(
+        Guid companyId,
+        SuperAdminNewEmployeeViewModel? model,
+        CancellationToken cancellationToken)
+    {
+        var companyName = await _dbContext.RenoCompanies
+            .Where(company => company.RenoCompanyID == companyId)
+            .Select(company => company.Name)
+            .FirstOrDefaultAsync(cancellationToken);
+
+        if (companyName is null)
+        {
+            return null;
+        }
+
+        model ??= new SuperAdminNewEmployeeViewModel();
+        model.RenoCompanyID = companyId;
+        model.RenoCompanyName = companyName;
+        model.AvailableRoles = await GetNewEmployeeRoleOptionsAsync(cancellationToken);
+        return model;
+    }
+
+    private async Task<SuperAdminNewEmployeeViewModel?> BuildEditEmployeeViewModelAsync(
+        Guid companyId,
+        Guid employeeId,
+        SuperAdminNewEmployeeViewModel? model,
+        CancellationToken cancellationToken)
+    {
+        var employee = await _dbContext.Employees
+            .AsNoTracking()
+            .Include(item => item.PrimaryAddress)
+            .FirstOrDefaultAsync(item => item.EmployeeId == employeeId && item.RenoCompanyID == companyId, cancellationToken);
+
+        if (employee is null)
+        {
+            return null;
+        }
+
+        var companyName = await _dbContext.RenoCompanies
+            .Where(company => company.RenoCompanyID == companyId)
+            .Select(company => company.Name)
+            .FirstOrDefaultAsync(cancellationToken);
+
+        if (companyName is null)
+        {
+            return null;
+        }
+
+        if (model is null)
+        {
+            var user = await FindUserByEmailAsync(employee.PrimaryEmailAddress, cancellationToken);
+            var selectedRoleId = user?.UserRoles
+                .Where(userRole => string.Equals(userRole.Role?.Name, "User", StringComparison.OrdinalIgnoreCase)
+                    || string.Equals(userRole.Role?.Name, "Admin", StringComparison.OrdinalIgnoreCase))
+                .OrderBy(userRole => userRole.Role?.Name == "User" ? 0 : 1)
+                .Select(userRole => (Guid?)userRole.RoleID)
+                .FirstOrDefault();
+
+            model = new SuperAdminNewEmployeeViewModel
+            {
+                EmployeeId = employee.EmployeeId,
+                RenoCompanyID = companyId,
+                RenoCompanyName = companyName,
+                Title = employee.Title,
+                GivenName = employee.GivenName,
+                MiddleName = employee.MiddleName,
+                FamilyName = employee.FamilyName,
+                PrimaryEmailAddress = employee.PrimaryEmailAddress,
+                PrimaryPhone = employee.PrimaryPhone,
+                MobilePhone = employee.MobilePhone,
+                EmployeeNumber = employee.EmployeeNumber,
+                Active = employee.Active,
+                SelectedRoleID = selectedRoleId,
+                Street1 = employee.PrimaryAddress?.Street1,
+                Street2 = employee.PrimaryAddress?.Street2,
+                Street3 = employee.PrimaryAddress?.Street3,
+                City = employee.PrimaryAddress?.City,
+                State = employee.PrimaryAddress?.State,
+                PostalCode = employee.PrimaryAddress?.PostalCode
+            };
+        }
+
+        model.EmployeeId = employeeId;
+        model.RenoCompanyID = companyId;
+        model.RenoCompanyName = companyName;
+        model.AvailableRoles = await GetNewEmployeeRoleOptionsAsync(cancellationToken);
+        model.Invitations = await GetEmployeeInvitationRowsAsync(employee.PrimaryEmailAddress, cancellationToken);
+        return model;
+    }
+
+    private async Task<IReadOnlyList<SuperAdminEmployeeInvitationViewModel>> GetEmployeeInvitationRowsAsync(
+        string email,
+        CancellationToken cancellationToken)
+    {
+        var user = await FindUserByEmailAsync(email, cancellationToken);
+        if (user is null)
+        {
+            return [];
+        }
+
+        var invitations = await _dbContext.UserInvitations
+            .AsNoTracking()
+            .Where(invitation => invitation.UserID == user.UserID)
+            .OrderByDescending(invitation => invitation.CreatedAtUtc)
+            .Select(invitation => new
+            {
+                invitation.SentToEmail,
+                invitation.CreatedAtUtc,
+                invitation.ExpiresAtUtc,
+                invitation.AcceptedAtUtc,
+                invitation.RevokedAtUtc,
+                invitation.CreatedByUserID
+            })
+            .ToListAsync(cancellationToken);
+
+        var createdByUserIds = invitations
+            .Select(invitation => invitation.CreatedByUserID)
+            .Where(userId => userId.HasValue)
+            .Select(userId => userId!.Value)
+            .Distinct()
+            .ToList();
+
+        var createdByLogins = createdByUserIds.Count == 0
+            ? new Dictionary<Guid, string>()
+            : await _dbContext.RenoUsers
+                .AsNoTracking()
+                .Where(createdByUser => createdByUserIds.Contains(createdByUser.UserID))
+                .ToDictionaryAsync(createdByUser => createdByUser.UserID, createdByUser => createdByUser.Login, cancellationToken);
+
+        return invitations
+            .Select(invitation => new SuperAdminEmployeeInvitationViewModel
+            {
+                SentToEmail = invitation.SentToEmail,
+                CreatedAtUtc = invitation.CreatedAtUtc,
+                ExpiresAtUtc = invitation.ExpiresAtUtc,
+                AcceptedAtUtc = invitation.AcceptedAtUtc,
+                RevokedAtUtc = invitation.RevokedAtUtc,
+                CreatedByLogin = invitation.CreatedByUserID is Guid createdByUserId
+                    && createdByLogins.TryGetValue(createdByUserId, out var login)
+                        ? login
+                        : string.Empty
+            })
+            .ToList();
     }
 
     private async Task<SuperAdminUserEditViewModel> BuildUserEditViewModelAsync(Guid companyId, RenoUser? user, CancellationToken cancellationToken)

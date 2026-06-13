@@ -37,3 +37,22 @@ public sealed class InitialAdminViewModel
     public string? Email { get; set; }
     public string ErrorMessage { get; set; } = string.Empty;
 }
+
+public sealed class AcceptInviteViewModel
+{
+    public Guid InvitationId { get; set; }
+    public string Token { get; set; } = string.Empty;
+    public string Login { get; set; } = string.Empty;
+    public string ErrorMessage { get; set; } = string.Empty;
+
+    [Required]
+    [Display(Name = "Password")]
+    [DataType(DataType.Password)]
+    public string Password { get; set; } = string.Empty;
+
+    [Required]
+    [Display(Name = "Confirm Password")]
+    [DataType(DataType.Password)]
+    [Compare(nameof(Password), ErrorMessage = "Pass and Confirm Password must match")]
+    public string ConfirmPassword { get; set; } = string.Empty;
+}

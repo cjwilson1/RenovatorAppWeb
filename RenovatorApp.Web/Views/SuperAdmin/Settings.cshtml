@@ -1,0 +1,126 @@
+@model RenovatorApp.Web.ViewModels.SuperAdminSettingsViewModel
+
+@{
+    ViewData["Title"] = "Settings";
+}
+
+<div class="page-header-row">
+    <div>
+        <h1>Settings</h1>
+        <p class="text-muted">Manage default RenovatorApp settings.</p>
+    </div>
+</div>
+
+@if (!string.IsNullOrWhiteSpace(Model.StatusMessage))
+{
+    <div class="alert alert-success" role="status">@Model.StatusMessage</div>
+}
+
+<form asp-controller="SuperAdmin" asp-action="Settings" method="post">
+    @Html.AntiForgeryToken()
+    <div asp-validation-summary="ModelOnly" class="text-danger mb-3"></div>
+
+    <section class="detail-section mb-4">
+        <div id="settingsFields">
+            @for (var index = 0; index < Model.Settings.Count; index++)
+            {
+                <div class="mb-3 setting-field-row">
+                    <label class="form-label" for="setting-value-@index">@Model.Settings[index].Name</label>
+                    <input name="Settings[@index].Name" type="hidden" value="@Model.Settings[index].Name" />
+                    <input class="form-control"
+                           id="setting-value-@index"
+                           name="Settings[@index].Value"
+                           value="@Model.Settings[index].Value" />
+                </div>
+            }
+        </div>
+
+        @if (Model.Settings.Count == 0)
+        {
+            <p class="text-muted" id="noSettingsMessage">No settings found.</p>
+        }
+        else
+        {
+            <p class="text-muted d-none" id="noSettingsMessage">No settings found.</p>
+        }
+
+        <div class="d-flex gap-2">
+            <button class="btn btn-primary" type="submit">Save</button>
+            <button class="btn btn-outline-primary" type="button" data-bs-toggle="modal" data-bs-target="#newSettingModal">New Setting</button>
+        </div>
+    </section>
+</form>
+
+<div class="modal fade" id="newSettingModal" tabindex="-1" aria-labelledby="newSettingModalLabel" aria-hidden="true">
+    <div class="modal-dialog modal-dialog-centered">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h2 class="modal-title fs-5" id="newSettingModalLabel">New Setting</h2>
+                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+            </div>
+            <div class="modal-body">
+                <div class="mb-3">
+                    <label class="form-label" for="newSettingName">Name</label>
+                    <input class="form-control" id="newSettingName" />
+                </div>
+                <div class="mb-3">
+                    <label class="form-label" for="newSettingValue">Value</label>
+                    <input class="form-control" id="newSettingValue" />
+                </div>
+            </div>
+            <div class="modal-footer">
+                <button class="btn btn-secondary" type="button" data-bs-dismiss="modal">Cancel</button>
+                <button class="btn btn-primary" id="addSettingButton" type="button">Save</button>
+            </div>
+        </div>
+    </div>
+</div>
+
+@section Scripts {
+    <partial name="_ValidationScriptsPartial" />
+    <script>
+        const settingsFields = document.getElementById('settingsFields');
+        const noSettingsMessage = document.getElementById('noSettingsMessage');
+        const newSettingModalElement = document.getElementById('newSettingModal');
+        const newSettingNameInput = document.getElementById('newSettingName');
+        const newSettingValueInput = document.getElementById('newSettingValue');
+        const addSettingButton = document.getElementById('addSettingButton');
+
+        const escapeHtml = (value) => {
+            const div = document.createElement('div');
+            div.textContent = value || '';
+            return div.innerHTML;
+        };
+
+        const getNextIndex = () => settingsFields.querySelectorAll('.setting-field-row').length;
+
+        addSettingButton?.addEventListener('click', () => {
+            const name = (newSettingNameInput.value || '').trim();
+            const value = newSettingValueInput.value || '';
+
+            if (!name) {
+                newSettingNameInput.focus();
+                return;
+            }
+
+            const index = getNextIndex();
+            const row = document.createElement('div');
+            row.className = 'mb-3 setting-field-row';
+            row.innerHTML = `
+                <label class="form-label" for="setting-value-${index}">${escapeHtml(name)}</label>
+                <input name="Settings[${index}].Name" type="hidden" value="${escapeHtml(name)}" />
+                <input class="form-control" id="setting-value-${index}" name="Settings[${index}].Value" value="${escapeHtml(value)}" />
+            `;
+
+            settingsFields.appendChild(row);
+            noSettingsMessage?.classList.add('d-none');
+            newSettingNameInput.value = '';
+            newSettingValueInput.value = '';
+            bootstrap.Modal.getOrCreateInstance(newSettingModalElement).hide();
+        });
+
+        newSettingModalElement?.addEventListener('shown.bs.modal', () => {
+            newSettingNameInput.focus();
+        });
+    </script>
+}

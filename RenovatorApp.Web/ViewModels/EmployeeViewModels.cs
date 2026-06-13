@@ -70,6 +70,7 @@ public sealed class EmployeeDetailViewModel
     public DateTime? LastSyncDate { get; set; }
     public DateTime? LastEditDate { get; set; }
     public EmployeeAddressViewModel? PrimaryAddress { get; set; }
+    public bool SendInviteEmail { get; set; } = true;
 }
 
 public sealed class EmployeeDetailUpdateViewModel
@@ -101,6 +102,7 @@ public sealed class EmployeeDetailUpdateViewModel
     public bool IsInspector { get; set; }
     public bool IsDefaultInspector { get; set; }
     public EmployeeAddressUpdateViewModel PrimaryAddress { get; set; } = new();
+    public bool SendInviteEmail { get; set; } = true;
 }
 
 public sealed class EmployeeAddressViewModel

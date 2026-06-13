@@ -26,6 +26,11 @@
         </div>
     }
 
+    @if (TempData["SuperAdminUsersMessage"] is string usersMessage && !string.IsNullOrWhiteSpace(usersMessage))
+    {
+        <div class="alert alert-warning" role="alert">@usersMessage</div>
+    }
+
     <div class="detail-grid">
         <section class="detail-section detail-section-full">
             <h2>User</h2>
@@ -36,12 +41,12 @@
                     <span class="text-danger" asp-validation-for="Login"></span>
                 </div>
                 <div class="col-12 col-md-6 col-lg-4">
-                    <label class="form-label" asp-for="FirstName"></label>
+                    <label class="form-label" asp-for="FirstName">First Name</label>
                     <input class="form-control" asp-for="FirstName" />
                     <span class="text-danger" asp-validation-for="FirstName"></span>
                 </div>
                 <div class="col-12 col-md-6 col-lg-4">
-                    <label class="form-label" asp-for="LastName"></label>
+                    <label class="form-label" asp-for="LastName">Last Name</label>
                     <input class="form-control" asp-for="LastName" />
                     <span class="text-danger" asp-validation-for="LastName"></span>
                 </div>
@@ -50,15 +55,15 @@
                     <input class="form-control" asp-for="Email" autocomplete="email" />
                 </div>
                 <div class="col-12 col-md-6 col-lg-4">
-                    <label class="form-label" asp-for="PhonePrimary"></label>
+                    <label class="form-label" asp-for="PhonePrimary">Phone (Primary)</label>
                     <input class="form-control" asp-for="PhonePrimary" />
                 </div>
                 <div class="col-12 col-md-6 col-lg-4">
-                    <label class="form-label" asp-for="PhoneSecondary"></label>
+                    <label class="form-label" asp-for="PhoneSecondary">Phone (Secondary)</label>
                     <input class="form-control" asp-for="PhoneSecondary" />
                 </div>
                 <div class="col-12 col-lg-4">
-                    <label class="form-label">RenoCompany</label>
+                    <label class="form-label">Reno Company</label>
                     <input class="form-control" value="@Model.RenoCompanyName" readonly />
                 </div>
                 <div class="col-12">
@@ -109,8 +114,39 @@
     <div class="d-flex gap-2 mt-3">
         <button class="btn btn-primary" type="submit">Save</button>
         <a class="btn btn-outline-secondary" asp-controller="SuperAdmin" asp-action="Users">Cancel</a>
+        @if (Model.IsEditMode)
+        {
+            <button class="btn btn-danger" type="button" data-bs-toggle="modal" data-bs-target="#deleteRenoUserModal">Delete</button>
+        }
     </div>
 </form>
+
+@if (Model.IsEditMode)
+{
+    <div class="modal fade" id="deleteRenoUserModal" tabindex="-1" aria-labelledby="deleteRenoUserModalLabel" aria-hidden="true">
+        <div class="modal-dialog modal-dialog-centered">
+            <div class="modal-content">
+                <div class="modal-header">
+                    <h2 class="modal-title fs-5" id="deleteRenoUserModalLabel">Delete Reno App User</h2>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+                </div>
+                <div class="modal-body">
+                    <p class="mb-0">If you delete a RenoApp user they will completely deleted from the system, including all their links to companies, inspections, etc. This data CANNOT BE RECOVERED. Are you sure?</p>
+                </div>
+                <div class="modal-footer">
+                    <button class="btn btn-secondary" type="button" data-bs-dismiss="modal">No</button>
+                    <form asp-controller="SuperAdmin"
+                          asp-action="DeleteUser"
+                          asp-route-id="@Model.UserID"
+                          method="post">
+                        @Html.AntiForgeryToken()
+                        <button class="btn btn-danger" type="submit">Yes</button>
+                    </form>
+                </div>
+            </div>
+        </div>
+    </div>
+}
 
 @section Scripts {
     <partial name="_ValidationScriptsPartial" />

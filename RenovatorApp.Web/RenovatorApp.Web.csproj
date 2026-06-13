@@ -1,4 +1,4 @@
-<Project Sdk="Microsoft.NET.Sdk.Web">
+﻿<Project Sdk="Microsoft.NET.Sdk.Web">
 
   <ItemGroup>
     <ProjectReference Include="..\RenovatorApp.Infrastructure\RenovatorApp.Infrastructure.csproj" />
@@ -23,6 +23,7 @@
     <TargetFramework>net10.0</TargetFramework>
     <Nullable>enable</Nullable>
     <ImplicitUsings>enable</ImplicitUsings>
+    <UserSecretsId>56cca309-485b-423a-90f1-c0362669a05c</UserSecretsId>
   </PropertyGroup>
 
 </Project>

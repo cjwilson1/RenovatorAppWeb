@@ -8,6 +8,10 @@ public static class AuthenticationSeeder
 {
     private static readonly Guid DefaultRenoCompanyID = Guid.Parse("11111111-1111-1111-1111-111111111111");
     private static readonly IReadOnlyList<string> RoleNames = ["User", "Admin", "SuperAdmin"];
+    private static readonly IReadOnlyList<(string Name, string Value)> DefaultAppSettings =
+    [
+        ("NewUserTokenExpiratinHours", "72")
+    ];
     private static readonly IReadOnlyList<string> BuildingTypeNames = ["Primary Structure", "Detached Garage", "Outbuilding"];
     private static readonly IReadOnlyList<(Guid Id, string Name, int SortOrder)> InspectionAreaCategories =
     [
@@ -39,6 +43,7 @@ public static class AuthenticationSeeder
         var company = await EnsureDefaultCompanyAsync(dbContext, cancellationToken);
         var roles = await EnsureRolesAsync(dbContext, cancellationToken);
         await EnsureDefaultUserAsync(dbContext, passwordService, company, roles, cancellationToken);
+        await EnsureDefaultAppSettingsAsync(dbContext, company.RenoCompanyID, cancellationToken);
         await EnsureLookupDataAsync(dbContext, company.RenoCompanyID, cancellationToken);
         await dbContext.SaveChangesAsync(cancellationToken);
     }
@@ -126,6 +131,29 @@ public static class AuthenticationSeeder
         }
 
         dbContext.UserRoles.Add(new UserRole { User = user, Role = role });
+    }
+
+    private static async Task EnsureDefaultAppSettingsAsync(
+        RenovatorAppDbContext dbContext,
+        Guid renoCompanyID,
+        CancellationToken cancellationToken)
+    {
+        foreach (var settingSeed in DefaultAppSettings)
+        {
+            var setting = await dbContext.AppSettings.FirstOrDefaultAsync(
+                item => item.RenoCompanyID == renoCompanyID && item.Name == settingSeed.Name,
+                cancellationToken);
+
+            if (setting is null)
+            {
+                dbContext.AppSettings.Add(new AppSetting
+                {
+                    RenoCompanyID = renoCompanyID,
+                    Name = settingSeed.Name,
+                    Value = settingSeed.Value
+                });
+            }
+        }
     }
 
     private static async Task EnsureLookupDataAsync(RenovatorAppDbContext dbContext, Guid renoCompanyID, CancellationToken cancellationToken)

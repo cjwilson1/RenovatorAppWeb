@@ -1,4 +1,5 @@
 using System.Security.Claims;
+using System.Security.Cryptography;
 using Microsoft.AspNetCore.Authentication;
 using Microsoft.AspNetCore.Authentication.Cookies;
 using Microsoft.AspNetCore.Authorization;
@@ -162,6 +163,55 @@ public sealed class AccountController : Controller
         return RedirectToAction(nameof(Login));
     }
 
+    [HttpGet]
+    public async Task<IActionResult> AcceptInvite(Guid invitationId, string? token, CancellationToken cancellationToken)
+    {
+        var invitation = await GetValidInvitationAsync(invitationId, token, cancellationToken);
+        if (invitation is null)
+        {
+            return View(new AcceptInviteViewModel
+            {
+                InvitationId = invitationId,
+                Token = token ?? string.Empty,
+                ErrorMessage = "This invitation link is invalid or has expired."
+            });
+        }
+
+        return View(new AcceptInviteViewModel
+        {
+            InvitationId = invitation.UserInvitationId,
+            Token = token ?? string.Empty,
+            Login = invitation.User.Login
+        });
+    }
+
+    [HttpPost]
+    [ValidateAntiForgeryToken]
+    public async Task<IActionResult> AcceptInvite(AcceptInviteViewModel model, CancellationToken cancellationToken)
+    {
+        if (!ModelState.IsValid)
+        {
+            return View(model);
+        }
+
+        var invitation = await GetValidInvitationAsync(model.InvitationId, model.Token, cancellationToken);
+        if (invitation is null)
+        {
+            model.ErrorMessage = "This invitation link is invalid or has expired.";
+            return View(model);
+        }
+
+        invitation.User.Password = _passwordService.HashPassword(model.Password);
+        invitation.User.Active = true;
+        invitation.User.DateModified = DateTime.UtcNow;
+        invitation.AcceptedAtUtc = DateTime.UtcNow;
+
+        await _dbContext.SaveChangesAsync(cancellationToken);
+        TempData["AccountMessage"] = "Password created. You can now log in.";
+
+        return RedirectToAction(nameof(Login));
+    }
+
     [HttpPost]
     [ValidateAntiForgeryToken]
     public async Task<IActionResult> Logout()
@@ -176,5 +226,40 @@ public sealed class AccountController : Controller
         return !string.IsNullOrWhiteSpace(returnUrl) && Url.IsLocalUrl(returnUrl)
             ? Redirect(returnUrl)
             : RedirectToAction("Index", "Home");
+    }
+
+    private async Task<UserInvitation?> GetValidInvitationAsync(
+        Guid invitationId,
+        string? token,
+        CancellationToken cancellationToken)
+    {
+        if (string.IsNullOrWhiteSpace(token))
+        {
+            return null;
+        }
+
+        var tokenHash = HashInvitationToken(token);
+        var now = DateTime.UtcNow;
+
+        return await _dbContext.UserInvitations
+            .Include(invitation => invitation.User)
+                .ThenInclude(user => user.RenoCompany)
+            .FirstOrDefaultAsync(invitation =>
+                invitation.UserInvitationId == invitationId
+                && invitation.TokenHash == tokenHash
+                && invitation.AcceptedAtUtc == null
+                && invitation.RevokedAtUtc == null
+                && invitation.ExpiresAtUtc > now
+                && invitation.User.RenoCompanyID != null
+                && invitation.User.RenoCompany != null
+                && invitation.User.RenoCompany.Active,
+                cancellationToken);
+    }
+
+    private static string HashInvitationToken(string token)
+    {
+        var tokenBytes = System.Text.Encoding.UTF8.GetBytes(token);
+        var hashBytes = SHA256.HashData(tokenBytes);
+        return Convert.ToBase64String(hashBytes);
     }
 }

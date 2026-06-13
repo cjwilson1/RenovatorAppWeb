@@ -43,6 +43,7 @@ builder.Services.AddHttpClient("Browser").ConfigurePrimaryHttpMessageHandler(() 
 {
     AutomaticDecompression = DecompressionMethods.All
 });
+builder.Services.AddHttpClient<NewEmployeeEmailService>();
 builder.Services.AddDistributedMemoryCache();
 builder.Services.AddSession(options =>
 {

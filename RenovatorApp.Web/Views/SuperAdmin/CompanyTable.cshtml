@@ -13,6 +13,9 @@
     var idColumnIndex = isInspectionTable
         ? GetColumnIndex(Model.Columns, "InspectionId")
         : -1;
+    var employeeIdColumnIndex = isCompanyEmployeeTable
+        ? GetColumnIndex(Model.Columns, "EmployeeId")
+        : -1;
     var isCompanyUsersTable = string.Equals(Model.SelectedTableName, "RenoUser", StringComparison.OrdinalIgnoreCase);
     var hiddenCompanyUserColumns = new HashSet<string>(StringComparer.OrdinalIgnoreCase)
     {
@@ -98,6 +101,15 @@
         <p class="text-muted">@Model.TotalRows row@(Model.TotalRows == 1 ? string.Empty : "s") for Company - @companyLabel</p>
     </div>
     <div class="d-flex gap-2">
+        @if (isCompanyEmployeeTable)
+        {
+            <a class="btn btn-primary"
+               asp-controller="SuperAdmin"
+               asp-action="NewCompanyEmployee"
+               asp-route-companyId="@Model.RenoCompanyID">
+                New Employee
+            </a>
+        }
         @if (isCompanyUsersTable)
         {
             <button class="btn btn-primary" type="button" data-bs-toggle="modal" data-bs-target="#newCompanyUserModal">
@@ -133,6 +145,14 @@
     <div class="alert alert-warning" role="alert">@usersMessage</div>
 }
 
+@if (TempData["SuperAdminEmployeesMessage"] is string employeesMessage && !string.IsNullOrWhiteSpace(employeesMessage))
+{
+    var employeeAlertClass = employeesMessage.Contains("failed", StringComparison.OrdinalIgnoreCase)
+        ? "alert-warning"
+        : "alert-success";
+    <div class="alert @employeeAlertClass" role="alert">@employeesMessage</div>
+}
+
 <div class="table-responsive">
     <table class="table table-striped table-hover table-sm align-middle">
         <thead>
@@ -141,13 +161,17 @@
             {
                 <th scope="col">@FormatColumnName(Model.Columns[columnIndex])</th>
             }
+            @if (isCompanyEmployeeTable)
+            {
+                <th scope="col" class="text-end">Actions</th>
+            }
         </tr>
         </thead>
         <tbody>
         @if (Model.Rows.Count == 0)
         {
             <tr>
-                <td colspan="@(Math.Max(visibleColumnIndexes.Count, 1))" class="text-muted">No rows found.</td>
+                <td colspan="@(Math.Max(visibleColumnIndexes.Count + (isCompanyEmployeeTable ? 1 : 0), 1))" class="text-muted">No rows found.</td>
             </tr>
         }
         else
@@ -163,6 +187,16 @@
                         "CompanyInspectionDetail",
                         "SuperAdmin",
                         new { companyId = Model.RenoCompanyID, inspectionId }) ?? string.Empty;
+                }
+                else if (isCompanyEmployeeTable
+                    && employeeIdColumnIndex >= 0
+                    && employeeIdColumnIndex < row.Count
+                    && Guid.TryParse(row[employeeIdColumnIndex], out var rowEmployeeId))
+                {
+                    detailUrl = Url.Action(
+                        "EditCompanyEmployee",
+                        "SuperAdmin",
+                        new { companyId = Model.RenoCompanyID, employeeId = rowEmployeeId }) ?? string.Empty;
                 }
 
                 var rowUserId = isCompanyUsersTable ? GetRowValue(row, userIdColumnIndex) : string.Empty;
@@ -182,6 +216,24 @@
                     @foreach (var columnIndex in visibleColumnIndexes)
                     {
                         <td>@FormatCellValue(Model.Columns[columnIndex], GetRowValue(row, columnIndex), isInspectionTable, Model.PropertyNames)</td>
+                    }
+                    @if (isCompanyEmployeeTable)
+                    {
+                        var employeeId = GetRowValue(row, employeeIdColumnIndex);
+                        <td class="text-end" onclick="event.stopPropagation();">
+                            @if (Guid.TryParse(employeeId, out var parsedEmployeeId))
+                            {
+                                <form asp-controller="SuperAdmin"
+                                      asp-action="DeleteCompanyEmployee"
+                                      asp-route-companyId="@Model.RenoCompanyID"
+                                      asp-route-employeeId="@parsedEmployeeId"
+                                      method="post"
+                                      onsubmit="event.stopPropagation(); return confirm('Delete this employee?');">
+                                    @Html.AntiForgeryToken()
+                                    <button class="btn btn-sm btn-outline-danger" type="submit">Delete</button>
+                                </form>
+                            }
+                        </td>
                     }
                 </tr>
             }

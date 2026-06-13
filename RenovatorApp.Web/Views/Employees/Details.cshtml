@@ -202,6 +202,31 @@
                 <dd><input asp-for="PrimaryAddress.Country" class="form-control" /></dd>
             </dl>
         </section>
+
+        <section class="detail-section">
+            <h2>Invitation</h2>
+            @if (Model.IsNew)
+            {
+                <p class="text-muted">
+                    Email employee an invitation to login. By checking this option, a new employee who does not already have an account on RenovatorApp Web will be sent an email which will allow them to link to the website and create their initial password. If you uncheck this option, a new user may not be able to login.
+                </p>
+                <div class="form-check">
+                    <input asp-for="SendInviteEmail" class="form-check-input" />
+                    <label asp-for="SendInviteEmail" class="form-check-label">Send Invite email.</label>
+                </div>
+            }
+            else
+            {
+                <p class="text-muted">Resend email login invitation to employee</p>
+                <button class="btn btn-outline-primary"
+                        type="submit"
+                        formaction="@Url.Action("SendInvite", "Employees", new { id = Model.EmployeeId })"
+                        formmethod="post"
+                        formnovalidate>
+                    Send
+                </button>
+            }
+        </section>
     </div>
 
 </form>

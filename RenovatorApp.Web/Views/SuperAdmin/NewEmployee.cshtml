@@ -1,0 +1,258 @@
+@model RenovatorApp.Web.ViewModels.SuperAdminNewEmployeeViewModel
+
+@{
+    ViewData["Title"] = Model.PageTitle;
+}
+
+<div class="page-header-row">
+    <div>
+        <h1>@Model.PageTitle</h1>
+        <p class="text-muted">Company - @Model.RenoCompanyName</p>
+    </div>
+</div>
+
+<form asp-controller="SuperAdmin"
+      asp-action="@(Model.IsEditMode ? "EditCompanyEmployee" : "NewCompanyEmployee")"
+      asp-route-companyId="@Model.RenoCompanyID"
+      asp-route-employeeId="@Model.EmployeeId"
+      method="post">
+    @Html.AntiForgeryToken()
+    <input asp-for="EmployeeId" type="hidden" />
+    <div asp-validation-summary="ModelOnly" class="text-danger mb-3"></div>
+
+    <section class="mb-4">
+        <h2 class="h5">Employee</h2>
+        <div class="row">
+            <div class="col-md-4 mb-3">
+                <label class="form-label" asp-for="Title"></label>
+                <input class="form-control" asp-for="Title" />
+                <span class="text-danger" asp-validation-for="Title"></span>
+            </div>
+            <div class="col-md-4 mb-3">
+                <label class="form-label" asp-for="GivenName"></label>
+                <input class="form-control" asp-for="GivenName" autocomplete="given-name" />
+                <span class="text-danger" asp-validation-for="GivenName"></span>
+            </div>
+            <div class="col-md-4 mb-3">
+                <label class="form-label" asp-for="MiddleName"></label>
+                <input class="form-control" asp-for="MiddleName" autocomplete="additional-name" />
+                <span class="text-danger" asp-validation-for="MiddleName"></span>
+            </div>
+        </div>
+
+        <div class="row">
+            <div class="col-md-6 mb-3">
+                <label class="form-label" asp-for="FamilyName"></label>
+                <input class="form-control" asp-for="FamilyName" autocomplete="family-name" />
+                <span class="text-danger" asp-validation-for="FamilyName"></span>
+            </div>
+            <div class="col-md-6 mb-3">
+                <label class="form-label" asp-for="PrimaryEmailAddress"></label>
+                <input class="form-control" asp-for="PrimaryEmailAddress" autocomplete="email" />
+                <span class="text-danger" asp-validation-for="PrimaryEmailAddress"></span>
+            </div>
+        </div>
+
+        <div class="row">
+            <div class="col-md-4 mb-3">
+                <label class="form-label" asp-for="PrimaryPhone"></label>
+                <input class="form-control" asp-for="PrimaryPhone" autocomplete="tel" />
+                <span class="text-danger" asp-validation-for="PrimaryPhone"></span>
+            </div>
+            <div class="col-md-4 mb-3">
+                <label class="form-label" asp-for="MobilePhone"></label>
+                <input class="form-control" asp-for="MobilePhone" autocomplete="tel" />
+                <span class="text-danger" asp-validation-for="MobilePhone"></span>
+            </div>
+            <div class="col-md-4 mb-3">
+                <label class="form-label" asp-for="EmployeeNumber"></label>
+                <input class="form-control" asp-for="EmployeeNumber" />
+                <span class="text-danger" asp-validation-for="EmployeeNumber"></span>
+            </div>
+        </div>
+
+        <div class="form-check mb-3">
+            <input class="form-check-input" asp-for="Active" />
+            <label class="form-check-label" asp-for="Active"></label>
+        </div>
+
+        <div class="mb-3">
+            <label class="form-label">Role</label>
+            <div class="d-flex flex-wrap gap-3">
+                @foreach (var role in Model.AvailableRoles)
+                {
+                    <div class="form-check">
+                        <input class="form-check-input"
+                               id="role-@role.RoleID"
+                               name="SelectedRoleID"
+                               type="radio"
+                               value="@role.RoleID"
+                               checked="@(Model.SelectedRoleID == role.RoleID)" />
+                        <label class="form-check-label" for="role-@role.RoleID">@role.Name</label>
+                    </div>
+                }
+            </div>
+            <span class="text-danger" asp-validation-for="SelectedRoleID"></span>
+        </div>
+    </section>
+
+    <section class="mb-4">
+        <h2 class="h5">Address</h2>
+        <div class="mb-3">
+            <label class="form-label" asp-for="Street1"></label>
+            <input class="form-control" asp-for="Street1" autocomplete="address-line1" />
+            <span class="text-danger" asp-validation-for="Street1"></span>
+        </div>
+        <div class="mb-3">
+            <label class="form-label" asp-for="Street2"></label>
+            <input class="form-control" asp-for="Street2" autocomplete="address-line2" />
+            <span class="text-danger" asp-validation-for="Street2"></span>
+        </div>
+        <div class="mb-3">
+            <label class="form-label" asp-for="Street3"></label>
+            <input class="form-control" asp-for="Street3" autocomplete="address-line3" />
+            <span class="text-danger" asp-validation-for="Street3"></span>
+        </div>
+        <div class="row">
+            <div class="col-md-5 mb-3">
+                <label class="form-label" asp-for="City"></label>
+                <input class="form-control" asp-for="City" autocomplete="address-level2" />
+                <span class="text-danger" asp-validation-for="City"></span>
+            </div>
+            <div class="col-md-3 mb-3">
+                <label class="form-label" asp-for="State"></label>
+                <input class="form-control" asp-for="State" autocomplete="address-level1" />
+                <span class="text-danger" asp-validation-for="State"></span>
+            </div>
+            <div class="col-md-4 mb-3">
+                <label class="form-label" asp-for="PostalCode"></label>
+                <input class="form-control" asp-for="PostalCode" autocomplete="postal-code" />
+                <span class="text-danger" asp-validation-for="PostalCode"></span>
+            </div>
+        </div>
+    </section>
+
+    <section class="mb-4">
+        <h2 class="h5">Invitation</h2>
+        @if (Model.IsEditMode)
+        {
+            <p class="text-muted mb-3">Resend email login invitation to employee</p>
+            <button class="btn btn-outline-primary mb-3"
+                    type="submit"
+                    formaction="@Url.Action("SendCompanyEmployeeInvite", "SuperAdmin", new { companyId = Model.RenoCompanyID, employeeId = Model.EmployeeId })"
+                    formmethod="post"
+                    formnovalidate>
+                Send
+            </button>
+
+            <div class="table-responsive">
+                <table class="table table-striped table-hover table-sm align-middle">
+                    <thead>
+                    <tr>
+                        <th scope="col">Sent to Email</th>
+                        <th scope="col">Created At Utc</th>
+                        <th scope="col">Expires At Utc</th>
+                        <th scope="col">Accepted At Utc</th>
+                        <th scope="col">Revoked At Utc</th>
+                        <th scope="col">Created By</th>
+                    </tr>
+                    </thead>
+                    <tbody>
+                    @if (Model.Invitations.Count == 0)
+                    {
+                        <tr>
+                            <td class="text-muted" colspan="6">No invitations found.</td>
+                        </tr>
+                    }
+                    else
+                    {
+                        @foreach (var invitation in Model.Invitations)
+                        {
+                            <tr>
+                                <td>@invitation.SentToEmail</td>
+                                <td>@FormatDate(invitation.CreatedAtUtc)</td>
+                                <td>@FormatDate(invitation.ExpiresAtUtc)</td>
+                                <td>@FormatDate(invitation.AcceptedAtUtc)</td>
+                                <td>@FormatDate(invitation.RevokedAtUtc)</td>
+                                <td>@DisplayValue(invitation.CreatedByLogin)</td>
+                            </tr>
+                        }
+                    }
+                    </tbody>
+                </table>
+            </div>
+        }
+        else
+        {
+            <p class="text-muted">
+                Email employee an invitation to login. By checking this option, a new employee who does not already have an account on RenovatorApp Web will be sent an email which will allow them to link to the website and create their initial password. If you uncheck this option, a new user may not be able to login.
+            </p>
+            <div class="form-check">
+                <input class="form-check-input" asp-for="SendInviteEmail" />
+                <label class="form-check-label" asp-for="SendInviteEmail">Send Invite email.</label>
+            </div>
+        }
+    </section>
+
+    <div class="d-flex justify-content-end gap-2">
+        <div class="d-flex gap-2">
+            <a class="btn btn-outline-secondary"
+               asp-controller="SuperAdmin"
+               asp-action="CompanyEmployees"
+               asp-route-companyId="@Model.RenoCompanyID">
+                Cancel
+            </a>
+            <button class="btn btn-primary" type="submit">Save</button>
+        </div>
+    </div>
+</form>
+
+@if (!string.IsNullOrWhiteSpace(Model.DialogTitle) && !string.IsNullOrWhiteSpace(Model.DialogMessage))
+{
+    <div class="modal fade" id="newEmployeeMessageModal" tabindex="-1" aria-labelledby="newEmployeeMessageModalLabel" aria-hidden="true">
+        <div class="modal-dialog modal-dialog-centered">
+            <div class="modal-content">
+                <div class="modal-header">
+                    <h2 class="modal-title fs-5" id="newEmployeeMessageModalLabel">@Model.DialogTitle</h2>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+                </div>
+                <div class="modal-body">
+                    @Model.DialogMessage
+                </div>
+                <div class="modal-footer">
+                    <button class="btn btn-primary" type="button" data-bs-dismiss="modal">OK</button>
+                </div>
+            </div>
+        </div>
+    </div>
+}
+
+@section Scripts {
+    <partial name="_ValidationScriptsPartial" />
+    @if (!string.IsNullOrWhiteSpace(Model.DialogTitle) && !string.IsNullOrWhiteSpace(Model.DialogMessage))
+    {
+        <script>
+            const newEmployeeMessageModal = document.getElementById('newEmployeeMessageModal');
+            if (newEmployeeMessageModal) {
+                bootstrap.Modal.getOrCreateInstance(newEmployeeMessageModal).show();
+            }
+        </script>
+    }
+}
+
+@functions {
+    private static string FormatDate(DateTime value)
+    {
+        return value.ToString("yyyy-MM-dd HH:mm:ss");
+    }
+
+    private static string FormatDate(DateTime? value)
+    {
+        return value.HasValue ? FormatDate(value.Value) : string.Empty;
+    }
+
+    private static string DisplayValue(string value)
+    {
+        return string.IsNullOrWhiteSpace(value) ? string.Empty : value;
+    }
+}

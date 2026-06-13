@@ -1,0 +1,68 @@
+@model RenovatorApp.Web.ViewModels.AcceptInviteViewModel
+
+@{
+    ViewData["Title"] = "Set Password";
+    Layout = "_AuthLayout";
+}
+
+<div class="auth-shell">
+    <div class="auth-panel">
+        <div class="auth-brand">
+            <img src="~/images/AppIconWeb.png" alt="RenovatorWeb logo" />
+            <div>
+                <h1>Set Password</h1>
+                <p>Create your RenovatorApp password</p>
+            </div>
+        </div>
+
+        @if (!string.IsNullOrWhiteSpace(Model.ErrorMessage))
+        {
+            <div class="alert alert-danger" role="alert">@Model.ErrorMessage</div>
+        }
+        else
+        {
+            <form asp-action="AcceptInvite" method="post">
+                @Html.AntiForgeryToken()
+                <input asp-for="InvitationId" type="hidden" />
+                <input asp-for="Token" type="hidden" />
+
+                <div class="mb-3">
+                    <label class="form-label" asp-for="Login"></label>
+                    <input class="form-control" asp-for="Login" autocomplete="username" readonly />
+                </div>
+                <div class="mb-3">
+                    <label class="form-label" asp-for="Password"></label>
+                    <div class="input-group">
+                        <input class="form-control password-toggle-field" asp-for="Password" autocomplete="new-password" autofocus />
+                        <button class="btn btn-outline-secondary" id="togglePasswordVisibility" type="button">Show</button>
+                    </div>
+                    <span class="text-danger d-block pt-1" asp-validation-for="Password"></span>
+                </div>
+                <div class="mb-3">
+                    <label class="form-label" asp-for="ConfirmPassword"></label>
+                    <input class="form-control password-toggle-field" asp-for="ConfirmPassword" autocomplete="new-password" />
+                    <span class="text-danger d-block pt-1" asp-validation-for="ConfirmPassword"></span>
+                </div>
+                <button class="btn btn-primary w-100" type="submit">Set Password</button>
+            </form>
+        }
+    </div>
+</div>
+
+@section Scripts {
+    <partial name="_ValidationScriptsPartial" />
+    <script>
+        const togglePasswordVisibility = document.getElementById('togglePasswordVisibility');
+        const passwordFields = document.querySelectorAll('.password-toggle-field');
+
+        togglePasswordVisibility?.addEventListener('click', () => {
+            const shouldShow = Array.from(passwordFields).some((field) => field.type === 'password');
+
+            passwordFields.forEach((field) => {
+                field.type = shouldShow ? 'text' : 'password';
+            });
+
+            togglePasswordVisibility.textContent = shouldShow ? 'Hide' : 'Show';
+        });
+    </script>
+}

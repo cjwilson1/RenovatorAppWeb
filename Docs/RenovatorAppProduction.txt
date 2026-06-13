@@ -1,0 +1,48 @@
+Keystore file: renovatorapp-release.keystore
+Key alias: renovatorapp
+Keystore password: RenoApp-Pass-Mobile-123 (exciting)
+Key password: RenoApp-Pass-Mobile-123 (exciting)
+
+
+& "C:\Program Files\Android\Android Studio\jbr\bin\keytool.exe" -genkeypair -v -keystore renovatorapp-production.keystore  -alias renovatorapp -keyalg RSA -keysize 2048 -validity 10000
+
+Enter the distinguished name. Provide a single dot (.) to leave a sub-component empty or press ENTER to use the default value in braces.
+What is your first and last name?  RenovatorApp
+Organizational unit: Mobile
+Organization: RenovatorApp
+City: your city
+State: your state
+
+
+Good. Your production keystore is now created.
+Your signing info is:
+Keystore file:
+C:\Courtney\RenovatorAPP\RenovatorMaui\renovatorapp-production.keystore
+
+Key alias:
+renovatorapp
+
+Keystore password:
+the password you entered
+
+Key password:
+same as keystore password, unless you entered a different one
+
+Next, build the signed APK.
+From Rider’s terminal, make sure you are in:
+C:\Courtney\RenovatorAPP\RenovatorMaui
+Then run:
+dotnet publish .\RenovatorMaui\RenovatorMaui.csproj -f net10.0-android -c Release   -p:AndroidPackageFormat=apk   -p:AndroidKeyStore=true   -p:AndroidSigningKeyStore="C:\Courtney\RenovatorAPP\RenovatorMaui\renovatorapp-production.keystore"   -p:AndroidSigningKeyAlias="renovatorapp"   -p:AndroidSigningKeyPass="RenoApp-Pass-Mobile-123!"   -p:AndroidSigningStorePass="RenoApp-Pass-Mobile-123!"
+
+--------------------------------------------------------
+
+For local testing, set them as environment variables or .NET user secrets. Do not put the real API key in appsettings.json or commit it.
+Recommended local setup from the repo root:
+dotnet user-secrets init --project RenovatorApp.Web
+dotnet user-secrets set "Resend:ApiKey" "re_BSS6A8uk_2PALfc9U4sCYKXcXCECwKziZ" --project RenovatorApp.Web
+dotnet user-secrets set "Resend:FromEmail" "noreply@renovatorapp.com" --project RenovatorApp.Web
+dotnet user-secrets set "Resend:FromName" "RenovatorApp Website" --project RenovatorApp.Web
+dotnet user-secrets set "App:BaseUrl" "https://localhost:5001" --project RenovatorApp.Web
+
+dotnet user-secrets set "Resend:FromEmail" "noreply@sportsnutfantasy.com" --project RenovatorApp.Web
+dotnet user-secrets set "Resend:FromName" "RenovatorApp Website" --project RenovatorApp.Web

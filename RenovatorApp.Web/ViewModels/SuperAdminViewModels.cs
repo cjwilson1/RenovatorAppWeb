@@ -59,6 +59,18 @@ public sealed class SuperAdminUsersViewModel
     public int TotalPages { get; init; } = 1;
 }
 
+public sealed class SuperAdminSettingsViewModel
+{
+    public List<SuperAdminSettingEditViewModel> Settings { get; set; } = [];
+    public string StatusMessage { get; init; } = string.Empty;
+}
+
+public sealed class SuperAdminSettingEditViewModel
+{
+    public string Name { get; set; } = string.Empty;
+    public string Value { get; set; } = string.Empty;
+}
+
 public sealed class SuperAdminUserRowViewModel
 {
     public Guid UserID { get; init; }
@@ -153,6 +165,70 @@ public sealed class SuperAdminRoleOptionViewModel
 {
     public Guid RoleID { get; init; }
     public string Name { get; init; } = string.Empty;
+}
+
+public sealed class SuperAdminNewEmployeeViewModel
+{
+    public Guid? EmployeeId { get; set; }
+    public Guid RenoCompanyID { get; set; }
+    public string RenoCompanyName { get; set; } = string.Empty;
+    public bool IsEditMode => EmployeeId.HasValue;
+    public string PageTitle => IsEditMode ? "Edit Employee" : "New Employee";
+
+    public string? Title { get; set; }
+
+    [Display(Name = "First Name")]
+    [Required]
+    public string? GivenName { get; set; }
+
+    public string? MiddleName { get; set; }
+
+    [Display(Name = "Last Name")]
+    [Required]
+    public string? FamilyName { get; set; }
+
+    [Display(Name = "Email")]
+    [Required]
+    [EmailAddress]
+    public string? PrimaryEmailAddress { get; set; }
+
+    public string? PrimaryPhone { get; set; }
+    public string? MobilePhone { get; set; }
+    public string? EmployeeNumber { get; set; }
+    public bool Active { get; set; } = true;
+
+    [Required(ErrorMessage = "Select a role.")]
+    public Guid? SelectedRoleID { get; set; }
+
+    public IReadOnlyList<SuperAdminRoleOptionViewModel> AvailableRoles { get; set; } = [];
+
+    [Display(Name = "Address")]
+    public string? Street1 { get; set; }
+
+    [Display(Name = "Apt, Suite, Unit")]
+    public string? Street2 { get; set; }
+
+    public string? Street3 { get; set; }
+    public string? City { get; set; }
+    public string? State { get; set; }
+
+    [Display(Name = "Zip")]
+    public string? PostalCode { get; set; }
+
+    public string? DialogTitle { get; set; }
+    public string? DialogMessage { get; set; }
+    public bool SendInviteEmail { get; set; } = true;
+    public IReadOnlyList<SuperAdminEmployeeInvitationViewModel> Invitations { get; set; } = [];
+}
+
+public sealed class SuperAdminEmployeeInvitationViewModel
+{
+    public string SentToEmail { get; init; } = string.Empty;
+    public DateTime CreatedAtUtc { get; init; }
+    public DateTime ExpiresAtUtc { get; init; }
+    public DateTime? AcceptedAtUtc { get; init; }
+    public DateTime? RevokedAtUtc { get; init; }
+    public string CreatedByLogin { get; init; } = string.Empty;
 }
 
 public sealed class SuperAdminAttachUserViewModel

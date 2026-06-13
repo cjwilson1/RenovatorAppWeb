@@ -33,6 +33,7 @@ public sealed class RenovatorAppDbContext : DbContext
     public DbSet<RenoCompany> RenoCompanies => Set<RenoCompany>();
     public DbSet<RenoUser> RenoUsers => Set<RenoUser>();
     public DbSet<Role> Roles => Set<Role>();
+    public DbSet<UserInvitation> UserInvitations => Set<UserInvitation>();
     public DbSet<UserRole> UserRoles => Set<UserRole>();
 
     protected override void OnModelCreating(ModelBuilder modelBuilder)
@@ -70,6 +71,7 @@ public sealed class RenovatorAppDbContext : DbContext
         modelBuilder.Entity<RenoCompany>().ToTable("RenoCompany");
         modelBuilder.Entity<RenoUser>().ToTable("RenoUser");
         modelBuilder.Entity<Role>().ToTable("Role");
+        modelBuilder.Entity<UserInvitation>().ToTable("UserInvitation");
         modelBuilder.Entity<UserRole>().ToTable("UserRole");
     }
 
@@ -99,6 +101,7 @@ public sealed class RenovatorAppDbContext : DbContext
         modelBuilder.Entity<RenoCompany>().HasKey(company => company.RenoCompanyID);
         modelBuilder.Entity<RenoUser>().HasKey(user => user.UserID);
         modelBuilder.Entity<Role>().HasKey(role => role.RoleID);
+        modelBuilder.Entity<UserInvitation>().HasKey(invitation => invitation.UserInvitationId);
         modelBuilder.Entity<UserRole>().HasKey(userRole => new { userRole.UserID, userRole.RoleID });
     }
 
@@ -281,6 +284,12 @@ public sealed class RenovatorAppDbContext : DbContext
             .WithMany(role => role.UserRoles)
             .HasForeignKey(userRole => userRole.RoleID)
             .OnDelete(DeleteBehavior.Cascade);
+
+        modelBuilder.Entity<UserInvitation>()
+            .HasOne(invitation => invitation.User)
+            .WithMany(user => user.UserInvitations)
+            .HasForeignKey(invitation => invitation.UserID)
+            .OnDelete(DeleteBehavior.Cascade);
     }
 
     private static void ConfigureIndexes(ModelBuilder modelBuilder)
@@ -325,6 +334,8 @@ public sealed class RenovatorAppDbContext : DbContext
         modelBuilder.Entity<RenoUser>().HasIndex(user => user.Login).IsUnique();
         modelBuilder.Entity<RenoUser>().HasIndex(user => user.RenoCompanyID);
         modelBuilder.Entity<Role>().HasIndex(role => role.Name).IsUnique();
+        modelBuilder.Entity<UserInvitation>().HasIndex(invitation => invitation.UserID);
+        modelBuilder.Entity<UserInvitation>().HasIndex(invitation => invitation.TokenHash).IsUnique();
     }
 
     private static void ConfigurePrecision(ModelBuilder modelBuilder)

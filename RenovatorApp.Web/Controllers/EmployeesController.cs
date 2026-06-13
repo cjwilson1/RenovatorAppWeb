@@ -1,3 +1,4 @@
+using System.Security.Cryptography;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
 using RenovatorApp.Infrastructure.Data;
@@ -10,13 +11,25 @@ namespace RenovatorApp.Web.Controllers;
 public sealed class EmployeesController : Controller
 {
     private const int PageSize = 10;
+    private static readonly Guid TemplateRenoCompanyID = Guid.Parse("11111111-1111-1111-1111-111111111111");
     private readonly RenovatorAppDbContext _dbContext;
     private readonly CurrentUserSession _currentUserSession;
+    private readonly PasswordService _passwordService;
+    private readonly NewEmployeeEmailService _newEmployeeEmailService;
+    private readonly IConfiguration _configuration;
 
-    public EmployeesController(RenovatorAppDbContext dbContext, CurrentUserSession currentUserSession)
+    public EmployeesController(
+        RenovatorAppDbContext dbContext,
+        CurrentUserSession currentUserSession,
+        PasswordService passwordService,
+        NewEmployeeEmailService newEmployeeEmailService,
+        IConfiguration configuration)
     {
         _dbContext = dbContext;
         _currentUserSession = currentUserSession;
+        _passwordService = passwordService;
+        _newEmployeeEmailService = newEmployeeEmailService;
+        _configuration = configuration;
     }
 
     public async Task<IActionResult> Index(string? search, int page = 1, CancellationToken cancellationToken = default)
@@ -127,6 +140,15 @@ public sealed class EmployeesController : Controller
     [ValidateAntiForgeryToken]
     public async Task<IActionResult> New(EmployeeDetailUpdateViewModel update, CancellationToken cancellationToken)
     {
+        if (update.SendInviteEmail && string.IsNullOrWhiteSpace(update.PrimaryEmailAddress))
+        {
+            ModelState.AddModelError(nameof(update.PrimaryEmailAddress), "Email is required to send an invitation.");
+        }
+
+        var inviteUser = update.SendInviteEmail
+            ? await BuildEmployeeInviteUserAsync(update, cancellationToken)
+            : null;
+
         if (!ModelState.IsValid)
         {
             return View("Details", ToNewDetailViewModel(update));
@@ -149,11 +171,67 @@ public sealed class EmployeesController : Controller
         ApplyUpdate(employee, update);
         TrackPrimaryAddress(employee);
 
+        await using var transaction = await _dbContext.Database.BeginTransactionAsync(cancellationToken);
         _dbContext.Employees.Add(employee);
         await _dbContext.SaveChangesAsync(cancellationToken);
-        TempData["EmployeesStatus"] = "Employee created.";
+        await transaction.CommitAsync(cancellationToken);
+
+        if (inviteUser is not null)
+        {
+            await CreateAndSendEmployeeInvitationAsync(inviteUser, Clean(update.GivenName), Clean(update.PrimaryEmailAddress), cancellationToken);
+        }
+        else
+        {
+            TempData["EmployeesStatus"] = "Employee created.";
+        }
 
         return RedirectToAction(nameof(Index));
+    }
+
+    [HttpPost("Employees/{id:guid}/SendInvite")]
+    [ValidateAntiForgeryToken]
+    public async Task<IActionResult> SendInvite(Guid id, CancellationToken cancellationToken)
+    {
+        var employee = await _dbContext.Employees
+            .AsNoTracking()
+            .FirstOrDefaultAsync(item => item.EmployeeId == id && item.RenoCompanyID == _currentUserSession.RenoCompanyID, cancellationToken);
+
+        if (employee is null)
+        {
+            return NotFound();
+        }
+
+        if (string.IsNullOrWhiteSpace(employee.PrimaryEmailAddress))
+        {
+            TempData["EmployeesStatus"] = "Invite requires an employee email address.";
+            return RedirectToAction(nameof(Details), new { id });
+        }
+
+        var update = new EmployeeDetailUpdateViewModel
+        {
+            EmployeeId = employee.EmployeeId,
+            GivenName = employee.GivenName,
+            FamilyName = employee.FamilyName,
+            PrimaryEmailAddress = employee.PrimaryEmailAddress,
+            PrimaryPhone = employee.PrimaryPhone,
+            MobilePhone = employee.MobilePhone
+        };
+
+        var inviteUser = await BuildEmployeeInviteUserAsync(update, cancellationToken);
+        if (!ModelState.IsValid || inviteUser is null)
+        {
+            TempData["EmployeesStatus"] = ModelState
+                .SelectMany(item => item.Value?.Errors ?? [])
+                .Select(error => error.ErrorMessage)
+                .FirstOrDefault(message => !string.IsNullOrWhiteSpace(message))
+                ?? "Invite could not be sent.";
+            return RedirectToAction(nameof(Details), new { id });
+        }
+
+        await _dbContext.SaveChangesAsync(cancellationToken);
+        await CreateAndSendEmployeeInvitationAsync(inviteUser, Clean(employee.GivenName), Clean(employee.PrimaryEmailAddress), cancellationToken);
+
+        return RedirectToAction(nameof(Details), new { id });
     }
 
     private static EmployeeRowViewModel ToRowViewModel(Employee employee)
@@ -205,7 +283,8 @@ public sealed class EmployeesController : Controller
             CreatedDate = employee.CreatedDate,
             LastSyncDate = employee.LastSyncDate,
             LastEditDate = employee.LastEditDate,
-            PrimaryAddress = ToAddressViewModel(employee.PrimaryAddress)
+            PrimaryAddress = ToAddressViewModel(employee.PrimaryAddress),
+            SendInviteEmail = true
         };
     }
 
@@ -233,6 +312,7 @@ public sealed class EmployeesController : Controller
             InspectorHourlyRate = update.InspectorHourlyRate,
             IsInspector = update.IsInspector,
             IsDefaultInspector = update.IsDefaultInspector,
+            SendInviteEmail = update.SendInviteEmail,
             CreatedDate = DateTime.UtcNow,
             PrimaryAddress = new EmployeeAddressViewModel
             {
@@ -268,6 +348,7 @@ public sealed class EmployeesController : Controller
         model.InspectorHourlyRate = update.InspectorHourlyRate;
         model.IsInspector = update.IsInspector;
         model.IsDefaultInspector = update.IsDefaultInspector;
+        model.SendInviteEmail = update.SendInviteEmail;
         model.PrimaryAddress = new EmployeeAddressViewModel
         {
             Street1 = update.PrimaryAddress.Street1,
@@ -391,6 +472,208 @@ public sealed class EmployeesController : Controller
             PostalCode = address.PostalCode,
             Country = address.Country
         };
+    }
+
+    private async Task<RenoUser?> BuildEmployeeInviteUserAsync(EmployeeDetailUpdateViewModel update, CancellationToken cancellationToken)
+    {
+        var normalizedEmail = Clean(update.PrimaryEmailAddress);
+        if (string.IsNullOrWhiteSpace(normalizedEmail))
+        {
+            return null;
+        }
+
+        var role = await _dbContext.Roles
+            .FirstOrDefaultAsync(item => item.Name == "User", cancellationToken);
+
+        if (role is null)
+        {
+            ModelState.AddModelError(string.Empty, "Invite failed because the User role was not found.");
+            return null;
+        }
+
+        var normalizedEmailLookup = normalizedEmail.ToLowerInvariant();
+        var user = await _dbContext.RenoUsers
+            .Include(item => item.UserRoles)
+            .FirstOrDefaultAsync(
+                item => item.Login.ToLower() == normalizedEmailLookup
+                    || item.Email.ToLower() == normalizedEmailLookup,
+                cancellationToken);
+
+        if (user?.RenoCompanyID is Guid existingCompanyId && existingCompanyId != _currentUserSession.RenoCompanyID)
+        {
+            ModelState.AddModelError(
+                nameof(update.PrimaryEmailAddress),
+                "The email address you entered is already a user in the RenovatorApp but they are connected to a different company. User's cannot belong to more that one company.");
+            return null;
+        }
+
+        var now = DateTime.UtcNow;
+        if (user is null)
+        {
+            user = new RenoUser
+            {
+                RenoCompanyID = _currentUserSession.RenoCompanyID,
+                Login = normalizedEmail,
+                Password = _passwordService.HashPassword(Guid.NewGuid().ToString("N") + Guid.NewGuid().ToString("N")),
+                FirstName = Clean(update.GivenName),
+                LastName = Clean(update.FamilyName),
+                Email = normalizedEmail,
+                PhonePrimary = Clean(update.PrimaryPhone),
+                PhoneSecondary = Clean(update.MobilePhone),
+                Active = false,
+                DateCreated = now,
+                DateModified = now
+            };
+
+            _dbContext.RenoUsers.Add(user);
+        }
+        else
+        {
+            user.RenoCompanyID = _currentUserSession.RenoCompanyID;
+            user.Login = string.IsNullOrWhiteSpace(user.Login) ? normalizedEmail : user.Login;
+            user.Email = normalizedEmail;
+            user.FirstName = string.IsNullOrWhiteSpace(user.FirstName) ? Clean(update.GivenName) : user.FirstName;
+            user.LastName = string.IsNullOrWhiteSpace(user.LastName) ? Clean(update.FamilyName) : user.LastName;
+            user.PhonePrimary = string.IsNullOrWhiteSpace(user.PhonePrimary) ? Clean(update.PrimaryPhone) : user.PhonePrimary;
+            user.PhoneSecondary = string.IsNullOrWhiteSpace(user.PhoneSecondary) ? Clean(update.MobilePhone) : user.PhoneSecondary;
+            user.DateModified = now;
+        }
+
+        if (!user.UserRoles.Any(userRole => userRole.RoleID == role.RoleID))
+        {
+            user.UserRoles.Add(new UserRole
+            {
+                UserID = user.UserID,
+                RoleID = role.RoleID
+            });
+        }
+
+        return user;
+    }
+
+    private async Task CreateAndSendEmployeeInvitationAsync(
+        RenoUser user,
+        string firstName,
+        string email,
+        CancellationToken cancellationToken)
+    {
+        var companyName = await _dbContext.RenoCompanies
+            .Where(company => company.RenoCompanyID == _currentUserSession.RenoCompanyID)
+            .Select(company => company.Name)
+            .FirstOrDefaultAsync(cancellationToken);
+
+        if (companyName is null)
+        {
+            TempData["EmployeesStatus"] = "Invite failed because the company was not found.";
+            return;
+        }
+
+        var expirationHours = await GetNewUserTokenExpirationHoursAsync(cancellationToken);
+        var now = DateTime.UtcNow;
+        var invitationToken = GenerateInvitationToken();
+        var invitation = new UserInvitation
+        {
+            UserID = user.UserID,
+            TokenHash = HashInvitationToken(invitationToken),
+            SentToEmail = Clean(email),
+            CreatedAtUtc = now,
+            ExpiresAtUtc = now.AddHours(expirationHours),
+            CreatedByUserID = _currentUserSession.UserID
+        };
+
+        await using var transaction = await _dbContext.Database.BeginTransactionAsync(cancellationToken);
+        await RevokePendingInvitationsAsync(user.UserID, now, cancellationToken);
+        _dbContext.UserInvitations.Add(invitation);
+        await _dbContext.SaveChangesAsync(cancellationToken);
+        await transaction.CommitAsync(cancellationToken);
+
+        var inviteLink = BuildInviteLink(invitation.UserInvitationId, invitationToken);
+
+        try
+        {
+            await _newEmployeeEmailService.SendWelcomeEmailAsync(
+                Clean(email),
+                Clean(firstName),
+                companyName,
+                inviteLink,
+                expirationHours,
+                cancellationToken);
+
+            TempData["EmployeesStatus"] = "Invite email sent.";
+        }
+        catch (Exception exception)
+        {
+            TempData["EmployeesStatus"] = $"Invite was created, but the welcome email failed to send: {exception.Message}";
+        }
+    }
+
+    private async Task<int> GetNewUserTokenExpirationHoursAsync(CancellationToken cancellationToken)
+    {
+        var value = await _dbContext.AppSettings
+            .AsNoTracking()
+            .Where(setting => setting.RenoCompanyID == TemplateRenoCompanyID
+                && setting.Name == "NewUserTokenExpiratinHours")
+            .Select(setting => setting.Value)
+            .FirstOrDefaultAsync(cancellationToken);
+
+        return int.TryParse(value, out var expirationHours) && expirationHours > 0
+            ? expirationHours
+            : 72;
+    }
+
+    private async Task RevokePendingInvitationsAsync(Guid userId, DateTime revokedAtUtc, CancellationToken cancellationToken)
+    {
+        var pendingInvitations = await _dbContext.UserInvitations
+            .Where(invitation => invitation.UserID == userId
+                && invitation.AcceptedAtUtc == null
+                && invitation.RevokedAtUtc == null)
+            .ToListAsync(cancellationToken);
+
+        foreach (var invitation in pendingInvitations)
+        {
+            invitation.RevokedAtUtc = revokedAtUtc;
+        }
+    }
+
+    private static string GenerateInvitationToken()
+    {
+        return Base64UrlEncode(RandomNumberGenerator.GetBytes(32));
+    }
+
+    private static string HashInvitationToken(string token)
+    {
+        var tokenBytes = System.Text.Encoding.UTF8.GetBytes(token);
+        var hashBytes = SHA256.HashData(tokenBytes);
+        return Convert.ToBase64String(hashBytes);
+    }
+
+    private static string Base64UrlEncode(byte[] bytes)
+    {
+        return Convert.ToBase64String(bytes)
+            .TrimEnd('=')
+            .Replace("+", "-", StringComparison.Ordinal)
+            .Replace("/", "_", StringComparison.Ordinal);
+    }
+
+    private string BuildInviteLink(Guid invitationId, string invitationToken)
+    {
+        var path = Url.Action(
+            "AcceptInvite",
+            "Account",
+            new { invitationId, token = invitationToken }) ?? "/Account/AcceptInvite";
+        var baseUrl = _configuration["App:BaseUrl"]?.TrimEnd('/');
+
+        if (!string.IsNullOrWhiteSpace(baseUrl))
+        {
+            return $"{baseUrl}{path}";
+        }
+
+        return Url.Action(
+            "AcceptInvite",
+            "Account",
+            new { invitationId, token = invitationToken },
+            Request.Scheme,
+            Request.Host.Value) ?? path;
     }
 
     private async Task<DateTime?> GetLastQuickBooksSyncDateUtcAsync(CancellationToken cancellationToken)

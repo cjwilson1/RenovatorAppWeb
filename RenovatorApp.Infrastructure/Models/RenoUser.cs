@@ -18,4 +18,5 @@ public sealed class RenoUser
     public RenoCompany? RenoCompany { get; set; }
     public List<UserRole> UserRoles { get; set; } = [];
     public List<CalendarEvent> CalendarEvents { get; set; } = [];
+    public List<UserInvitation> UserInvitations { get; set; } = [];
 }

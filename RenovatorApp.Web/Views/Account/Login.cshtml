@@ -20,6 +20,11 @@
             <div class="alert alert-danger" role="alert">@Model.ErrorMessage</div>
         }
 
+        @if (TempData["AccountMessage"] is string accountMessage && !string.IsNullOrWhiteSpace(accountMessage))
+        {
+            <div class="alert alert-success" role="alert">@accountMessage</div>
+        }
+
         <form asp-action="Login" method="post">
             <input type="hidden" asp-for="ReturnUrl" />
             <div class="mb-3">
