@@ -20,11 +20,16 @@ public sealed class CalendarController : Controller
 
     private readonly RenovatorAppDbContext _dbContext;
     private readonly CurrentUserSession _currentUserSession;
+    private readonly ILogger<CalendarController> _logger;
 
-    public CalendarController(RenovatorAppDbContext dbContext, CurrentUserSession currentUserSession)
+    public CalendarController(
+        RenovatorAppDbContext dbContext,
+        CurrentUserSession currentUserSession,
+        ILogger<CalendarController> logger)
     {
         _dbContext = dbContext;
         _currentUserSession = currentUserSession;
+        _logger = logger;
     }
 
     public async Task<IActionResult> Index(
@@ -88,13 +93,25 @@ public sealed class CalendarController : Controller
             endTime = startTime.Add(TimeSpan.FromHours(1));
         }
 
+        var userId = _currentUserSession.UserID;
+        var renoCompanyId = _currentUserSession.RenoCompanyID;
+        var currentUserExists = await _dbContext.RenoUsers
+            .AsNoTracking()
+            .AnyAsync(user => user.UserID == userId && user.RenoCompanyID == renoCompanyId, cancellationToken);
+
+        if (!currentUserExists)
+        {
+            TempData["CalendarError"] = "Your login session is stale. Please log out, log back in, and try again.";
+            return RedirectToCalendar(form, form.Id, showEditor: true);
+        }
+
         var now = DateTime.UtcNow;
         CalendarEvent calendarEvent;
 
         if (form.Id.HasValue)
         {
             calendarEvent = await _dbContext.CalendarEvents
-                .ForCompany(_currentUserSession.RenoCompanyID)
+                .ForCompany(renoCompanyId)
                 .FirstOrDefaultAsync(item => item.CalendarEventId == form.Id.Value, cancellationToken)
                 ?? throw new InvalidOperationException("Calendar event was not found.");
         }
@@ -103,15 +120,15 @@ public sealed class CalendarController : Controller
             calendarEvent = new CalendarEvent
             {
                 CalendarEventId = Guid.NewGuid(),
-                RenoCompanyID = _currentUserSession.RenoCompanyID,
-                RenoUserID = _currentUserSession.UserID,
+                RenoCompanyID = renoCompanyId,
+                RenoUserID = userId,
                 CreatedAtUtc = now
             };
             _dbContext.CalendarEvents.Add(calendarEvent);
         }
 
-        calendarEvent.RenoCompanyID = _currentUserSession.RenoCompanyID;
-        calendarEvent.RenoUserID = _currentUserSession.UserID;
+        calendarEvent.RenoCompanyID = renoCompanyId;
+        calendarEvent.RenoUserID = userId;
         calendarEvent.Title = Clean(form.Title);
         calendarEvent.Date = NormalizeDate(form.Date);
         calendarEvent.AllDay = form.AllDay;
@@ -123,7 +140,21 @@ public sealed class CalendarController : Controller
         calendarEvent.IsDeleted = false;
         calendarEvent.UpdatedAtUtc = now;
 
-        await _dbContext.SaveChangesAsync(cancellationToken);
+        try
+        {
+            await _dbContext.SaveChangesAsync(cancellationToken);
+        }
+        catch (DbUpdateException exception)
+        {
+            _logger.LogError(
+                exception,
+                "Calendar event save failed for user {UserID} in company {RenoCompanyID}.",
+                userId,
+                renoCompanyId);
+            TempData["CalendarError"] = $"Calendar event could not be saved: {exception.GetBaseException().Message}";
+            return RedirectToCalendar(form, form.Id, showEditor: true);
+        }
+
         TempData["CalendarStatus"] = form.Id.HasValue ? "Calendar event updated." : "Calendar event added.";
 
         return RedirectToCalendar(form);
