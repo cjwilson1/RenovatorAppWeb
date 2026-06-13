@@ -211,6 +211,7 @@ public sealed class CalendarController : Controller
 
         return await _dbContext.CalendarEvents
             .AsNoTracking()
+            .Include(calendarEvent => calendarEvent.RenoUser)
             .ForCompany(_currentUserSession.RenoCompanyID)
             .Where(calendarEvent => !calendarEvent.IsDeleted
                 && calendarEvent.Date >= visibleStart
@@ -232,6 +233,7 @@ public sealed class CalendarController : Controller
         {
             var calendarEvent = await _dbContext.CalendarEvents
                 .AsNoTracking()
+                .Include(item => item.RenoUser)
                 .ForCompany(_currentUserSession.RenoCompanyID)
                 .FirstOrDefaultAsync(item => item.CalendarEventId == editId.Value && !item.IsDeleted, cancellationToken);
 
@@ -244,6 +246,7 @@ public sealed class CalendarController : Controller
             return new CalendarEventEditViewModel
             {
                 Id = calendarEvent.CalendarEventId,
+                CreatedByName = GetUserDisplayName(calendarEvent.RenoUser),
                 Date = calendarEvent.Date.Date,
                 Title = calendarEvent.Title,
                 AllDay = calendarEvent.AllDay,
@@ -264,6 +267,7 @@ public sealed class CalendarController : Controller
 
         return new CalendarEventEditViewModel
         {
+            CreatedByName = await GetCurrentUserDisplayNameAsync(cancellationToken),
             Date = selectedDate,
             Year = displayMonth.Year,
             Month = displayMonth.Month
@@ -296,6 +300,7 @@ public sealed class CalendarController : Controller
         return new CalendarEventRowViewModel
         {
             Id = calendarEvent.CalendarEventId,
+            CreatedByName = GetUserDisplayName(calendarEvent.RenoUser),
             Title = calendarEvent.Title,
             Date = calendarEvent.Date.Date,
             AllDay = calendarEvent.AllDay,
@@ -376,6 +381,30 @@ public sealed class CalendarController : Controller
     private static string FormatTimeInput(TimeSpan value)
     {
         return DateTime.Today.Add(value).ToString("HH:mm", CultureInfo.InvariantCulture);
+    }
+
+    private async Task<string> GetCurrentUserDisplayNameAsync(CancellationToken cancellationToken)
+    {
+        var userId = _currentUserSession.UserID;
+        var renoCompanyId = _currentUserSession.RenoCompanyID;
+        var user = await _dbContext.RenoUsers
+            .AsNoTracking()
+            .FirstOrDefaultAsync(item => item.UserID == userId && item.RenoCompanyID == renoCompanyId, cancellationToken);
+
+        return GetUserDisplayName(user);
+    }
+
+    private static string GetUserDisplayName(RenoUser? user)
+    {
+        if (user is null)
+        {
+            return "Unknown user";
+        }
+
+        var fullName = $"{user.FirstName} {user.LastName}".Trim();
+        return string.IsNullOrWhiteSpace(fullName)
+            ? user.Login
+            : fullName;
     }
 
     private static DateTime NormalizeDate(DateTime value)

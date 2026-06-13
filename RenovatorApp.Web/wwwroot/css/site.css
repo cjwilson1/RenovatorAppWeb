@@ -649,7 +649,20 @@ body > header,
 
 .calendar-day-event-title {
   font-weight: 800;
+  grid-column: 2;
   overflow-wrap: anywhere;
+}
+
+.calendar-day-event-created-by,
+.calendar-event-created-by {
+  color: #6c757d;
+  font-size: 0.82rem;
+  font-weight: 700;
+  margin-bottom: 0.25rem;
+}
+
+.calendar-day-event-created-by {
+  grid-column: 2;
 }
 
 .calendar-day-event-notes {

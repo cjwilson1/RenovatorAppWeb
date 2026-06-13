@@ -21,6 +21,7 @@ public sealed class CalendarDayViewModel
 public sealed class CalendarEventRowViewModel
 {
     public Guid Id { get; init; }
+    public string CreatedByName { get; init; } = string.Empty;
     public string Title { get; init; } = string.Empty;
     public DateTime Date { get; init; }
     public bool AllDay { get; init; }
@@ -34,6 +35,7 @@ public sealed class CalendarEventRowViewModel
 public sealed class CalendarEventEditViewModel
 {
     public Guid? Id { get; set; }
+    public string CreatedByName { get; set; } = string.Empty;
     public DateTime Date { get; set; } = DateTime.Today;
     public string Title { get; set; } = string.Empty;
     public bool AllDay { get; set; }
