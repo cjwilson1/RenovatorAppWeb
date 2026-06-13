@@ -334,6 +334,7 @@ public sealed class CalendarController : Controller
         var eventStart = eventDate.Date + (allDay ? TimeSpan.Zero : startTime);
 
         return string.Join("|", selectedOffsets
+            .Where(offset => !string.IsNullOrWhiteSpace(offset))
             .Distinct(StringComparer.OrdinalIgnoreCase)
             .Select(offset => AlertOffsetValues.TryGetValue(offset, out var value) ? value : (TimeSpan?)null)
             .Where(offset => offset.HasValue)
