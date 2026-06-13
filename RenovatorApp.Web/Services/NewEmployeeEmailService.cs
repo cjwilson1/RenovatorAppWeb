@@ -35,7 +35,7 @@ public sealed class NewEmployeeEmailService
         if (string.IsNullOrWhiteSpace(apiKey)
             || string.IsNullOrWhiteSpace(fromEmail))
         {
-            throw new InvalidOperationException("Resend email settings are not configured.");
+            throw new InvalidOperationException(BuildMissingSettingsMessage(apiKey, fromEmail));
         }
 
         var body = await BuildBodyAsync(firstName, companyName, inviteLink, expirationHours, cancellationToken);
@@ -69,6 +69,34 @@ public sealed class NewEmployeeEmailService
         }
 
         return null;
+    }
+
+    private string BuildMissingSettingsMessage(string? apiKey, string? fromEmail)
+    {
+        var missingSettings = new List<string>();
+        if (string.IsNullOrWhiteSpace(apiKey))
+        {
+            missingSettings.Add("API key");
+        }
+
+        if (string.IsNullOrWhiteSpace(fromEmail))
+        {
+            missingSettings.Add("from email");
+        }
+
+        var visibleResendSettings = _configuration.AsEnumerable()
+            .Select(setting => setting.Key)
+            .Where(key => key.StartsWith("Resend", StringComparison.OrdinalIgnoreCase)
+                || key.StartsWith("RESEND", StringComparison.OrdinalIgnoreCase))
+            .Distinct(StringComparer.OrdinalIgnoreCase)
+            .Order(StringComparer.OrdinalIgnoreCase)
+            .ToArray();
+
+        var visibleSettingsText = visibleResendSettings.Length == 0
+            ? "none"
+            : string.Join(", ", visibleResendSettings);
+
+        return $"Resend email settings are not configured. Missing: {string.Join(", ", missingSettings)}. Visible Resend setting names: {visibleSettingsText}.";
     }
 
     private async Task<string> BuildBodyAsync(
