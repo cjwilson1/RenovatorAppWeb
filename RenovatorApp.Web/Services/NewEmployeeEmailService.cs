@@ -27,9 +27,10 @@ public sealed class NewEmployeeEmailService
         int expirationHours,
         CancellationToken cancellationToken)
     {
-        var apiKey = _configuration["Resend:ApiKey"];
-        var fromEmail = _configuration["Resend:FromEmail"];
-        var fromName = _configuration["Resend:FromName"] ?? "RenovatorApp Website";
+        var apiKey = GetSetting("Resend:ApiKey", "Resend__ApiKey", "RESEND_API_KEY");
+        var fromEmail = GetSetting("Resend:FromEmail", "Resend__FromEmail", "RESEND_FROM_EMAIL");
+        var fromName = GetSetting("Resend:FromName", "Resend__FromName", "RESEND_FROM_NAME")
+            ?? "RenovatorApp Website";
 
         if (string.IsNullOrWhiteSpace(apiKey)
             || string.IsNullOrWhiteSpace(fromEmail))
@@ -54,6 +55,20 @@ public sealed class NewEmployeeEmailService
             var responseBody = await response.Content.ReadAsStringAsync(cancellationToken);
             throw new InvalidOperationException($"Resend email failed with HTTP {(int)response.StatusCode}: {responseBody}");
         }
+    }
+
+    private string? GetSetting(params string[] names)
+    {
+        foreach (var name in names)
+        {
+            var value = _configuration[name] ?? Environment.GetEnvironmentVariable(name);
+            if (!string.IsNullOrWhiteSpace(value))
+            {
+                return value.Trim().Trim('"');
+            }
+        }
+
+        return null;
     }
 
     private async Task<string> BuildBodyAsync(
