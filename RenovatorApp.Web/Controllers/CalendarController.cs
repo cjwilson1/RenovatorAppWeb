@@ -77,6 +77,24 @@ public sealed class CalendarController : Controller
     [ValidateAntiForgeryToken]
     public async Task<IActionResult> Save(CalendarEventEditViewModel form, CancellationToken cancellationToken)
     {
+        try
+        {
+            return await SaveCoreAsync(form, cancellationToken);
+        }
+        catch (OperationCanceledException)
+        {
+            throw;
+        }
+        catch (Exception exception)
+        {
+            _logger.LogError(exception, "Calendar event save failed before the event could be persisted.");
+            TempData["CalendarError"] = $"Calendar event could not be saved: {exception.GetBaseException().Message}";
+            return RedirectToCalendar(form, form.Id, showEditor: true);
+        }
+    }
+
+    private async Task<IActionResult> SaveCoreAsync(CalendarEventEditViewModel form, CancellationToken cancellationToken)
+    {
         form.Date = form.Date.Date;
 
         if (string.IsNullOrWhiteSpace(form.Title))
