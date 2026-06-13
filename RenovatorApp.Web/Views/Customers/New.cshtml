@@ -169,6 +169,13 @@
                     <dt>Country</dt>
                     <dd><input asp-for="BillAddress.Country" class="form-control" /></dd>
                 </dl>
+                <div class="form-check">
+                    <input asp-for="IncludeBillingAddressAsCustomerProperty" class="form-check-input" />
+                    <label asp-for="IncludeBillingAddressAsCustomerProperty" class="form-check-label">
+                        Include Billing Address as a customer property
+                    </label>
+                </div>
+                <span asp-validation-for="IncludeBillingAddressAsCustomerProperty" class="text-danger"></span>
             </section>
 
             <section class="detail-section">

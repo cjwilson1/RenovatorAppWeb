@@ -125,6 +125,14 @@ public sealed class CustomersController : Controller
     [ValidateAntiForgeryToken]
     public async Task<IActionResult> New(CustomerDetailUpdateViewModel update, bool embedded = false, CancellationToken cancellationToken = default)
     {
+        update.BillAddress ??= new CustomerAddressUpdateViewModel();
+        if (update.IncludeBillingAddressAsCustomerProperty && IsAddressEmpty(update.BillAddress))
+        {
+            ModelState.AddModelError(
+                nameof(update.IncludeBillingAddressAsCustomerProperty),
+                "Enter a billing address before adding it as a customer property.");
+        }
+
         if (!ModelState.IsValid)
         {
             return View(ToNewDetailViewModel(update));
@@ -143,6 +151,11 @@ public sealed class CustomersController : Controller
         ApplyUpdate(customer, update);
         EnsureCustomerDisplayName(customer);
         TrackCustomerAddresses(customer);
+
+        if (update.IncludeBillingAddressAsCustomerProperty && customer.BillAddress is not null)
+        {
+            AddBillingAddressProperty(customer);
+        }
 
         _dbContext.Customers.Add(customer);
         await _dbContext.SaveChangesAsync(cancellationToken);
@@ -909,6 +922,7 @@ public sealed class CustomersController : Controller
             BillWithParent = "No",
             CreatedDate = DateTime.UtcNow,
             BillAddress = ToAddressViewModel(update.BillAddress),
+            IncludeBillingAddressAsCustomerProperty = update.IncludeBillingAddressAsCustomerProperty,
             ShipAddress = ToAddressViewModel(update.ShipAddress),
             StateOptions = StateOptionsProvider.GetStates()
         };
@@ -1038,6 +1052,25 @@ public sealed class CustomersController : Controller
         {
             customer.ShipAddressId = customer.ShipAddress.AddressId;
         }
+    }
+
+    private void AddBillingAddressProperty(Customer customer)
+    {
+        if (customer.BillAddress is null || IsAddressEmpty(customer.BillAddress))
+        {
+            return;
+        }
+
+        var property = new Property
+        {
+            RenoCompanyID = _currentUserSession.RenoCompanyID,
+            Name = "Billing Address",
+            Address = CopyPropertyAddress(customer.BillAddress, _currentUserSession.RenoCompanyID)
+        };
+        property.Address.PropertyId = property.PropertyId;
+
+        customer.Properties.Add(property);
+        _dbContext.Properties.Add(property);
     }
 
     private void TrackAddress(Address? address)

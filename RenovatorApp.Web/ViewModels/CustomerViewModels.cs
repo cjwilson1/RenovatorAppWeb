@@ -63,6 +63,7 @@ public sealed class CustomerDetailViewModel
     public DateTime? LastSyncDate { get; init; }
     public DateTime? LastEditDate { get; init; }
     public CustomerAddressViewModel? BillAddress { get; set; }
+    public bool IncludeBillingAddressAsCustomerProperty { get; set; }
     public IReadOnlyList<CustomerPropertyViewModel> Properties { get; init; } = [];
     public bool CanAddBillingAddressProperty { get; init; }
     public IReadOnlyList<CustomerDocumentViewModel> Documents { get; init; } = [];
@@ -89,6 +90,7 @@ public sealed class CustomerDetailUpdateViewModel
     public string? Website { get; set; }
     public string? Notes { get; set; }
     public CustomerAddressUpdateViewModel BillAddress { get; set; } = new();
+    public bool IncludeBillingAddressAsCustomerProperty { get; set; }
     public CustomerAddressUpdateViewModel ShipAddress { get; set; } = new();
 }
 
