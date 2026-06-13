@@ -10,6 +10,7 @@ namespace RenovatorApp.Web.Controllers;
 
 public sealed class CalendarController : Controller
 {
+    private const string ShareCalendarEventsAcrossCompanySettingName = "Calendar:ShareEventsAcrossCompany";
     private static readonly IReadOnlyDictionary<string, TimeSpan> AlertOffsetValues = new Dictionary<string, TimeSpan>
     {
         ["0"] = TimeSpan.Zero,
@@ -52,8 +53,15 @@ public sealed class CalendarController : Controller
             selected = new DateTime(displayMonth.Year, displayMonth.Month, Math.Min(selected.Day, DateTime.DaysInMonth(displayMonth.Year, displayMonth.Month)));
         }
 
-        var events = await GetVisibleEventsAsync(displayMonth, cancellationToken);
-        var eventForm = await BuildEventFormAsync(editId, showEditor, selected, displayMonth, cancellationToken);
+        var shareCalendarEventsAcrossCompany = await GetShareCalendarEventsAcrossCompanyAsync(cancellationToken);
+        var events = await GetVisibleEventsAsync(displayMonth, shareCalendarEventsAcrossCompany, cancellationToken);
+        var eventForm = await BuildEventFormAsync(
+            editId,
+            showEditor,
+            selected,
+            displayMonth,
+            shareCalendarEventsAcrossCompany,
+            cancellationToken);
 
         return View(new CalendarIndexViewModel
         {
@@ -67,6 +75,7 @@ public sealed class CalendarController : Controller
                 .Select(ToRowViewModel)
                 .ToList(),
             EventForm = eventForm,
+            ShareCalendarEventsAcrossCompany = shareCalendarEventsAcrossCompany,
             ShowDayDialog = showDay && eventForm is null,
             StatusMessage = TempData["CalendarStatus"] as string,
             ErrorMessage = TempData["CalendarError"] as string
@@ -128,9 +137,14 @@ public sealed class CalendarController : Controller
 
         if (form.Id.HasValue)
         {
+            var shareCalendarEventsAcrossCompany = await GetShareCalendarEventsAcrossCompanyAsync(cancellationToken);
             calendarEvent = await _dbContext.CalendarEvents
                 .ForCompany(renoCompanyId)
-                .FirstOrDefaultAsync(item => item.CalendarEventId == form.Id.Value, cancellationToken)
+                .FirstOrDefaultAsync(
+                    item => item.CalendarEventId == form.Id.Value
+                        && (item.RenoUserID == userId
+                            || shareCalendarEventsAcrossCompany && !item.IsPrivate),
+                    cancellationToken)
                 ?? throw new InvalidOperationException("Calendar event was not found.");
         }
         else
@@ -182,9 +196,15 @@ public sealed class CalendarController : Controller
     [ValidateAntiForgeryToken]
     public async Task<IActionResult> Delete(Guid id, int year, int month, DateTime selectedDate, CancellationToken cancellationToken)
     {
+        var shareCalendarEventsAcrossCompany = await GetShareCalendarEventsAcrossCompanyAsync(cancellationToken);
+        var userId = _currentUserSession.UserID;
         var calendarEvent = await _dbContext.CalendarEvents
             .ForCompany(_currentUserSession.RenoCompanyID)
-            .FirstOrDefaultAsync(item => item.CalendarEventId == id, cancellationToken);
+            .FirstOrDefaultAsync(
+                item => item.CalendarEventId == id
+                    && (item.RenoUserID == userId
+                        || shareCalendarEventsAcrossCompany && !item.IsPrivate),
+                cancellationToken);
 
         if (calendarEvent is null)
         {
@@ -204,16 +224,22 @@ public sealed class CalendarController : Controller
         });
     }
 
-    private async Task<IReadOnlyList<CalendarEvent>> GetVisibleEventsAsync(DateTime displayMonth, CancellationToken cancellationToken)
+    private async Task<IReadOnlyList<CalendarEvent>> GetVisibleEventsAsync(
+        DateTime displayMonth,
+        bool shareCalendarEventsAcrossCompany,
+        CancellationToken cancellationToken)
     {
         var visibleStart = NormalizeDate(displayMonth.AddDays(-(int)displayMonth.DayOfWeek));
         var visibleEnd = NormalizeDate(visibleStart.AddDays(42));
+        var userId = _currentUserSession.UserID;
 
         return await _dbContext.CalendarEvents
             .AsNoTracking()
             .Include(calendarEvent => calendarEvent.RenoUser)
             .ForCompany(_currentUserSession.RenoCompanyID)
             .Where(calendarEvent => !calendarEvent.IsDeleted
+                && (calendarEvent.RenoUserID == userId
+                    || shareCalendarEventsAcrossCompany && !calendarEvent.IsPrivate)
                 && calendarEvent.Date >= visibleStart
                 && calendarEvent.Date < visibleEnd)
             .OrderBy(calendarEvent => calendarEvent.Date)
@@ -227,6 +253,7 @@ public sealed class CalendarController : Controller
         bool showEditor,
         DateTime selectedDate,
         DateTime displayMonth,
+        bool shareCalendarEventsAcrossCompany,
         CancellationToken cancellationToken)
     {
         if (editId.HasValue)
@@ -235,7 +262,12 @@ public sealed class CalendarController : Controller
                 .AsNoTracking()
                 .Include(item => item.RenoUser)
                 .ForCompany(_currentUserSession.RenoCompanyID)
-                .FirstOrDefaultAsync(item => item.CalendarEventId == editId.Value && !item.IsDeleted, cancellationToken);
+                .FirstOrDefaultAsync(
+                    item => item.CalendarEventId == editId.Value
+                        && !item.IsDeleted
+                        && (item.RenoUserID == _currentUserSession.UserID
+                            || shareCalendarEventsAcrossCompany && !item.IsPrivate),
+                    cancellationToken);
 
             if (calendarEvent is null)
             {
@@ -392,6 +424,18 @@ public sealed class CalendarController : Controller
             .FirstOrDefaultAsync(item => item.UserID == userId && item.RenoCompanyID == renoCompanyId, cancellationToken);
 
         return GetUserDisplayName(user);
+    }
+
+    private async Task<bool> GetShareCalendarEventsAcrossCompanyAsync(CancellationToken cancellationToken)
+    {
+        var value = await _dbContext.AppSettings
+            .AsNoTracking()
+            .ForCompany(_currentUserSession.RenoCompanyID)
+            .Where(setting => setting.Name == ShareCalendarEventsAcrossCompanySettingName)
+            .Select(setting => setting.Value)
+            .FirstOrDefaultAsync(cancellationToken);
+
+        return bool.TryParse(value, out var result) ? result : true;
     }
 
     private static string GetUserDisplayName(RenoUser? user)

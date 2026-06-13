@@ -7,6 +7,7 @@ public sealed class CalendarIndexViewModel
     public IReadOnlyList<CalendarDayViewModel> Days { get; init; } = [];
     public IReadOnlyList<CalendarEventRowViewModel> SelectedDayEvents { get; init; } = [];
     public CalendarEventEditViewModel? EventForm { get; init; }
+    public bool ShareCalendarEventsAcrossCompany { get; init; } = true;
     public bool ShowDayDialog { get; init; }
     public string? StatusMessage { get; init; }
     public string? ErrorMessage { get; init; }

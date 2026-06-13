@@ -34,7 +34,18 @@
                     <label class="form-label" asp-for="Password"></label>
                     <div class="input-group">
                         <input class="form-control password-toggle-field" asp-for="Password" autocomplete="new-password" autofocus />
-                        <button class="btn btn-outline-secondary" id="togglePasswordVisibility" type="button">Show</button>
+                        <button class="btn btn-outline-secondary password-toggle"
+                                id="togglePasswordVisibility"
+                                type="button"
+                                aria-label="Show password"
+                                aria-pressed="false">
+                            <svg class="password-toggle-icon password-toggle-icon-show" aria-hidden="true" focusable="false" viewBox="0 0 24 24">
+                                <path d="M12 5c5.2 0 8.7 4.5 9.8 6.1.3.5.3 1.1 0 1.6C20.7 14.5 17.2 19 12 19s-8.7-4.5-9.8-6.1a1.5 1.5 0 0 1 0-1.6C3.3 9.5 6.8 5 12 5Zm0 2c-4 0-6.8 3.4-7.9 5 1.1 1.6 3.9 5 7.9 5s6.8-3.4 7.9-5C18.8 10.4 16 7 12 7Zm0 2a3 3 0 1 1 0 6 3 3 0 0 1 0-6Z" />
+                            </svg>
+                            <svg class="password-toggle-icon password-toggle-icon-hide d-none" aria-hidden="true" focusable="false" viewBox="0 0 24 24">
+                                <path d="m4.3 3.3 16.4 16.4-1.4 1.4-3-3A10.3 10.3 0 0 1 12 19c-5.2 0-8.7-4.5-9.8-6.1a1.5 1.5 0 0 1 0-1.6 17 17 0 0 1 3.1-3.4L2.9 4.7l1.4-1.4Zm2.4 6a14.6 14.6 0 0 0-2.6 2.7c1.1 1.6 3.9 5 7.9 5 .9 0 1.8-.2 2.6-.5l-2-2a3 3 0 0 1-3.1-3.1L6.7 9.3ZM12 5c5.2 0 8.7 4.5 9.8 6.1.3.5.3 1.1 0 1.6-.4.6-1.2 1.6-2.3 2.7l-1.4-1.4c.8-.8 1.4-1.5 1.8-2-1.1-1.6-3.9-5-7.9-5-1 0-1.9.2-2.7.6L7.8 6.1C9.1 5.4 10.5 5 12 5Zm.2 4a3 3 0 0 1 2.8 2.8L12.2 9Z" />
+                            </svg>
+                        </button>
                     </div>
                     <span class="text-danger d-block pt-1" asp-validation-for="Password"></span>
                 </div>
@@ -62,7 +73,10 @@
                 field.type = shouldShow ? 'text' : 'password';
             });
 
-            togglePasswordVisibility.textContent = shouldShow ? 'Hide' : 'Show';
+            togglePasswordVisibility.setAttribute('aria-label', shouldShow ? 'Hide password' : 'Show password');
+            togglePasswordVisibility.setAttribute('aria-pressed', shouldShow.toString());
+            togglePasswordVisibility.querySelector('.password-toggle-icon-show')?.classList.toggle('d-none', shouldShow);
+            togglePasswordVisibility.querySelector('.password-toggle-icon-hide')?.classList.toggle('d-none', !shouldShow);
         });
     </script>
 }

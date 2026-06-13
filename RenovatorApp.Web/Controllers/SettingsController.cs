@@ -18,6 +18,8 @@ namespace RenovatorApp.Web.Controllers;
 [Authorize(Roles = "Admin,SuperAdmin")]
 public sealed class SettingsController : Controller
 {
+    private const string DefaultStateSettingName = "defaultstate";
+    private const string ShareCalendarEventsAcrossCompanySettingName = "Calendar:ShareEventsAcrossCompany";
     private static readonly int[] PageSizeOptions = [10, 15, 25, 50, 100];
     private static readonly JsonSerializerOptions PartsTransferJsonOptions = new()
     {
@@ -508,16 +510,20 @@ public sealed class SettingsController : Controller
 
     public async Task<IActionResult> DefaultSettings(CancellationToken cancellationToken)
     {
-        var defaultState = await _dbContext.AppSettings
+        var settings = await _dbContext.AppSettings
             .AsNoTracking()
             .ForCompany(_currentUserSession.RenoCompanyID)
-            .Where(setting => setting.Name == "defaultstate")
-            .Select(setting => setting.Value)
-            .FirstOrDefaultAsync(cancellationToken);
+            .Where(setting => setting.Name == DefaultStateSettingName
+                || setting.Name == ShareCalendarEventsAcrossCompanySettingName)
+            .ToDictionaryAsync(setting => setting.Name, setting => setting.Value, cancellationToken);
+
+        settings.TryGetValue(DefaultStateSettingName, out var defaultState);
+        settings.TryGetValue(ShareCalendarEventsAcrossCompanySettingName, out var shareCalendarEventsAcrossCompany);
 
         return View(new DefaultSettingsViewModel
         {
             DefaultState = defaultState ?? string.Empty,
+            ShareCalendarEventsAcrossCompany = ParseBooleanSetting(shareCalendarEventsAcrossCompany, defaultValue: true),
             States = StateOptionsProvider.GetStates(),
             StatusMessage = TempData["DefaultSettingsStatus"] as string ?? string.Empty
         });
@@ -535,25 +541,16 @@ public sealed class SettingsController : Controller
             return View(new DefaultSettingsViewModel
             {
                 DefaultState = selectedState,
+                ShareCalendarEventsAcrossCompany = update.ShareCalendarEventsAcrossCompany,
                 States = StateOptionsProvider.GetStates()
             });
         }
 
-        var setting = await _dbContext.AppSettings
-            .ForCompany(_currentUserSession.RenoCompanyID)
-            .FirstOrDefaultAsync(item => item.Name == "defaultstate", cancellationToken);
-
-        if (setting is null)
-        {
-            setting = new AppSetting
-            {
-                RenoCompanyID = _currentUserSession.RenoCompanyID,
-                Name = "defaultstate"
-            };
-            _dbContext.AppSettings.Add(setting);
-        }
-
-        setting.Value = selectedState;
+        await UpsertAppSettingAsync(DefaultStateSettingName, selectedState, cancellationToken);
+        await UpsertAppSettingAsync(
+            ShareCalendarEventsAcrossCompanySettingName,
+            update.ShareCalendarEventsAcrossCompany.ToString(CultureInfo.InvariantCulture),
+            cancellationToken);
         await _dbContext.SaveChangesAsync(cancellationToken);
 
         TempData["DefaultSettingsStatus"] = "Default settings saved.";
@@ -1391,6 +1388,30 @@ public sealed class SettingsController : Controller
     {
         return HttpContext.RequestServices
             .GetRequiredService<IConfiguration>()[$"QuickBooks:{name}"] ?? string.Empty;
+    }
+
+    private async Task UpsertAppSettingAsync(string name, string value, CancellationToken cancellationToken)
+    {
+        var setting = await _dbContext.AppSettings
+            .ForCompany(_currentUserSession.RenoCompanyID)
+            .FirstOrDefaultAsync(item => item.Name == name, cancellationToken);
+
+        if (setting is null)
+        {
+            setting = new AppSetting
+            {
+                RenoCompanyID = _currentUserSession.RenoCompanyID,
+                Name = name
+            };
+            _dbContext.AppSettings.Add(setting);
+        }
+
+        setting.Value = value;
+    }
+
+    private static bool ParseBooleanSetting(string? value, bool defaultValue)
+    {
+        return bool.TryParse(value, out var result) ? result : defaultValue;
     }
 
     private bool IsAjaxRequest()

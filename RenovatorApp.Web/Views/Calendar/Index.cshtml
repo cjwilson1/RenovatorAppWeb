@@ -126,7 +126,10 @@
                            asp-route-selectedDate="@calendarEvent.Date.ToString("yyyy-MM-dd", CultureInfo.InvariantCulture)"
                            asp-route-editId="@calendarEvent.Id">
                             <span class="calendar-day-event-time">@FormatEventTime(calendarEvent)</span>
-                            <span class="calendar-day-event-created-by">Added by @calendarEvent.CreatedByName</span>
+                            @if (Model.ShareCalendarEventsAcrossCompany)
+                            {
+                                <span class="calendar-day-event-created-by">@calendarEvent.CreatedByName</span>
+                            }
                             <span class="calendar-day-event-title">
                                 @calendarEvent.Title
                                 @if (calendarEvent.IsPrivate)
@@ -166,7 +169,10 @@
                     </div>
 
                     <div>
-                        <p class="calendar-event-created-by">Added by @Model.EventForm.CreatedByName</p>
+                        @if (Model.ShareCalendarEventsAcrossCompany)
+                        {
+                            <p class="calendar-event-created-by">@Model.EventForm.CreatedByName</p>
+                        }
                         <label class="form-label" for="event-title">Title</label>
                         <input class="form-control" id="event-title" name="Title" value="@Model.EventForm.Title" required />
                     </div>
@@ -282,7 +288,10 @@
                                     asp-route-selectedDate="@calendarEvent.Date.ToString("yyyy-MM-dd", CultureInfo.InvariantCulture)"
                                    asp-route-editId="@calendarEvent.Id">
                                     <span class="calendar-day-event-time">@FormatEventTime(calendarEvent)</span>
-                                    <span class="calendar-day-event-created-by">Added by @calendarEvent.CreatedByName</span>
+                                    @if (Model.ShareCalendarEventsAcrossCompany)
+                                    {
+                                        <span class="calendar-day-event-created-by">@calendarEvent.CreatedByName</span>
+                                    }
                                     <span class="calendar-day-event-title">@calendarEvent.Title</span>
                                     @if (!string.IsNullOrWhiteSpace(calendarEvent.Notes))
                                     {
@@ -342,7 +351,10 @@
                         </div>
 
                         <div>
-                            <p class="calendar-event-created-by">Added by @Model.EventForm.CreatedByName</p>
+                            @if (Model.ShareCalendarEventsAcrossCompany)
+                            {
+                                <p class="calendar-event-created-by">@Model.EventForm.CreatedByName</p>
+                            }
                             <label class="form-label" for="modal-event-title">Title</label>
                             <input class="form-control" id="modal-event-title" name="Title" value="@Model.EventForm.Title" required />
                         </div>
