@@ -181,6 +181,18 @@ body > header,
   background-color: #dff1ff;
 }
 
+.btn-dark-pink {
+  --bs-btn-bg: #9f1239;
+  --bs-btn-border-color: #9f1239;
+  --bs-btn-color: #fff;
+  --bs-btn-hover-bg: #881337;
+  --bs-btn-hover-border-color: #881337;
+  --bs-btn-hover-color: #fff;
+  --bs-btn-active-bg: #701a2e;
+  --bs-btn-active-border-color: #701a2e;
+  --bs-btn-active-color: #fff;
+}
+
 @media (max-width: 575.98px) and (orientation: portrait) {
   .navbar .container-fluid {
     flex-wrap: nowrap;

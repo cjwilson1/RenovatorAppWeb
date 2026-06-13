@@ -12,6 +12,11 @@
     <a class="btn btn-outline-secondary" asp-controller="SuperAdmin" asp-action="Index">Back</a>
 </div>
 
+@if (TempData["SuperAdminCompaniesMessage"] is string companyMessage)
+{
+    <div class="alert alert-info" role="alert">@companyMessage</div>
+}
+
 <form asp-controller="SuperAdmin"
       asp-action="@(Model.IsEditMode ? "EditCompany" : "AddCompany")"
       asp-route-id="@Model.RenoCompanyID"
@@ -128,6 +133,7 @@
         @if (Model.IsEditMode && Model.RenoCompanyID is Guid deleteCompanyId)
         {
             <button class="btn btn-danger ms-3" type="button" data-bs-toggle="modal" data-bs-target="#deleteCompanyModal">Delete Company</button>
+            <button class="btn btn-dark-pink" type="button" data-bs-toggle="modal" data-bs-target="#resetCompanyModal">Reset Company</button>
         }
     </div>
 </form>
@@ -148,6 +154,26 @@
                     <button type="button" class="btn btn-outline-secondary" data-bs-dismiss="modal" autofocus>No</button>
                     <form asp-controller="SuperAdmin" asp-action="DeleteCompany" asp-route-id="@companyId" method="post">
                         <button type="submit" class="btn btn-danger">Yes</button>
+                    </form>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <div class="modal fade" id="resetCompanyModal" tabindex="-1" aria-labelledby="resetCompanyTitle" aria-hidden="true">
+        <div class="modal-dialog">
+            <div class="modal-content">
+                <div class="modal-header">
+                    <h2 class="modal-title fs-5" id="resetCompanyTitle">Reset Company</h2>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+                </div>
+                <div class="modal-body">
+                    This will erase all company data (but not delete the company). Any company specific data will be lost. Are yo sure?
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-outline-secondary" data-bs-dismiss="modal" autofocus>No</button>
+                    <form asp-controller="SuperAdmin" asp-action="ResetCompany" asp-route-id="@companyId" method="post">
+                        <button type="submit" class="btn btn-dark-pink">Yes</button>
                     </form>
                 </div>
             </div>
