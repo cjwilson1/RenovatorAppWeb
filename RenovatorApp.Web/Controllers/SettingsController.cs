@@ -551,7 +551,8 @@ public sealed class SettingsController : Controller
         var selectedState = (update.DefaultState ?? string.Empty).Trim().ToUpperInvariant();
         ValidateCompanyIconUpload(update.CompanyIconUpload);
 
-        if (!StateOptionsProvider.GetStates().Any(state => state.Abbreviation == selectedState))
+        if (!string.IsNullOrWhiteSpace(selectedState)
+            && !StateOptionsProvider.GetStates().Any(state => state.Abbreviation == selectedState))
         {
             ModelState.AddModelError(nameof(update.DefaultState), "Choose a valid state.");
         }
@@ -580,6 +581,18 @@ public sealed class SettingsController : Controller
         await _dbContext.SaveChangesAsync(cancellationToken);
 
         TempData["DefaultSettingsStatus"] = "Default settings saved.";
+        return RedirectToAction(nameof(DefaultSettings));
+    }
+
+    [HttpPost]
+    [ValidateAntiForgeryToken]
+    public async Task<IActionResult> RemoveCompanyIcon(CancellationToken cancellationToken)
+    {
+        await DeleteCompanyIconAsync();
+        await UpsertAppSettingAsync(CompanyIconUrlSettingName, string.Empty, cancellationToken);
+        await _dbContext.SaveChangesAsync(cancellationToken);
+
+        TempData["DefaultSettingsStatus"] = "Company application icon removed.";
         return RedirectToAction(nameof(DefaultSettings));
     }
 
@@ -1482,6 +1495,23 @@ public sealed class SettingsController : Controller
         }
 
         return "/" + Path.Combine(relativeDirectory, fileName).Replace('\\', '/');
+    }
+
+    private Task DeleteCompanyIconAsync()
+    {
+        var companyId = _currentUserSession.RenoCompanyID.ToString("N");
+        var absoluteDirectory = Path.Combine(_webHostEnvironment.WebRootPath, "uploads", "company-icons", companyId);
+        if (!Directory.Exists(absoluteDirectory))
+        {
+            return Task.CompletedTask;
+        }
+
+        foreach (var existingFile in Directory.EnumerateFiles(absoluteDirectory, "company-icon.*"))
+        {
+            System.IO.File.Delete(existingFile);
+        }
+
+        return Task.CompletedTask;
     }
 
     private static bool ParseBooleanSetting(string? value, bool defaultValue)

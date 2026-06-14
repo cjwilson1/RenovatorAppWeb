@@ -49,6 +49,16 @@
                      alt="Current application icon" />
                 <span class="text-muted">Shown in the main header for users in this company.</span>
             </div>
+            @if (!string.IsNullOrWhiteSpace(Model.CompanyIconUrl))
+            {
+                <button class="btn btn-outline-danger btn-sm mb-2"
+                        type="submit"
+                        asp-controller="Settings"
+                        asp-action="RemoveCompanyIcon"
+                        formnovalidate>
+                    Remove icon
+                </button>
+            }
             <input class="form-control" asp-for="CompanyIconUpload" type="file" accept=".png,.jpg,.jpeg,.gif,.webp,image/png,image/jpeg,image/gif,image/webp" style="max-width: 28rem;" />
             <span class="text-danger" asp-validation-for="CompanyIconUpload"></span>
         </div>
