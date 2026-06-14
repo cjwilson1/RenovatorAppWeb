@@ -17,7 +17,7 @@ public sealed class QuickBooksConnectionViewModel
 
 public sealed class DefaultSettingsViewModel
 {
-    public string DefaultState { get; set; } = string.Empty;
+    public string? DefaultState { get; set; }
     public bool ShareCalendarEventsAcrossCompany { get; set; } = true;
     public IFormFile? CompanyIconUpload { get; set; }
     public string CompanyIconUrl { get; init; } = string.Empty;
