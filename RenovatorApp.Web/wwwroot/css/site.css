@@ -107,6 +107,23 @@ body > header,
   width: auto;
 }
 
+.app-header-brand-text {
+  display: flex;
+  flex-direction: column;
+  line-height: 1.05;
+  min-width: 0;
+}
+
+.app-header-company-name {
+  color: #6c757d;
+  font-size: 0.72rem;
+  font-weight: 500;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  padding-top: 6px;
+}
+
 .auth-brand h1 {
   font-size: 1.35rem;
   font-weight: 700;

@@ -6,9 +6,16 @@
 @inject Microsoft.AspNetCore.Hosting.IWebHostEnvironment WebHostEnvironment
 @{
     var appIconUrl = Url.Content("~/images/AppIconWeb.png");
+    var companyName = string.Empty;
     if (User.Identity?.IsAuthenticated == true)
     {
         var renoCompanyId = CurrentUserSession.RenoCompanyID;
+        companyName = await DbContext.RenoCompanies
+            .AsNoTracking()
+            .Where(company => company.RenoCompanyID == renoCompanyId)
+            .Select(company => company.Name)
+            .FirstOrDefaultAsync() ?? string.Empty;
+
         var companyIconUrl = await DbContext.AppSettings
             .AsNoTracking()
             .Where(setting => setting.RenoCompanyID == renoCompanyId && setting.Name == "Company:IconUrl")
@@ -42,7 +49,13 @@
             <div class="container-fluid">
                 <a class="navbar-brand d-flex align-items-center gap-2 py-1" asp-area="" asp-controller="Home" asp-action="Index">
                     <img class="app-header-icon" src="@appIconUrl" alt="RenovatorWeb logo" />
-                    <span>RenovatorWeb</span>
+                    <span class="app-header-brand-text">
+                        <span>RenovatorWeb</span>
+                        @if (!string.IsNullOrWhiteSpace(companyName))
+                        {
+                            <span class="app-header-company-name">@companyName</span>
+                        }
+                    </span>
                 </a>
                 <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target=".navbar-collapse" aria-controls="navbarSupportedContent"
                         aria-expanded="false" aria-label="Toggle navigation">
