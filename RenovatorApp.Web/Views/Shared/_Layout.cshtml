@@ -3,6 +3,7 @@
 @inject RenovatorApp.Web.Services.BuildInfoService BuildInfo
 @inject RenovatorApp.Infrastructure.Data.RenovatorAppDbContext DbContext
 @inject RenovatorApp.Web.Services.CurrentUserSession CurrentUserSession
+@inject Microsoft.AspNetCore.Hosting.IWebHostEnvironment WebHostEnvironment
 @{
     var appIconUrl = Url.Content("~/images/AppIconWeb.png");
     if (User.Identity?.IsAuthenticated == true)
@@ -16,7 +17,12 @@
 
         if (!string.IsNullOrWhiteSpace(companyIconUrl))
         {
-            appIconUrl = Url.Content(companyIconUrl);
+            var relativeIconPath = companyIconUrl.TrimStart('~', '/').Replace('/', System.IO.Path.DirectorySeparatorChar);
+            var absoluteIconPath = System.IO.Path.Combine(WebHostEnvironment.WebRootPath, relativeIconPath);
+            if (System.IO.File.Exists(absoluteIconPath))
+            {
+                appIconUrl = Url.Content(companyIconUrl);
+            }
         }
     }
 }

@@ -1,7 +1,19 @@
 @model RenovatorApp.Web.ViewModels.DefaultSettingsViewModel
+@inject Microsoft.AspNetCore.Hosting.IWebHostEnvironment WebHostEnvironment
 
 @{
     ViewData["Title"] = "Default Settings";
+    var companyIconExists = false;
+    if (!string.IsNullOrWhiteSpace(Model.CompanyIconUrl))
+    {
+        var relativeIconPath = Model.CompanyIconUrl.TrimStart('~', '/').Replace('/', System.IO.Path.DirectorySeparatorChar);
+        var absoluteIconPath = System.IO.Path.Combine(WebHostEnvironment.WebRootPath, relativeIconPath);
+        companyIconExists = System.IO.File.Exists(absoluteIconPath);
+    }
+
+    var previewIconUrl = companyIconExists
+        ? Url.Content(Model.CompanyIconUrl)
+        : Url.Content("~/images/AppIconWeb.png");
 }
 
 <div class="page-header-row">
@@ -45,7 +57,7 @@
             <label class="form-label" asp-for="CompanyIconUpload">Company Application Icon</label>
             <div class="d-flex align-items-center gap-3 mb-2">
                 <img class="company-icon-preview"
-                     src="@(string.IsNullOrWhiteSpace(Model.CompanyIconUrl) ? Url.Content("~/images/AppIconWeb.png") : Url.Content(Model.CompanyIconUrl))"
+                     src="@previewIconUrl"
                      alt="Current application icon" />
                 <span class="text-muted">Shown in the main header for users in this company.</span>
             </div>

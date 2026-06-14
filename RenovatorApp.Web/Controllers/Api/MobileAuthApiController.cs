@@ -70,7 +70,8 @@ public sealed class MobileAuthApiController : ControllerBase
             user.DateCreated,
             user.DateModified,
             user.DateLastLogin,
-            user.Active);
+            user.Active,
+            user.RenoCompany.Name);
     }
 
     private bool IsAuthorized()
@@ -101,4 +102,5 @@ public sealed record MobileAuthLoginResponse(
     DateTime DateCreated,
     DateTime DateModified,
     DateTime? DateLastLogin,
-    bool Active);
+    bool Active,
+    string CompanyName);
