@@ -384,6 +384,58 @@ public sealed class MobileSyncDataService
             results.Add(MobileSyncResult.Updated(nameof(Inspection), item.Id));
         }
 
+        foreach (var buildingId in batch.DeletedBuildingIds.Distinct())
+        {
+            var photosDeleted = await _dbContext.InspectionAreaNotePhotos
+                .ForCompany(renoCompanyID)
+                .Where(photo => photo.BuildingId == buildingId)
+                .ExecuteDeleteAsync(cancellationToken);
+            var estimateItemsDeleted = await _dbContext.InspectionAreaNoteEstimateItems
+                .ForCompany(renoCompanyID)
+                .Where(item => item.BuildingId == buildingId)
+                .ExecuteDeleteAsync(cancellationToken);
+            var notesDeleted = await _dbContext.InspectionAreaNotes
+                .ForCompany(renoCompanyID)
+                .Where(note => note.BuildingId == buildingId)
+                .ExecuteDeleteAsync(cancellationToken);
+            var areasDeleted = await _dbContext.InspectionAreas
+                .ForCompany(renoCompanyID)
+                .Where(area => area.BuildingId == buildingId)
+                .ExecuteDeleteAsync(cancellationToken);
+            var buildingsDeleted = await _dbContext.Buildings
+                .ForCompany(renoCompanyID)
+                .Where(building => building.BuildingId == buildingId)
+                .ExecuteDeleteAsync(cancellationToken);
+
+            results.Add(buildingsDeleted > 0 || areasDeleted > 0 || notesDeleted > 0 || estimateItemsDeleted > 0 || photosDeleted > 0
+                ? MobileSyncResult.Deleted(nameof(Building), buildingId)
+                : MobileSyncResult.Unchanged(nameof(Building), buildingId));
+        }
+
+        foreach (var areaId in batch.DeletedInspectionAreaIds.Distinct())
+        {
+            var photosDeleted = await _dbContext.InspectionAreaNotePhotos
+                .ForCompany(renoCompanyID)
+                .Where(photo => photo.AreaId == areaId)
+                .ExecuteDeleteAsync(cancellationToken);
+            var estimateItemsDeleted = await _dbContext.InspectionAreaNoteEstimateItems
+                .ForCompany(renoCompanyID)
+                .Where(item => item.AreaId == areaId)
+                .ExecuteDeleteAsync(cancellationToken);
+            var notesDeleted = await _dbContext.InspectionAreaNotes
+                .ForCompany(renoCompanyID)
+                .Where(note => note.AreaId == areaId)
+                .ExecuteDeleteAsync(cancellationToken);
+            var areasDeleted = await _dbContext.InspectionAreas
+                .ForCompany(renoCompanyID)
+                .Where(area => area.InspectionAreaId == areaId)
+                .ExecuteDeleteAsync(cancellationToken);
+
+            results.Add(areasDeleted > 0 || notesDeleted > 0 || estimateItemsDeleted > 0 || photosDeleted > 0
+                ? MobileSyncResult.Deleted(nameof(InspectionArea), areaId)
+                : MobileSyncResult.Unchanged(nameof(InspectionArea), areaId));
+        }
+
         foreach (var item in batch.InspectionAreas)
         {
             var entity = await _dbContext.InspectionAreas.ForCompany(renoCompanyID).FirstOrDefaultAsync(area => area.InspectionAreaId == item.Id, cancellationToken);
@@ -772,12 +824,15 @@ public sealed record MobileSyncBatch(
     IReadOnlyList<MobileSyncInspectionAreaNotePhoto> InspectionAreaNotePhotos,
     IReadOnlyList<MobileSyncMileageTracking> MileageTracking,
     IReadOnlyList<MobileSyncMileageTrackingWaypoint> MileageTrackingWaypoints,
-    IReadOnlyList<MobileSyncCalendarEvent> CalendarEvents);
+    IReadOnlyList<MobileSyncCalendarEvent> CalendarEvents,
+    IReadOnlyList<Guid> DeletedInspectionAreaIds,
+    IReadOnlyList<Guid> DeletedBuildingIds);
 
 public sealed record MobileSyncResult(string EntityName, Guid Id, string Status, string? Message)
 {
     public static MobileSyncResult Created(string entityName, Guid id) => new(entityName, id, "created", null);
     public static MobileSyncResult Updated(string entityName, Guid id) => new(entityName, id, "updated", null);
+    public static MobileSyncResult Deleted(string entityName, Guid id) => new(entityName, id, "deleted", null);
     public static MobileSyncResult Unchanged(string entityName, Guid id) => new(entityName, id, "unchanged", null);
     public static MobileSyncResult Conflict(string entityName, Guid id, string message) => new(entityName, id, "conflict", message);
     public static MobileSyncResult Skipped(string entityName, Guid id, string message) => new(entityName, id, "skipped", message);

@@ -269,7 +269,9 @@ public sealed class SyncApiController : ControllerBase
                 item.InspectionId,
                 item.CreatedAtUtc,
                 item.UpdatedAtUtc,
-                item.IsDeleted)).ToList());
+                item.IsDeleted)).ToList(),
+            request.DeletedInspectionAreaIds ?? [],
+            request.DeletedBuildingIds ?? []);
     }
 }
 

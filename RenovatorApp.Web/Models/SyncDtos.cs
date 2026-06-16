@@ -22,7 +22,9 @@ public sealed record SyncRequest(
     IReadOnlyList<SyncInspectionAreaNotePhotoDto>? InspectionAreaNotePhotos,
     IReadOnlyList<SyncMileageTrackingDto>? MileageTracking,
     IReadOnlyList<SyncMileageTrackingWaypointDto>? MileageTrackingWaypoints,
-    IReadOnlyList<SyncCalendarEventDto>? CalendarEvents);
+    IReadOnlyList<SyncCalendarEventDto>? CalendarEvents,
+    IReadOnlyList<Guid>? DeletedInspectionAreaIds,
+    IReadOnlyList<Guid>? DeletedBuildingIds);
 
 public sealed record SyncResponse(
     DateTime SyncedAtUtc,
