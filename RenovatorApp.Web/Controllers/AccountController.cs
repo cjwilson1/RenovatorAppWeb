@@ -229,8 +229,13 @@ public sealed class AccountController : Controller
 
     private IActionResult RedirectToLocal(string? returnUrl)
     {
-        return !string.IsNullOrWhiteSpace(returnUrl) && Url.IsLocalUrl(returnUrl)
-            ? Redirect(returnUrl)
+        if (!string.IsNullOrWhiteSpace(returnUrl) && Url.IsLocalUrl(returnUrl))
+        {
+            return Redirect(returnUrl);
+        }
+
+        return User.IsInRole("SuperAdmin")
+            ? RedirectToAction("Index", "SuperAdmin")
             : RedirectToAction("Index", "Home");
     }
 
