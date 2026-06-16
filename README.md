@@ -81,3 +81,5 @@ The sync endpoint accepts graph data in dependency order: lookup tables, inspect
 ```
 
 Rows are upserted by their GUID primary keys. For entities with `UpdatedAtUtc`, the server keeps its row when it is newer than the incoming mobile row and returns a `conflict` result for that item.
+
+The response includes `serverChanges`, a current server snapshot for the company. The mobile app should upsert these rows locally and, during login or full sync, remove local rows that are no longer present in the returned snapshot. This is how web-side edits and hard deletes are synced back to the mobile app until server-side tombstone tables exist.

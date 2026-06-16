@@ -28,13 +28,48 @@ public sealed record SyncRequest(
 
 public sealed record SyncResponse(
     DateTime SyncedAtUtc,
-    IReadOnlyList<SyncEntityResult> Results);
+    IReadOnlyList<SyncEntityResult> Results,
+    SyncServerChangesDto ServerChanges);
 
 public sealed record SyncEntityResult(
     string EntityName,
     Guid Id,
     string Status,
     string? Message);
+
+public sealed record SyncServerChangesDto(
+    IReadOnlyList<SyncAppSettingDto> Settings,
+    IReadOnlyList<SyncPartSourceDto> PartSources,
+    IReadOnlyList<SyncPartDto> Parts,
+    IReadOnlyList<SyncInspectionAreaCategoryDto> InspectionAreaCategories,
+    IReadOnlyList<SyncInspectionAreaTypeDto> InspectionAreaTypes,
+    IReadOnlyList<SyncBuildingTypeDto> BuildingTypes,
+    IReadOnlyList<SyncEmployeeDto> Employees,
+    IReadOnlyList<SyncCustomerDto> Customers,
+    IReadOnlyList<SyncCustomerPropertyDto> CustomerProperties,
+    IReadOnlyList<SyncPropertyDto> Properties,
+    IReadOnlyList<SyncAddressDto> Addresses,
+    IReadOnlyList<SyncBuildingDto> Buildings,
+    IReadOnlyList<SyncInspectionDto> Inspections,
+    IReadOnlyList<SyncInspectionAreaDto> InspectionAreas,
+    IReadOnlyList<SyncInspectionAreaNoteDto> InspectionAreaNotes,
+    IReadOnlyList<SyncInspectionAreaNoteEstimateItemDto> InspectionAreaNoteEstimateItems,
+    IReadOnlyList<SyncInspectionAreaNotePhotoDto> InspectionAreaNotePhotos,
+    IReadOnlyList<SyncMileageTrackingDto> MileageTracking,
+    IReadOnlyList<SyncMileageTrackingWaypointDto> MileageTrackingWaypoints,
+    IReadOnlyList<SyncCalendarEventDto> CalendarEvents,
+    IReadOnlyList<Guid> DeletedEmployeeIds,
+    IReadOnlyList<Guid> DeletedCustomerIds,
+    IReadOnlyList<Guid> DeletedPropertyIds,
+    IReadOnlyList<Guid> DeletedAddressIds,
+    IReadOnlyList<Guid> DeletedBuildingIds,
+    IReadOnlyList<Guid> DeletedInspectionIds,
+    IReadOnlyList<Guid> DeletedInspectionAreaIds,
+    IReadOnlyList<Guid> DeletedInspectionAreaNoteIds,
+    IReadOnlyList<Guid> DeletedInspectionAreaNoteEstimateItemIds,
+    IReadOnlyList<Guid> DeletedInspectionAreaNotePhotoIds,
+    IReadOnlyList<Guid> DeletedMileageTrackingIds,
+    IReadOnlyList<Guid> DeletedMileageTrackingWaypointIds);
 
 public sealed record SyncAppSettingDto(
     Guid Id,
